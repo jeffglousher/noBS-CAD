@@ -40,7 +40,7 @@ credentials.json
 .claude/
 .agents/
 .codex/
-.cursor/
+.cursor/*
 !.cursor/environment.json
 
 # Editor local settings.
