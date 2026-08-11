@@ -200,6 +200,43 @@ async function loadModelState(
   return { update, finishedSketches, datumPlanes, bodyAppearances, drawingDocument, projectVisibility };
 }
 
+/**
+ * Apply an external project model (MCP live writeback / session poll).
+ * Reloads the active tab engine context and store from `modelJson`.
+ */
+export async function applyExternalProjectModel(modelJson: string): Promise<void> {
+  const state = useAppStore.getState();
+  if (state.mode === 'sketch' || state.activeTool) {
+    throw new Error('cannot apply external model while a sketch is active');
+  }
+  const projectState = await loadModelState(modelJson);
+  const tabId = state.activeProjectTabId;
+  if (tabId) {
+    const runtime = runtimes.get(tabId);
+    if (runtime) {
+      runtimes.set(tabId, {
+        ...runtime,
+        modelJson,
+        resident: true,
+        lastUsedAt: Date.now(),
+        viewState: projectState,
+      });
+    }
+  }
+  useAppStore
+    .getState()
+    .loadProjectState(
+      projectState.update,
+      projectState.finishedSketches,
+      projectState.datumPlanes,
+      state.projectFileName,
+      projectState.bodyAppearances,
+      projectState.drawingDocument,
+      projectState.projectVisibility,
+    );
+  useAppStore.setState({ dirty: true });
+}
+
 async function currentModelState(): Promise<ProjectTabViewState> {
   const engine = await getEngine();
   const [document, scene, finishedSketches, datumPlanes, bodyAppearances, drawingDocument, projectVisibility] =

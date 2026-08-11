@@ -26,10 +26,10 @@ GitHub → Settings → Branches → Branch protection rule for `main`:
 
 | Check | Purpose | Required? |
 |-------|---------|-----------|
-| Engine tests | `cargo test --workspace` | When green and fast enough |
-| MCP tests | build/test `mcp-server` | When green |
-| E2E smoke | small Playwright subset | Soft → then required |
-| Windows portable ZIP | existing workflow | Informative until stable/fast for all PRs |
+| `Engine / cargo-test` | `cargo test --workspace` (`.github/workflows/ci-engine.yml`) | When green and fast enough |
+| `Browser / WASM / browser-smoke` | wasm build + `smoke:wasm` + `smoke:colink` (`.github/workflows/ci-browser.yml`) | Soft → then required |
+| `MCP server / mcp-tests` | Windows OCCT + mcp-server tests | When green |
+| Windows portable ZIP | existing desktop packaging workflow | Informative until stable/fast for all PRs |
 
 ## Follow-through
 

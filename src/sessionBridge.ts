@@ -1,11 +1,16 @@
 /**
- * Read-only MCP snapshot bridge publisher (Jack §3 model 1).
+ * MCP session bridge publisher + live writeback poll.
  *
- * Writes `<NBCAD_SESSION_DIR>/<uuid>/{model.json,focus.json,heartbeat.json}`
- * via Tauri. Not a live UI co-link — MCP never writebacks these files.
+ * Desktop (Tauri): invokes native `mcp_session_bridge_*` commands.
+ * Browser/WASM: uses Vite `/__nbcad_session/*` middleware against NBCAD_SESSION_DIR.
+ *
+ * Live mode: UI publishes model/focus/heartbeat; MCP may attach with writeback and
+ * bump generation. The UI polls and applies external revisions via
+ * `applyExternalProjectModel`.
  */
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, isTauri } from '@tauri-apps/api/core';
 import { getEngine } from './engine';
+import { applyExternalProjectModel } from './files/projectTabs';
 import {
   exportProjectModelWithVisibility,
   useAppStore,
@@ -78,44 +83,163 @@ function activeSolidDialog(state: ReturnType<typeof useAppStore.getState>): stri
 
 let publishTimer: ReturnType<typeof setTimeout> | null = null;
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+let pollTimer: ReturnType<typeof setInterval> | null = null;
 let started = false;
+let applyingExternal = false;
+let lastSeenGeneration = 0;
+let knownSessionId: string | null = null;
 
 interface PublishReservation {
   session_id: string;
   generation: number;
 }
 
+function useHttpBridge(): boolean {
+  return !isTauri();
+}
+
+async function httpJson(url: string, init?: RequestInit): Promise<unknown> {
+  const response = await fetch(url, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init?.headers ?? {}),
+    },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(
+      typeof (body as { error?: string }).error === 'string'
+        ? (body as { error: string }).error
+        : `session bridge HTTP ${response.status}`,
+    );
+  }
+  return body;
+}
+
+async function reserveGeneration(): Promise<PublishReservation> {
+  if (useHttpBridge()) {
+    const result = (await httpJson('/__nbcad_session/reserve', {
+      method: 'POST',
+      body: JSON.stringify({ window: 'browser' }),
+    })) as PublishReservation;
+    return result;
+  }
+  return invoke<PublishReservation>('mcp_session_bridge_reserve');
+}
+
+async function writeSnapshot(payload: {
+  focus: string;
+  model_json: string;
+  generation: number;
+}): Promise<void> {
+  if (useHttpBridge()) {
+    await httpJson('/__nbcad_session/write', {
+      method: 'POST',
+      body: JSON.stringify({ window: 'browser', ...payload }),
+    });
+    return;
+  }
+  await invoke('mcp_session_bridge_write', {
+    payload: JSON.stringify(payload),
+  });
+}
+
+async function writeHeartbeat(): Promise<void> {
+  if (useHttpBridge()) {
+    await httpJson('/__nbcad_session/heartbeat', {
+      method: 'POST',
+      body: JSON.stringify({ window: 'browser' }),
+    });
+    return;
+  }
+  await invoke('mcp_session_bridge_heartbeat');
+}
+
+async function writerIsMcp(sessionId: string | null): Promise<boolean> {
+  if (!sessionId || !useHttpBridge()) return false;
+  try {
+    const writer = (await httpJson(`/__nbcad_session/${sessionId}/writer.json`)) as {
+      writer?: string;
+    };
+    return writer.writer === 'mcp';
+  } catch {
+    return false;
+  }
+}
+
 async function publishNow(): Promise<void> {
+  if (applyingExternal) return;
   const state = useAppStore.getState();
-  if (state.engineKind !== 'tauri') return;
+  // Browser always publishes when the HTTP bridge is available; Tauri when native.
+  if (!useHttpBridge() && state.engineKind !== 'tauri') return;
+  if (state.mode === 'sketch' || state.activeTool) return;
+  // Respect live writer lock: do not overwrite while MCP holds the session.
+  if (await writerIsMcp(knownSessionId)) return;
   const focus = focusFromUi(state.mode, state.activeTool, activeSolidDialog(state));
   try {
-    // Reserve before export so a slower older export cannot overwrite a newer one.
-    // Tauri owns this counter across WebView reloads and scopes it per window.
-    const reservation = await invoke<PublishReservation>('mcp_session_bridge_reserve');
     const engine = await getEngine();
     const model = await exportProjectModelWithVisibility(engine);
     const modelJson = typeof model === 'string' ? model : JSON.stringify(model);
-    await invoke('mcp_session_bridge_write', {
-      payload: JSON.stringify({
-        focus,
-        model_json: modelJson,
-        generation: reservation.generation,
-      }),
+    const reservation = await reserveGeneration();
+    await writeSnapshot({
+      focus,
+      model_json: modelJson,
+      generation: reservation.generation,
     });
+    knownSessionId = reservation.session_id;
+    lastSeenGeneration = Math.max(lastSeenGeneration, reservation.generation);
   } catch (error) {
     console.debug('[sessionBridge] publish failed', error);
   }
 }
 
-/** Lightweight keep-alive — does not re-export the model or bump generation. */
 async function heartbeatNow(): Promise<void> {
   const state = useAppStore.getState();
-  if (state.engineKind !== 'tauri') return;
+  if (!useHttpBridge() && state.engineKind !== 'tauri') return;
   try {
-    await invoke('mcp_session_bridge_heartbeat');
+    await writeHeartbeat();
   } catch (error) {
     console.debug('[sessionBridge] heartbeat failed', error);
+  }
+}
+
+async function pollWriteback(): Promise<void> {
+  if (!knownSessionId || applyingExternal) return;
+  const state = useAppStore.getState();
+  if (state.mode === 'sketch' || state.activeTool || state.solidBusy || state.projectBusy) {
+    return;
+  }
+  if (!useHttpBridge()) {
+    // Desktop poll via reading session files is not exposed yet; browser path
+    // covers cloud/co-link smoke. Tauri can still publish for MCP attach.
+    return;
+  }
+  try {
+    const heartbeat = (await httpJson(
+      `/__nbcad_session/${knownSessionId}/heartbeat.json`,
+    )) as { generation?: number; source?: string };
+    const generation = Number(heartbeat.generation ?? 0);
+    if (generation <= lastSeenGeneration) return;
+    if (heartbeat.source !== 'mcp') {
+      lastSeenGeneration = generation;
+      return;
+    }
+    const model = await httpJson(`/__nbcad_session/${knownSessionId}/model.json`);
+    const modelJson = typeof model === 'string' ? model : JSON.stringify(model);
+    applyingExternal = true;
+    try {
+      await applyExternalProjectModel(modelJson);
+      lastSeenGeneration = generation;
+      if (typeof window !== 'undefined') {
+        (window as Window & { __nbcadLastMcpGeneration?: number }).__nbcadLastMcpGeneration =
+          generation;
+      }
+    } finally {
+      applyingExternal = false;
+    }
+  } catch (error) {
+    console.debug('[sessionBridge] poll failed', error);
   }
 }
 
@@ -146,4 +270,14 @@ export function startSessionBridge(): void {
   heartbeatTimer = setInterval(() => {
     void heartbeatNow();
   }, 10_000);
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(() => {
+    void pollWriteback();
+  }, 500);
+}
+
+/** Test/helper: force an immediate publish and return the session id. */
+export async function publishSessionBridgeNow(): Promise<string | null> {
+  await publishNow();
+  return knownSessionId;
 }

@@ -1,9 +1,9 @@
 ---
 type: Concept
 title: MCP harness
-description: Current local MCP behavior and proposed UI co-link milestones.
+description: Local MCP stdio automation with read-only snapshots and live UI co-link.
 status: stable
-updated: 2026-07-29
+updated: 2026-08-11
 ---
 
 # MCP harness
@@ -18,17 +18,16 @@ Proposals: [proposed architecture](../../docs/proposed-architecture.md).
 
 | Fact | Meaning |
 |------|---------|
-| Static ~100 tools, `listChanged: false` | Focus-scoped tools not shipped |
-| Independent document per MCP process | Fork of truth vs the visible UI |
-| Same Rust planner + native OCCT as desktop | Shared crates; separate instances |
+| Soft focus disclosure, `listChanged: true` | Spine + active/soft packs; hidden tools stay callable |
+| Headless document per MCP process | Goldens work without UI attach |
+| `cad_attach mode=read_only` | Snapshot load; no writeback |
+| `cad_attach mode=live` | Writer lock + `model.json` writeback; UI polls revisions |
+| Browser co-link path | Vite `/__nbcad_session/*` + `npm run smoke:colink` |
 
-Use MCP as an engine/automation probe until UI co-link exists.
+## Still proposed
 
-## Proposed next
-
-1. Focus-scoped tools + `notifications/tools/list_changed`
-2. Attach MCP to **one** active UI document (first milestone)
-3. Multi-window routing later if needed (not P0)
+1. In-process shared engine (beyond revisioned file co-link)
+2. Multi-window routing later if needed (not P0)
 
 See also the [MCP playbook](../../docs/agent-mcp.md) and
 [server documentation](../../mcp-server/README.md).

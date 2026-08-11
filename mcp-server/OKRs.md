@@ -25,7 +25,7 @@ Parent directions: [../docs/goals.md](../docs/goals.md) · As-built:
 |----|--------|--------|
 | M3.1 | `cad_list_sessions` / `cad_attach` / refresh / detach (read-only) | On branch |
 | M3.2 | UUID ids + desktop publisher + heartbeat metadata | On branch |
-| M3.3 | Revisioned MCP→UI sync | Proposed — not shipped |
+| M3.3 | Revisioned MCP→UI sync (`cad_attach mode=live` + writer lock) | Shipped — file co-link |
 
 ## M4 — Print export (branch)
 
