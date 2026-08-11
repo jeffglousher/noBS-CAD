@@ -23,6 +23,7 @@
 | [agentic/INDEX.md](agentic/INDEX.md) | Agents + maintainers | Structure changes |
 | [agentic/STEERABLE_MCP.md](agentic/STEERABLE_MCP.md) | Agents | Disclosure invariants |
 | [agentic/MAINTENANCE.md](agentic/MAINTENANCE.md) | Agents + CI | Toolchain / test commands |
+| [agentic/UI_OVERLAYS.md](agentic/UI_OVERLAYS.md) | UI agents + maintainers | Overlay or shell-layout changes |
 
 ## Manufacturing export
 
@@ -37,6 +38,7 @@
 |-----|-------|
 | [OCCT_PACKAGING.md](OCCT_PACKAGING.md) | Native OCCT |
 | [WINDOWS_PACKAGING.md](WINDOWS_PACKAGING.md) | Portable ZIP |
+| [WINDOWS_NATIVE_VIEWPORT_DEBUGGING.md](WINDOWS_NATIVE_VIEWPORT_DEBUGGING.md) | Windows Bevy/WebView2 field-debugging runbook |
 | [ICON_PROVENANCE.md](ICON_PROVENANCE.md) | Icons |
 
 > Editor-specific files (`AGENTS.md`, `.cursor/`) stay **gitignored** per project policy.

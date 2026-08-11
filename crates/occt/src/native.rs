@@ -11,6 +11,7 @@ use nbcad_solid::{
 use std::fmt::Write as _;
 
 use crate::OcctError;
+use crate::{DrawingPolylineDto, DrawingProjectionDto, DrawingProjectionRequest};
 
 #[cxx::bridge(namespace = "nbcad_occt")]
 mod ffi {
@@ -20,6 +21,11 @@ mod ffi {
         operation: u8,
         points: Vec<f64>,
         profile_offsets: Vec<u32>,
+        /// Exact planar-face source. Zero / u32::MAX means sketch profiles.
+        source_body_id: u64,
+        source_face_index: u32,
+        /// centroid xyz, oriented normal xyz, area, perimeter, wires, edges.
+        source_face_signature: Vec<f64>,
         /// Prefix offsets into profile wires. Each region starts with its outer
         /// wire followed by zero or more inner (hole) wires.
         region_offsets: Vec<u32>,
@@ -85,12 +91,23 @@ mod ffi {
         face_index_counts: Vec<u32>,
         /// Per face: valid flag then origin/u/v/normal (13 f64 values).
         face_plane_data: Vec<f64>,
+        /// Per face: valid, centroid xyz, area, perimeter, wire count, edge count.
+        face_signature_data: Vec<f64>,
         /// Prefix offsets into `edge_points`, measured in 3D points.
         edge_point_offsets: Vec<u32>,
         /// Flat xyz edge polyline coordinates.
         edge_points: Vec<f64>,
         /// Per-edge topology classification for refinement tools.
         edge_refinable: Vec<u8>,
+    }
+
+    struct FfiDrawingProjection {
+        visible_offsets: Vec<u32>,
+        visible_points: Vec<f64>,
+        hidden_offsets: Vec<u32>,
+        hidden_points: Vec<f64>,
+        section_offsets: Vec<u32>,
+        section_points: Vec<f64>,
     }
 
     unsafe extern "C++" {
@@ -113,6 +130,28 @@ mod ffi {
             body_ids: &Vec<u64>,
             thread_metadata_hex: &str,
         ) -> Result<Vec<u8>>;
+        fn drawing_projection(
+            self: &Kernel,
+            body_ids: &Vec<u64>,
+            direction_x: f64,
+            direction_y: f64,
+            direction_z: f64,
+            up_x: f64,
+            up_y: f64,
+            up_z: f64,
+            include_hidden: bool,
+            include_tangent_edges: bool,
+            deflection: f64,
+            has_section_plane: bool,
+            section_point_x: f64,
+            section_point_y: f64,
+            section_point_z: f64,
+            section_normal_x: f64,
+            section_normal_y: f64,
+            section_normal_z: f64,
+            has_section_depth: bool,
+            section_depth: f64,
+        ) -> Result<FfiDrawingProjection>;
     }
 }
 
@@ -203,6 +242,101 @@ impl OcctKernel {
             .map_err(|error| OcctError(error.to_string()))
     }
 
+    /// Generate exact OCCT hidden-line projection curves from the active
+    /// B-reps. This deliberately bypasses viewport tessellation.
+    pub fn drawing_projection(
+        &self,
+        request: &DrawingProjectionRequest,
+    ) -> Result<DrawingProjectionDto, OcctError> {
+        validate_projection_basis(request.direction, request.up)?;
+        if !request.deflection.is_finite() || request.deflection <= 0.0 {
+            return Err(OcctError(
+                "drawing projection deflection must be positive and finite".to_string(),
+            ));
+        }
+        if let Some(section) = &request.section_plane {
+            if section
+                .point
+                .iter()
+                .chain(section.normal.iter())
+                .any(|value| !value.is_finite())
+                || section
+                    .normal
+                    .iter()
+                    .map(|value| value * value)
+                    .sum::<f64>()
+                    < 1.0e-12
+            {
+                return Err(OcctError(
+                    "drawing section plane must contain a finite point and non-zero normal"
+                        .to_string(),
+                ));
+            }
+            if section
+                .depth
+                .is_some_and(|depth| !depth.is_finite() || depth <= 0.0)
+            {
+                return Err(OcctError(
+                    "drawing section depth must be a positive finite model distance".to_string(),
+                ));
+            }
+        }
+        let body_ids = request.body_ids.iter().map(|id| id.0).collect::<Vec<_>>();
+        let raw = self
+            .inner
+            .as_ref()
+            .ok_or_else(|| OcctError("OCCT kernel was released".to_string()))?
+            .drawing_projection(
+                &body_ids,
+                request.direction[0],
+                request.direction[1],
+                request.direction[2],
+                request.up[0],
+                request.up[1],
+                request.up[2],
+                request.include_hidden,
+                request.include_tangent_edges,
+                request.deflection.clamp(1.0e-4, 10.0),
+                request.section_plane.is_some(),
+                request
+                    .section_plane
+                    .as_ref()
+                    .map_or(0.0, |plane| plane.point[0]),
+                request
+                    .section_plane
+                    .as_ref()
+                    .map_or(0.0, |plane| plane.point[1]),
+                request
+                    .section_plane
+                    .as_ref()
+                    .map_or(0.0, |plane| plane.point[2]),
+                request
+                    .section_plane
+                    .as_ref()
+                    .map_or(0.0, |plane| plane.normal[0]),
+                request
+                    .section_plane
+                    .as_ref()
+                    .map_or(0.0, |plane| plane.normal[1]),
+                request
+                    .section_plane
+                    .as_ref()
+                    .map_or(1.0, |plane| plane.normal[2]),
+                request
+                    .section_plane
+                    .as_ref()
+                    .and_then(|plane| plane.depth)
+                    .is_some(),
+                request
+                    .section_plane
+                    .as_ref()
+                    .and_then(|plane| plane.depth)
+                    .unwrap_or(0.0),
+            )
+            .map_err(|error| OcctError(error.to_string()))?;
+        projection_from_ffi(raw)
+    }
+
     /// Tessellate selected (or all) live bodies with configurable deflection.
     pub fn tessellate_bodies(
         &self,
@@ -263,6 +397,102 @@ impl OcctKernel {
         nbcad_export::ExportFacade::export_3mf(&meshes, appearances, request)
             .map_err(|error| OcctError(error.to_string()))
     }
+}
+
+fn validate_projection_basis(direction: [f64; 3], up: [f64; 3]) -> Result<(), OcctError> {
+    if direction
+        .iter()
+        .chain(up.iter())
+        .any(|value| !value.is_finite())
+    {
+        return Err(OcctError(
+            "drawing projection basis contains non-finite values".to_string(),
+        ));
+    }
+    let length_sq = |value: [f64; 3]| {
+        value
+            .iter()
+            .map(|component| component * component)
+            .sum::<f64>()
+    };
+    let cross = [
+        up[1] * direction[2] - up[2] * direction[1],
+        up[2] * direction[0] - up[0] * direction[2],
+        up[0] * direction[1] - up[1] * direction[0],
+    ];
+    if length_sq(direction) < 1.0e-12
+        || length_sq(up) < 1.0e-12
+        || length_sq(cross) < length_sq(direction) * length_sq(up) * 1.0e-12
+    {
+        return Err(OcctError(
+            "drawing projection direction and up vectors are degenerate".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+fn projection_from_ffi(raw: ffi::FfiDrawingProjection) -> Result<DrawingProjectionDto, OcctError> {
+    let visible = projection_polylines(&raw.visible_offsets, &raw.visible_points)?;
+    let hidden = projection_polylines(&raw.hidden_offsets, &raw.hidden_points)?;
+    let section = projection_polylines(&raw.section_offsets, &raw.section_points)?;
+    let mut bounds = [
+        f64::INFINITY,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        f64::NEG_INFINITY,
+    ];
+    for point in visible
+        .iter()
+        .chain(hidden.iter())
+        .chain(section.iter())
+        .flat_map(|polyline| polyline.points.iter())
+    {
+        bounds[0] = bounds[0].min(point[0]);
+        bounds[1] = bounds[1].min(point[1]);
+        bounds[2] = bounds[2].max(point[0]);
+        bounds[3] = bounds[3].max(point[1]);
+    }
+    if !bounds.iter().all(|value| value.is_finite()) {
+        bounds = [0.0; 4];
+    }
+    Ok(DrawingProjectionDto {
+        visible,
+        hidden,
+        anchors: Vec::new(),
+        circles: Vec::new(),
+        section,
+        bounds,
+    })
+}
+
+fn projection_polylines(
+    offsets: &[u32],
+    points: &[f64],
+) -> Result<Vec<DrawingPolylineDto>, OcctError> {
+    if offsets.is_empty()
+        || offsets[0] != 0
+        || offsets.last().copied().unwrap_or(0) as usize * 2 != points.len()
+    {
+        return Err(OcctError(
+            "OCCT returned malformed drawing projection buffers".to_string(),
+        ));
+    }
+    let mut result = Vec::with_capacity(offsets.len().saturating_sub(1));
+    for window in offsets.windows(2) {
+        let begin = window[0] as usize;
+        let end = window[1] as usize;
+        if end < begin || end * 2 > points.len() || end - begin < 2 {
+            return Err(OcctError(
+                "OCCT returned a malformed drawing polyline".to_string(),
+            ));
+        }
+        result.push(DrawingPolylineDto {
+            points: (begin..end)
+                .map(|index| [points[index * 2], points[index * 2 + 1]])
+                .collect(),
+        });
+    }
+    Ok(result)
 }
 
 struct ProfileBuffers {
@@ -400,6 +630,9 @@ fn empty_ffi_job(feature_id: u64, kind: u8) -> ffi::FfiJob {
         operation: 0,
         points: Vec::new(),
         profile_offsets: vec![0],
+        source_body_id: 0,
+        source_face_index: u32::MAX,
+        source_face_signature: Vec::new(),
         region_offsets: vec![0],
         curve_kinds: Vec::new(),
         curve_profile_offsets: vec![0],
@@ -485,6 +718,31 @@ fn to_ffi_job(job: &KernelJobDto) -> Result<ffi::FfiJob, OcctError> {
             let mut job = empty_ffi_job(source.feature_id.0, 0);
             job.operation = operation_code(source.operation);
             set_profiles(&mut job, profile_buffers(&source.profiles));
+            if let Some(face) = &source.source_face {
+                job.source_body_id = face.body_id.0;
+                job.source_face_index = face
+                    .face_key
+                    .strip_prefix("face:")
+                    .and_then(|value| value.parse::<u32>().ok())
+                    .ok_or_else(|| {
+                        OcctError(format!(
+                            "invalid planar-face topology key '{}'",
+                            face.face_key
+                        ))
+                    })?;
+                job.source_face_signature = vec![
+                    face.signature.centroid.x,
+                    face.signature.centroid.y,
+                    face.signature.centroid.z,
+                    face.signature.normal.x,
+                    face.signature.normal.y,
+                    face.signature.normal.z,
+                    face.signature.area,
+                    face.signature.perimeter,
+                    f64::from(face.signature.wire_count),
+                    f64::from(face.signature.edge_count),
+                ];
+            }
             job.normal_x = source.normal.x;
             job.normal_y = source.normal.y;
             job.normal_z = source.normal.z;
@@ -798,6 +1056,7 @@ fn combine_operation_code(operation: CombineOperation) -> u8 {
 fn from_ffi_mesh(raw: ffi::FfiMesh) -> Result<KernelBodyDto, OcctError> {
     if raw.face_first_indices.len() != raw.face_index_counts.len()
         || raw.face_plane_data.len() != raw.face_first_indices.len() * 13
+        || raw.face_signature_data.len() != raw.face_first_indices.len() * 8
     {
         return Err(OcctError(
             "OCCT bridge returned malformed face metadata".to_string(),
@@ -810,16 +1069,31 @@ fn from_ffi_mesh(raw: ffi::FfiMesh) -> Result<KernelBodyDto, OcctError> {
         .enumerate()
         .map(|(index, (first_index, index_count))| {
             let data = &raw.face_plane_data[index * 13..(index + 1) * 13];
+            let signature = &raw.face_signature_data[index * 8..(index + 1) * 8];
             let point = |offset: usize| [data[offset], data[offset + 1], data[offset + 2]];
+            let signature_point = |offset: usize| Point3Dto {
+                x: signature[offset],
+                y: signature[offset + 1],
+                z: signature[offset + 2],
+            };
+            let plane = (data[0] != 0.0).then(|| nbcad_core::PlaneBasis {
+                origin: point(1),
+                u: point(4),
+                v: point(7),
+                normal: point(10),
+            });
             KernelFaceDto {
                 key: format!("face:{index}"),
                 first_index: *first_index,
                 index_count: *index_count,
-                plane: (data[0] != 0.0).then(|| nbcad_core::PlaneBasis {
-                    origin: point(1),
-                    u: point(4),
-                    v: point(7),
-                    normal: point(10),
+                plane,
+                signature: (signature[0] != 0.0).then(|| nbcad_solid::PlanarFaceSignatureDto {
+                    centroid: signature_point(1),
+                    normal: Point3Dto::from(plane.expect("signature requires plane").normal),
+                    area: signature[4],
+                    perimeter: signature[5],
+                    wire_count: signature[6].round().max(0.0) as u32,
+                    edge_count: signature[7].round().max(0.0) as u32,
                 }),
             }
         })
@@ -873,14 +1147,15 @@ fn from_ffi_mesh(raw: ffi::FfiMesh) -> Result<KernelBodyDto, OcctError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nbcad_core::{BodyId, FeatureId};
+    use nbcad_core::{BodyId, FaceId, FeatureId};
     use nbcad_solid::{
         HoleBottomStyle, HoleExtent, HoleStyle, HoleThreadDto, HoleThreadHand,
         HoleThreadRepresentation, HoleThreadSeries, HoleThreadStandard, KernelChamferJobDto,
         KernelCombineJobDto, KernelCurveDto, KernelExtrudeJobDto, KernelFilletJobDto,
-        KernelHoleJobDto, KernelImportStepJobDto, KernelJobDto, KernelLoftJobDto, KernelProfileDto,
-        KernelRevolveJobDto, KernelRibJobDto, KernelSweepJobDto, LoftContinuity, Point3Dto,
-        RecomputePlanDto, StepThreadMetadataDto, SweepOrientation, SweepTransition,
+        KernelHoleJobDto, KernelImportStepJobDto, KernelJobDto, KernelLoftJobDto,
+        KernelPlanarFaceSourceDto, KernelProfileDto, KernelRevolveJobDto, KernelRibJobDto,
+        KernelSweepJobDto, LoftContinuity, Point3Dto, RecomputePlanDto, StepThreadMetadataDto,
+        SweepOrientation, SweepTransition,
     };
 
     fn square(z: f64, half: f64) -> KernelProfileDto {
@@ -953,6 +1228,7 @@ mod tests {
         KernelJobDto::Extrude(KernelExtrudeJobDto {
             feature_id: FeatureId(feature_id),
             operation: ExtrudeOperation::NewBody,
+            source_face: None,
             profiles: vec![square(0.0, 10.0)],
             normal: Point3Dto {
                 x: 0.0,
@@ -1001,6 +1277,7 @@ mod tests {
             jobs: vec![KernelJobDto::Extrude(KernelExtrudeJobDto {
                 feature_id: FeatureId(2),
                 operation: ExtrudeOperation::NewBody,
+                source_face: None,
                 profiles: vec![KernelProfileDto {
                     profile_index: 0,
                     points: vec![
@@ -1112,6 +1389,85 @@ mod tests {
     }
 
     #[test]
+    fn exact_hlr_projects_a_box_to_vector_edges() {
+        let mut kernel = OcctKernel::new().unwrap();
+        kernel
+            .recompute(&RecomputePlanDto {
+                transaction_id: 1,
+                errors: Vec::new(),
+                jobs: vec![box_job(1, 1)],
+            })
+            .unwrap();
+        let projection = kernel
+            .drawing_projection(&DrawingProjectionRequest {
+                body_ids: vec![BodyId(1)],
+                direction: [0.0, 0.0, 1.0],
+                up: [0.0, 1.0, 0.0],
+                include_hidden: true,
+                include_tangent_edges: false,
+                deflection: 0.05,
+                section_plane: None,
+            })
+            .unwrap();
+        assert!(projection.visible.len() >= 4);
+        assert!((projection.bounds[0] + 10.0).abs() < 1.0e-6);
+        assert!((projection.bounds[1] + 10.0).abs() < 1.0e-6);
+        assert!((projection.bounds[2] - 10.0).abs() < 1.0e-6);
+        assert!((projection.bounds[3] - 10.0).abs() < 1.0e-6);
+    }
+
+    #[test]
+    fn exact_section_hlr_clips_the_retained_half_space_and_depth_slab() {
+        let mut kernel = OcctKernel::new().unwrap();
+        kernel
+            .recompute(&RecomputePlanDto {
+                transaction_id: 1,
+                errors: Vec::new(),
+                jobs: vec![box_job(1, 1)],
+            })
+            .unwrap();
+
+        let request = |depth| DrawingProjectionRequest {
+            body_ids: vec![BodyId(1)],
+            direction: [0.0, 0.0, 1.0],
+            up: [0.0, 1.0, 0.0],
+            include_hidden: true,
+            include_tangent_edges: false,
+            deflection: 0.05,
+            section_plane: Some(crate::DrawingSectionPlaneDto {
+                point: [0.0, 0.0, 5.0],
+                normal: [1.0, 0.0, 0.0],
+                depth,
+            }),
+        };
+
+        let full = kernel.drawing_projection(&request(None)).unwrap();
+        assert!(!full.visible.is_empty());
+        assert!(!full.section.is_empty());
+        assert!((full.bounds[0] + 10.0).abs() < 1.0e-6);
+        assert!(full.bounds[2].abs() < 1.0e-6);
+
+        let depth = kernel.drawing_projection(&request(Some(4.0))).unwrap();
+        assert!(!depth.visible.is_empty());
+        assert!(!depth.section.is_empty());
+        assert!((depth.bounds[0] + 4.0).abs() < 1.0e-6);
+        assert!(depth.bounds[2].abs() < 1.0e-6);
+
+        let error = kernel.drawing_projection(&request(Some(0.0))).unwrap_err();
+        assert!(error.to_string().contains("section depth"));
+
+        let mut invalid = request(None);
+        invalid.deflection = f64::NAN;
+        let error = kernel.drawing_projection(&invalid).unwrap_err();
+        assert!(error.to_string().contains("deflection"));
+
+        let mut invalid = request(None);
+        invalid.section_plane.as_mut().unwrap().normal = [0.0; 3];
+        let error = kernel.drawing_projection(&invalid).unwrap_err();
+        assert!(error.to_string().contains("section plane"));
+    }
+
+    #[test]
     fn occt_imports_an_exported_step_as_a_recomputable_body() {
         let mut source_kernel = OcctKernel::new().unwrap();
         let source_scene = source_kernel
@@ -1159,6 +1515,7 @@ mod tests {
                 jobs: vec![KernelJobDto::Extrude(KernelExtrudeJobDto {
                     feature_id: FeatureId(2),
                     operation: ExtrudeOperation::Join,
+                    source_face: None,
                     profiles: vec![
                         rectangle_profile(0, -10.0, 0.0, -5.0, 5.0),
                         rectangle_profile(1, 0.0, 10.0, -5.0, 5.0),
@@ -1197,6 +1554,7 @@ mod tests {
             KernelJobDto::Extrude(KernelExtrudeJobDto {
                 feature_id: FeatureId(feature_id),
                 operation: ExtrudeOperation::NewBody,
+                source_face: None,
                 profiles: vec![profile],
                 normal: Point3Dto {
                     x: 0.0,
@@ -1273,6 +1631,7 @@ mod tests {
                 jobs: vec![KernelJobDto::Extrude(KernelExtrudeJobDto {
                     feature_id: FeatureId(2),
                     operation: ExtrudeOperation::NewBody,
+                    source_face: None,
                     profiles: vec![profile],
                     normal: Point3Dto {
                         x: 0.0,
@@ -1345,6 +1704,7 @@ mod tests {
                 jobs: vec![KernelJobDto::Extrude(KernelExtrudeJobDto {
                     feature_id: FeatureId(2),
                     operation: ExtrudeOperation::NewBody,
+                    source_face: None,
                     profiles: vec![outer],
                     normal: Point3Dto {
                         x: 0.0,
@@ -1385,6 +1745,143 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn occt_exact_planar_face_extrude_preserves_inner_boundary_wires() {
+        let mut outer = square(0.0, 20.0);
+        let mut inner = square(0.0, 6.0);
+        inner.profile_index = 1;
+        outer.holes.push(inner);
+        let base_job = KernelJobDto::Extrude(KernelExtrudeJobDto {
+            feature_id: FeatureId(2),
+            operation: ExtrudeOperation::NewBody,
+            source_face: None,
+            profiles: vec![outer],
+            normal: Point3Dto {
+                x: 0.0,
+                y: 0.0,
+                z: 1.0,
+            },
+            start_offset: 0.0,
+            end_offset: 10.0,
+            taper_angle_deg: 0.0,
+            target_body_ids: Vec::new(),
+            result_body_ids: vec![BodyId(1)],
+        });
+
+        let mut kernel = OcctKernel::new().unwrap();
+        let base_scene = kernel
+            .recompute(&RecomputePlanDto {
+                transaction_id: 1,
+                errors: Vec::new(),
+                jobs: vec![base_job.clone()],
+            })
+            .unwrap();
+        let source = base_scene.bodies[0]
+            .faces
+            .iter()
+            .find(|face| {
+                face.plane
+                    .is_some_and(|basis| basis.normal[2] > 0.9 && basis.origin[2] > 9.0)
+            })
+            .expect("hollow body should expose a planar top face");
+        let basis = source.plane.unwrap();
+        let signature = source.signature.expect("planar face signature");
+        let scene = kernel
+            .recompute(&RecomputePlanDto {
+                transaction_id: 2,
+                errors: Vec::new(),
+                jobs: vec![
+                    base_job.clone(),
+                    KernelJobDto::Extrude(KernelExtrudeJobDto {
+                        feature_id: FeatureId(3),
+                        operation: ExtrudeOperation::NewBody,
+                        source_face: Some(KernelPlanarFaceSourceDto {
+                            body_id: BodyId(1),
+                            face_id: FaceId(42),
+                            // The ordinal is deliberately wrong. It is only a
+                            // diagnostic hint; the exact BRep signature must
+                            // resolve the intended face after face reordering.
+                            face_key: "face:999".to_string(),
+                            signature,
+                        }),
+                        profiles: Vec::new(),
+                        normal: basis.normal.into(),
+                        start_offset: 0.0,
+                        end_offset: 5.0,
+                        taper_angle_deg: 0.0,
+                        target_body_ids: Vec::new(),
+                        result_body_ids: vec![BodyId(2)],
+                    }),
+                ],
+            })
+            .unwrap();
+        assert!(scene.errors.is_empty(), "{:?}", scene.errors);
+        let body = scene
+            .bodies
+            .iter()
+            .find(|body| body.body_id == BodyId(2))
+            .expect("exact-face Extrude should create its reserved body");
+        assert_eq!(body.faces.len(), 10, "two annular caps plus eight walls");
+        for face in body
+            .faces
+            .iter()
+            .filter(|face| face.plane.is_some_and(|plane| plane.normal[2].abs() > 0.9))
+        {
+            let begin = face.first_index as usize;
+            let end = begin + face.index_count as usize;
+            for triangle in body.indices[begin..end].chunks_exact(3) {
+                let centroid = triangle.iter().fold([0.0f64; 2], |mut sum, index| {
+                    let offset = *index as usize * 3;
+                    sum[0] += body.positions[offset] as f64 / 3.0;
+                    sum[1] += body.positions[offset + 1] as f64 / 3.0;
+                    sum
+                });
+                assert!(
+                    centroid[0].abs() >= 5.5 || centroid[1].abs() >= 5.5,
+                    "exact-face cap filled its inner wire at {centroid:?}"
+                );
+            }
+        }
+
+        let mut changed_signature = signature;
+        changed_signature.centroid.x += 1.0;
+        let broken_reference = kernel
+            .recompute(&RecomputePlanDto {
+                transaction_id: 3,
+                errors: Vec::new(),
+                jobs: vec![
+                    base_job,
+                    KernelJobDto::Extrude(KernelExtrudeJobDto {
+                        feature_id: FeatureId(3),
+                        operation: ExtrudeOperation::NewBody,
+                        source_face: Some(KernelPlanarFaceSourceDto {
+                            body_id: BodyId(1),
+                            face_id: FaceId(42),
+                            face_key: source.key.clone(),
+                            signature: changed_signature,
+                        }),
+                        profiles: Vec::new(),
+                        normal: basis.normal.into(),
+                        start_offset: 0.0,
+                        end_offset: 5.0,
+                        taper_angle_deg: 0.0,
+                        target_body_ids: Vec::new(),
+                        result_body_ids: vec![BodyId(2)],
+                    }),
+                ],
+            })
+            .unwrap();
+        assert_eq!(broken_reference.errors.len(), 1);
+        assert_eq!(broken_reference.errors[0].feature_id, FeatureId(3));
+        assert!(
+            broken_reference.errors[0]
+                .message
+                .contains("source face changed or no longer exists"),
+            "unexpected broken-reference diagnostic: {:?}",
+            broken_reference.errors
+        );
     }
 
     #[test]
@@ -1886,6 +2383,7 @@ mod tests {
         let base = KernelJobDto::Extrude(KernelExtrudeJobDto {
             feature_id: FeatureId(2),
             operation: ExtrudeOperation::NewBody,
+            source_face: None,
             profiles: vec![KernelProfileDto {
                 profile_index: 0,
                 points: vec![

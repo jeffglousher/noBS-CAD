@@ -84,14 +84,8 @@ try {
 
   // --- 4. SKETCH > DRAW dropdown ---
   console.log('4. sketch DRAW menu');
-  // Click the small DRAW panel label (height < 30), not an icon button.
-  for (const l of await page.locator('button:has-text("DRAW")').all()) {
-    const b = await l.boundingBox();
-    if (b && b.height < 30) {
-      await l.click();
-      break;
-    }
-  }
+  // Exact naming avoids the peer Drawing workspace tab.
+  await page.getByRole('button', { name: 'DRAW', exact: true }).click();
   await page.waitForTimeout(350);
   const lineItem = page.locator('[data-ribbon-menu]').getByText('Line', { exact: true });
   check('Line item visible in open menu', await lineItem.isVisible());
@@ -131,6 +125,26 @@ try {
   const ctypes = sketch.constraints.map((c) => c.type).sort();
   check('H and V constraints created', ctypes.includes('horizontal') && ctypes.includes('vertical'), ctypes.join(','));
   await shot('05b-line-chain-glyphs');
+
+  // Switching tools must preserve semantic acquisition feedback. The native
+  // viewport needs the snap kind as well as its position so Bevy can draw an
+  // unmistakable endpoint square instead of a generic crosshair.
+  await page.click('button[title="Rectangle"]');
+  await page.mouse.move(p2.x, p2.y);
+  await page.waitForFunction(
+    () => window.__nativeViewportTransient()?.marker?.kind === 'point',
+  );
+  const endpointMarker = await page.evaluate(
+    () => window.__nativeViewportTransient().marker,
+  );
+  check(
+    'rectangle endpoint acquisition reaches Bevy as a point snap',
+    endpointMarker?.kind === 'point',
+    JSON.stringify(endpointMarker),
+  );
+  await shot('05c-rectangle-endpoint-snap');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(150);
 
   // --- 6. Drag the free endpoint (60,40): solver pins it; V translates ---
   console.log('6. drag endpoint + undo');

@@ -7,6 +7,7 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import { EngineError, unwrapEnvelope, type Engine } from './index';
+import { restoreLoadedDatumHistoryFrames } from './historyFrames';
 import type {
   AddConstraintResult,
   AddLineResult,
@@ -27,6 +28,9 @@ import type {
   DatumPlaneRequest,
   DatumPlaneUpdateDto,
   DocumentDto,
+  DrawingDocumentDto,
+  DrawingProjectionDto,
+  DrawingProjectionRequest,
   FaceSketchOrigin,
   EditDimensionRequest,
   EndSketchResult,
@@ -66,6 +70,7 @@ import type {
   PolygonRequest,
   PreviewDto,
   ProfileCatalogItemDto,
+  ProjectVisibilityDto,
   RectangleRequest,
   SketchRectangularPatternRequest,
   ScaleRequest,
@@ -131,6 +136,26 @@ export class TauriEngine implements Engine {
 
   async bodyAppearances(): Promise<BodyAppearance[]> {
     return this.call('engine_body_appearances');
+  }
+
+  async projectVisibility(): Promise<ProjectVisibilityDto> {
+    return this.call('engine_project_visibility');
+  }
+
+  async setProjectVisibility(visibility: ProjectVisibilityDto): Promise<ProjectVisibilityDto> {
+    return this.call('engine_project_set_visibility', visibility);
+  }
+
+  async drawingDocument(): Promise<DrawingDocumentDto> {
+    return this.call('engine_drawing_document');
+  }
+
+  async setDrawingDocument(document: DrawingDocumentDto): Promise<DrawingDocumentDto> {
+    return this.call('engine_drawing_set_document', document);
+  }
+
+  async drawingProjection(request: DrawingProjectionRequest): Promise<DrawingProjectionDto> {
+    return this.call('engine_drawing_projection', request);
   }
 
   async setBodyAppearance(appearance: BodyAppearance): Promise<BodyAppearance[]> {
@@ -296,12 +321,37 @@ export class TauriEngine implements Engine {
     return this.call('engine_project_export_model');
   }
 
+  private async projectSessionCall<T>(
+    command: string,
+    sessionId: string,
+  ): Promise<T> {
+    const json = await invoke<string>(command, { sessionId });
+    return unwrapEnvelope(json);
+  }
+
+  async bindProjectSession(sessionId: string): Promise<void> {
+    return this.projectSessionCall('engine_project_session_bind', sessionId);
+  }
+
+  async createProjectSession(sessionId: string): Promise<SolidUpdateDto> {
+    return this.projectSessionCall('engine_project_session_create', sessionId);
+  }
+
+  async activateProjectSession(sessionId: string): Promise<boolean> {
+    return this.projectSessionCall('engine_project_session_activate', sessionId);
+  }
+
+  async dropProjectSession(sessionId: string): Promise<void> {
+    await this.projectSessionCall('engine_project_session_drop', sessionId);
+  }
+
   async newProject(): Promise<SolidUpdateDto> {
     return this.call('engine_project_new');
   }
 
   async loadProjectModel(modelJson: string): Promise<SolidUpdateDto> {
-    return this.call('engine_project_load', modelJson);
+    const update = await this.call<SolidUpdateDto>('engine_project_load', modelJson);
+    return restoreLoadedDatumHistoryFrames(this, update);
   }
 
   async exportStep(request: StepExportRequest): Promise<Uint8Array> {

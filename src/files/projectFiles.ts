@@ -1,11 +1,13 @@
 import { getEngine } from '../engine';
 import { translate } from '../i18n';
-import { useAppStore } from '../store/appStore';
+import {
+  exportProjectModelWithVisibility,
+  useAppStore,
+} from '../store/appStore';
 import {
   chooseOpenFile,
   chooseSaveTarget,
   writeSaveTarget,
-  type SaveTarget,
   type SaveType,
 } from './fileIO';
 import {
@@ -14,6 +16,18 @@ import {
   LEGACY_PROJECT_EXTENSION,
   NBCAD_EXTENSION,
 } from './nbcad';
+import {
+  closeProjectTab,
+  collectRecoverableProjectTabs,
+  createProjectTab,
+  getCurrentProjectTarget,
+  hasUnsavedProjects,
+  recordActiveProjectMetadata,
+  recordActiveProjectOpen,
+  recordActiveProjectSave,
+  restoreProjectTabs,
+  type RecoverableProjectTab,
+} from './projectTabs';
 
 const PROJECT_TYPE: SaveType = {
   description: 'noBS CAD Project',
@@ -40,8 +54,6 @@ const THREEMF_TYPE: SaveType = {
 const MAX_STEP_IMPORT_BYTES = 96 * 1024 * 1024;
 const AUTOSAVE_KEY = 'nbcad:recovery:v1';
 const LEGACY_AUTOSAVE_KEYS = ['tfcad:recovery:v1'] as const;
-
-let currentProjectTarget: SaveTarget | null = null;
 
 function recoveryEntry(): { key: string; value: string } | null {
   const current = localStorage.getItem(AUTOSAVE_KEY);
@@ -92,6 +104,7 @@ export async function renameProject(requestedName?: string): Promise<boolean> {
 
   const document = await (await getEngine()).setDocumentName(name);
   useAppStore.setState({ document, dirty: true });
+  recordActiveProjectMetadata();
   return true;
 }
 
@@ -103,7 +116,7 @@ export async function saveProject(saveAs = false): Promise<boolean> {
   if (state.activeSketch) {
     throw new Error(translate('file.finishBeforeSave'));
   }
-  const existingTarget = !saveAs ? currentProjectTarget : null;
+  const existingTarget = !saveAs ? getCurrentProjectTarget() : null;
   const target =
     existingTarget ??
     (await chooseSaveTarget(currentSuggestedName(), PROJECT_TYPE));
@@ -118,8 +131,9 @@ export async function saveProject(saveAs = false): Promise<boolean> {
     : withoutExtension(target.name);
   const originalName = state.document?.name ?? 'Untitled';
   const document = await engine.setDocumentName(designName);
+  let modelJson: string;
   try {
-    const modelJson = await engine.exportProjectModel();
+    modelJson = await exportProjectModelWithVisibility(engine);
     await writeSaveTarget(target, createNbcadArchive(modelJson));
   } catch (error) {
     if (designName !== originalName) {
@@ -127,39 +141,27 @@ export async function saveProject(saveAs = false): Promise<boolean> {
     }
     throw error;
   }
-  currentProjectTarget = target.kind === 'download' ? null : target;
+  const reusableTarget = target.kind === 'download' ? null : target;
   useAppStore.setState({
     document,
     dirty: false,
     projectFileName: target.name,
   });
-  clearProjectRecovery();
+  await recordActiveProjectSave(modelJson, reusableTarget);
+  if (!hasUnsavedProjects()) clearProjectRecovery();
   return true;
 }
 
-async function resetCurrentProject(mode: 'new' | 'close'): Promise<boolean> {
-  const state = useAppStore.getState();
-  const confirmationKey =
-    mode === 'new' ? 'file.newDiscardConfirm' : 'file.closeDiscardConfirm';
-  if (state.dirty && !window.confirm(translate(confirmationKey))) {
-    return false;
-  }
-
-  const update = await (await getEngine()).newProject();
-  currentProjectTarget = null;
-  clearProjectRecovery();
-  useAppStore.getState().loadProjectState(update, [], [], null);
-  return true;
-}
-
-/** Start a fresh untitled design in both the UI and the host engine. */
+/** Open a fresh untitled design in a new window-level document tab. */
 export function newProject(): Promise<boolean> {
-  return resetCurrentProject('new');
+  return createProjectTab();
 }
 
-/** Close the visible design and immediately replace the last tab with Untitled. */
-export function closeProject(): Promise<boolean> {
-  return resetCurrentProject('close');
+/** Close one document tab; the last tab is replaced with a fresh Untitled. */
+export async function closeProject(tabId?: string): Promise<boolean> {
+  const closed = await closeProjectTab(tabId);
+  if (closed && !hasUnsavedProjects()) clearProjectRecovery();
+  return closed;
 }
 
 export async function openProject(): Promise<boolean> {
@@ -175,20 +177,31 @@ export async function openProject(): Promise<boolean> {
   const { modelJson } = readNbcadArchive(opened.bytes);
   const engine = await getEngine();
   const update = await engine.loadProjectModel(modelJson);
-  const [finishedSketches, datumPlanes, bodyAppearances] = await Promise.all([
+  const [finishedSketches, datumPlanes, bodyAppearances, drawingDocument, projectVisibility] = await Promise.all([
     engine.finishedSketches(),
     engine.datumPlaneDefinitions(),
     engine.bodyAppearances(),
+    engine.drawingDocument(),
+    engine.projectVisibility(),
   ]);
   // A legacy project is readable, but the next Save must choose a new
   // `.nbcad` destination instead of silently overwriting the old container.
-  currentProjectTarget = opened.name.toLowerCase().endsWith(NBCAD_EXTENSION)
+  const reusableTarget = opened.name.toLowerCase().endsWith(NBCAD_EXTENSION)
     ? opened.writableTarget
     : null;
   useAppStore
     .getState()
-    .loadProjectState(update, finishedSketches, datumPlanes, opened.name, bodyAppearances);
-  clearProjectRecovery();
+    .loadProjectState(
+      update,
+      finishedSketches,
+      datumPlanes,
+      opened.name,
+      bodyAppearances,
+      drawingDocument,
+      projectVisibility,
+    );
+  await recordActiveProjectOpen(modelJson, reusableTarget);
+  if (!hasUnsavedProjects()) clearProjectRecovery();
   return true;
 }
 
@@ -374,16 +387,38 @@ export async function importStep(): Promise<boolean> {
  * ZIP. It is never authoritative after a successful Save/Open. */
 export function installProjectRecovery(): () => void {
   let timer: number | null = null;
+  // Do not treat a clean, freshly bootstrapped document as permission to
+  // erase the previous process's emergency snapshot. This session owns the
+  // recovery slot only after it has produced unsaved work of its own.
+  let sessionOwnsRecovery = false;
   const schedule = () => {
     if (timer !== null) window.clearTimeout(timer);
-    const state = useAppStore.getState();
-    if (!state.dirty || state.activeSketch) return;
+    timer = null;
+    // Initial engine registration runs asynchronously. Startup intentionally
+    // ignores the old snapshot, but retains it as a last-resort fallback.
+    if (useAppStore.getState().projectTabs.length === 0) return;
+    if (!hasUnsavedProjects()) {
+      if (sessionOwnsRecovery) clearProjectRecovery();
+      return;
+    }
+    sessionOwnsRecovery = true;
     timer = window.setTimeout(async () => {
       try {
-        const modelJson = await (await getEngine()).exportProjectModel();
+        const recovery = await collectRecoverableProjectTabs();
+        if (recovery.tabs.length === 0) return;
         localStorage.setItem(
           AUTOSAVE_KEY,
-          JSON.stringify({ saved_at: new Date().toISOString(), model_json: modelJson }),
+          JSON.stringify({
+            schema_version: 2,
+            saved_at: new Date().toISOString(),
+            active_tab_id: recovery.activeTabId,
+            tabs: recovery.tabs.map((tab) => ({
+              id: tab.id,
+              name: tab.name,
+              file_name: tab.fileName,
+              model_json: tab.modelJson,
+            })),
+          }),
         );
       } catch {
         // Recovery is best-effort; explicit Save continues to surface errors.
@@ -403,28 +438,65 @@ export async function offerProjectRecovery(): Promise<boolean> {
   if (!recoveryEntryValue) return false;
   if (!window.confirm(translate('file.recoverConfirm'))) return false;
   try {
-    const recovery = JSON.parse(recoveryEntryValue.value) as { model_json?: unknown };
-    if (typeof recovery.model_json !== 'string') {
+    const recovery = JSON.parse(recoveryEntryValue.value) as {
+      model_json?: unknown;
+      active_tab_id?: unknown;
+      tabs?: unknown;
+    };
+    let recoveredTabs: RecoverableProjectTab[];
+    let activeTabId: string | null;
+    if (Array.isArray(recovery.tabs)) {
+      const recoveredIds = new Set<string>();
+      recoveredTabs = recovery.tabs.map((entry, index) => {
+        if (
+          typeof entry !== 'object' ||
+          entry === null ||
+          typeof (entry as { model_json?: unknown }).model_json !== 'string'
+        ) {
+          throw new Error(translate('file.recoveryInvalid'));
+        }
+        const value = entry as {
+          id?: unknown;
+          name?: unknown;
+          file_name?: unknown;
+          model_json: string;
+        };
+        const requestedId =
+          typeof value.id === 'string' && value.id ? value.id : null;
+        const id =
+          requestedId && !recoveredIds.has(requestedId)
+            ? requestedId
+            : `recovered-${Date.now()}-${index}`;
+        recoveredIds.add(id);
+        return {
+          id,
+          name:
+            typeof value.name === 'string' && value.name
+              ? value.name
+              : translate('app.untitledDocument'),
+          fileName:
+            typeof value.file_name === 'string' ? value.file_name : null,
+          modelJson: value.model_json,
+        };
+      });
+      activeTabId =
+        typeof recovery.active_tab_id === 'string'
+          ? recovery.active_tab_id
+          : null;
+    } else if (typeof recovery.model_json === 'string') {
+      const id = `recovered-${Date.now()}`;
+      recoveredTabs = [{
+        id,
+        name: translate('app.untitledDocument'),
+        fileName: 'Recovered.nbcad',
+        modelJson: recovery.model_json,
+      }];
+      activeTabId = id;
+    } else {
       throw new Error(translate('file.recoveryInvalid'));
     }
-    const engine = await getEngine();
-    const update = await engine.loadProjectModel(recovery.model_json);
-    const [finishedSketches, datumPlanes, bodyAppearances] = await Promise.all([
-      engine.finishedSketches(),
-      engine.datumPlaneDefinitions(),
-      engine.bodyAppearances(),
-    ]);
-    currentProjectTarget = null;
-    useAppStore
-      .getState()
-      .loadProjectState(
-        update,
-        finishedSketches,
-        datumPlanes,
-        'Recovered.nbcad',
-        bodyAppearances,
-      );
-    useAppStore.getState().markDirty();
+    const restored = await restoreProjectTabs(recoveredTabs, activeTabId);
+    if (!restored) throw new Error(translate('file.recoveryInvalid'));
     if (recoveryEntryValue.key !== AUTOSAVE_KEY) {
       localStorage.removeItem(recoveryEntryValue.key);
     }

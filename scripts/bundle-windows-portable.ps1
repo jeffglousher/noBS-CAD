@@ -98,7 +98,7 @@ try {
     foreach ($dll in $runtimeDlls) {
         Copy-Item $dll.FullName (Join-Path $packageDir $dll.Name)
     }
-    foreach ($required in @("TKernel.dll", "TKDESTEP.dll", "TKFillet.dll")) {
+    foreach ($required in @("TKernel.dll", "TKDESTEP.dll", "TKFillet.dll", "TKHLR.dll")) {
         if (-not (Test-Path (Join-Path $packageDir $required) -PathType Leaf)) {
             throw "Required OCCT runtime library is missing: $required"
         }
@@ -136,6 +136,7 @@ System requirements:
 - Microsoft Edge WebView2 Runtime supplied by Windows
 - Microsoft Visual C++ v14 x64 Redistributable
   https://aka.ms/vc14/vc_redist.x64.exe
+- A graphics adapter and driver accepted by wgpu's DX12 or Vulkan backend
 
 The Visual C++ runtime is intentionally not copied into this directory.
 Microsoft recommends the centrally installed Redistributable so it can receive

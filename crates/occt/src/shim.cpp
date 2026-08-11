@@ -6,6 +6,7 @@
 #include <BRepAlgoAPI_Common.hxx>
 #include <BRepAlgoAPI_Cut.hxx>
 #include <BRepAlgoAPI_Fuse.hxx>
+#include <BRepAlgoAPI_Section.hxx>
 #include <BRepBndLib.hxx>
 #include <BRepClass3d_SolidClassifier.hxx>
 #include <BRepBuilderAPI_MakeEdge.hxx>
@@ -28,6 +29,7 @@
 #include <BRepPrimAPI_MakeHalfSpace.hxx>
 #include <BRepPrimAPI_MakePrism.hxx>
 #include <BRepPrimAPI_MakeRevol.hxx>
+#include <BRepTools.hxx>
 #include <BRep_Tool.hxx>
 #include <Bnd_Box.hxx>
 #include <GeomAbs_CurveType.hxx>
@@ -36,6 +38,9 @@
 #include <GCPnts_UniformDeflection.hxx>
 #include <GC_MakeArcOfCircle.hxx>
 #include <GProp_GProps.hxx>
+#include <HLRAlgo_Projector.hxx>
+#include <HLRBRep_Algo.hxx>
+#include <HLRBRep_HLRToShape.hxx>
 #include <Message_ProgressRange.hxx>
 #include <IFSelect_ReturnStatus.hxx>
 #include <Interface_Static.hxx>
@@ -60,6 +65,7 @@
 #include <TopoDS_Face.hxx>
 #include <TopoDS_Shape.hxx>
 #include <TopoDS_Solid.hxx>
+#include <TopoDS_Vertex.hxx>
 #include <TopoDS_Wire.hxx>
 #include <gp_Ax3.hxx>
 #include <gp_Ax1.hxx>
@@ -72,8 +78,11 @@
 #include <gp_Vec.hxx>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstdint>
 #include <map>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -670,6 +679,117 @@ void configure_pipe(const FfiJob& job, BRepOffsetAPI_MakePipeShell& pipe,
   }
 }
 
+TopoDS_Shape make_exact_face_tool(const FfiJob& job,
+                                  const TopoDS_Face& source_face) {
+  BRepAdaptor_Surface surface(source_face, true);
+  if (surface.GetType() != GeomAbs_Plane) {
+    throw std::runtime_error("Extrude source face is not planar");
+  }
+  gp_Vec direction(job.normal_x, job.normal_y, job.normal_z);
+  if (direction.SquareMagnitude() < 1e-18) {
+    throw std::runtime_error("extrude normal is degenerate");
+  }
+  direction.Normalize();
+
+  auto transformed_shape = [&](const TopoDS_Shape& shape, double offset,
+                               double scale, const gp_Pnt& center) {
+    if (!std::isfinite(scale) || scale <= 1e-6) {
+      throw std::runtime_error("taper collapses or inverts the planar face");
+    }
+    const gp_Vec translation = direction.Multiplied(offset);
+    gp_Trsf transform;
+    // Uniform scale about the face centroid followed by translation along
+    // the source normal. Applying this to TopoDS wires preserves their exact
+    // analytic edges rather than rebuilding them from tessellation.
+    transform.SetValues(
+        scale, 0.0, 0.0,
+        center.X() * (1.0 - scale) + translation.X(),
+        0.0, scale, 0.0,
+        center.Y() * (1.0 - scale) + translation.Y(),
+        0.0, 0.0, scale,
+        center.Z() * (1.0 - scale) + translation.Z());
+    BRepBuilderAPI_Transform transformed(shape, transform, true);
+    if (!transformed.IsDone() || transformed.Shape().IsNull()) {
+      throw std::runtime_error("OCCT could not transform the planar face");
+    }
+    return transformed.Shape();
+  };
+
+  if (std::abs(job.taper_angle_deg) < 1e-12) {
+    GProp_GProps properties;
+    BRepGProp::SurfaceProperties(source_face, properties);
+    const TopoDS_Shape shifted = transformed_shape(
+        source_face, job.start_offset, 1.0, properties.CentreOfMass());
+    const TopoDS_Face start_face = TopoDS::Face(shifted);
+    gp_Vec prism_direction = direction;
+    prism_direction.Multiply(job.end_offset - job.start_offset);
+    BRepPrimAPI_MakePrism prism(start_face, prism_direction, true, true);
+    if (!prism.IsDone() || prism.Shape().IsNull()) {
+      throw std::runtime_error("OCCT exact-face prism construction failed");
+    }
+    return prism.Shape();
+  }
+
+  GProp_GProps properties;
+  BRepGProp::SurfaceProperties(source_face, properties);
+  const gp_Pnt center = properties.CentreOfMass();
+  double radius_sum = 0.0;
+  std::size_t radius_count = 0;
+  for (TopExp_Explorer vertices(source_face, TopAbs_VERTEX); vertices.More();
+       vertices.Next()) {
+    radius_sum += center.Distance(BRep_Tool::Pnt(TopoDS::Vertex(vertices.Current())));
+    ++radius_count;
+  }
+  if (radius_count == 0) {
+    throw std::runtime_error("planar face has no boundary vertices");
+  }
+  const double reference_radius =
+      std::max(radius_sum / static_cast<double>(radius_count), 1e-6);
+  const double tangent = std::tan(job.taper_angle_deg * kPi / 180.0);
+  const auto scale_at = [&](double offset) {
+    return 1.0 + tangent * offset / reference_radius;
+  };
+
+  const TopoDS_Wire outer = BRepTools::OuterWire(source_face);
+  if (outer.IsNull()) {
+    throw std::runtime_error("planar face has no outer boundary wire");
+  }
+  std::vector<TopoDS_Wire> wires{outer};
+  for (TopExp_Explorer explorer(source_face, TopAbs_WIRE); explorer.More();
+       explorer.Next()) {
+    const TopoDS_Wire wire = TopoDS::Wire(explorer.Current());
+    if (!wire.IsSame(outer)) {
+      wires.push_back(wire);
+    }
+  }
+
+  auto loft_wire = [&](const TopoDS_Wire& wire) {
+    const TopoDS_Wire first = TopoDS::Wire(transformed_shape(
+        wire, job.start_offset, scale_at(job.start_offset), center));
+    const TopoDS_Wire last = TopoDS::Wire(transformed_shape(
+        wire, job.end_offset, scale_at(job.end_offset), center));
+    BRepOffsetAPI_ThruSections loft(true, true, 1e-7);
+    loft.CheckCompatibility(true);
+    loft.AddWire(first);
+    loft.AddWire(last);
+    loft.Build(Message_ProgressRange());
+    if (!loft.IsDone() || loft.Shape().IsNull()) {
+      throw std::runtime_error("OCCT exact-wire tapered loft failed");
+    }
+    return loft.Shape();
+  };
+  TopoDS_Shape result = loft_wire(wires.front());
+  for (std::size_t index = 1; index < wires.size(); ++index) {
+    const TopoDS_Shape hole = loft_wire(wires[index]);
+    BRepAlgoAPI_Cut cut(result, hole, Message_ProgressRange());
+    if (!cut.IsDone() || cut.Shape().IsNull()) {
+      throw std::runtime_error("OCCT could not preserve a tapered face hole");
+    }
+    result = cut.Shape();
+  }
+  return result;
+}
+
 TopoDS_Shape make_tool(const FfiJob& job, std::size_t region_index) {
   const auto wire_range = region_range(job, region_index);
   const std::size_t wire_begin = wire_range.first;
@@ -942,6 +1062,127 @@ void append_point(rust::Vec<double>& output, const gp_Pnt& point) {
   output.push_back(point.Z());
 }
 
+std::vector<gp_Pnt> sample_projection_edge(const TopoDS_Edge& edge,
+                                           double deflection) {
+  BRepAdaptor_Curve curve(edge);
+  std::vector<gp_Pnt> points;
+  if (curve.GetType() == GeomAbs_Line) {
+    points.push_back(curve.Value(curve.FirstParameter()));
+    points.push_back(curve.Value(curve.LastParameter()));
+    return points;
+  }
+  GCPnts_UniformDeflection discretization(
+      curve, std::max(1.0e-4, deflection), true);
+  if (discretization.IsDone() && discretization.NbPoints() >= 2) {
+    points.reserve(discretization.NbPoints());
+    for (int index = 1; index <= discretization.NbPoints(); ++index) {
+      points.push_back(discretization.Value(index));
+    }
+    return points;
+  }
+  const double first = curve.FirstParameter();
+  const double last = curve.LastParameter();
+  constexpr int kFallbackSamples = 25;
+  points.reserve(kFallbackSamples);
+  for (int index = 0; index < kFallbackSamples; ++index) {
+    const double parameter =
+        first + (last - first) * static_cast<double>(index) /
+                    static_cast<double>(kFallbackSamples - 1);
+    points.push_back(curve.Value(parameter));
+  }
+  return points;
+}
+
+std::vector<std::int64_t> projection_polyline_key(
+    const std::vector<gp_Pnt>& points) {
+  constexpr double kQuantize = 1.0e7;
+  std::vector<std::int64_t> forward;
+  std::vector<std::int64_t> reverse;
+  forward.reserve(points.size() * 2);
+  reverse.reserve(points.size() * 2);
+  for (const gp_Pnt& point : points) {
+    forward.push_back(static_cast<std::int64_t>(std::llround(point.X() * kQuantize)));
+    forward.push_back(static_cast<std::int64_t>(std::llround(point.Y() * kQuantize)));
+  }
+  for (auto iterator = points.rbegin(); iterator != points.rend(); ++iterator) {
+    reverse.push_back(static_cast<std::int64_t>(std::llround(iterator->X() * kQuantize)));
+    reverse.push_back(static_cast<std::int64_t>(std::llround(iterator->Y() * kQuantize)));
+  }
+  return reverse < forward ? reverse : forward;
+}
+
+void append_projection_shape(
+    const TopoDS_Shape& shape,
+    double deflection,
+    rust::Vec<std::uint32_t>& offsets,
+    rust::Vec<double>& coordinates,
+    std::set<std::vector<std::int64_t>>& seen) {
+  if (shape.IsNull()) {
+    return;
+  }
+  for (TopExp_Explorer explorer(shape, TopAbs_EDGE); explorer.More(); explorer.Next()) {
+    const TopoDS_Edge edge = TopoDS::Edge(explorer.Current());
+    std::vector<gp_Pnt> points = sample_projection_edge(edge, deflection);
+    if (points.size() < 2) {
+      continue;
+    }
+    const auto key = projection_polyline_key(points);
+    if (!seen.insert(key).second) {
+      continue;
+    }
+    for (const gp_Pnt& point : points) {
+      coordinates.push_back(point.X());
+      coordinates.push_back(point.Y());
+    }
+    offsets.push_back(static_cast<std::uint32_t>(coordinates.size() / 2));
+  }
+}
+
+void append_section_shape(
+    const TopoDS_Shape& shape,
+    const gp_Vec& right,
+    const gp_Vec& page_up,
+    double deflection,
+    rust::Vec<std::uint32_t>& offsets,
+    rust::Vec<double>& coordinates,
+    std::set<std::vector<std::int64_t>>& seen) {
+  if (shape.IsNull()) {
+    return;
+  }
+  constexpr double kQuantize = 1.0e7;
+  for (TopExp_Explorer explorer(shape, TopAbs_EDGE); explorer.More(); explorer.Next()) {
+    const TopoDS_Edge edge = TopoDS::Edge(explorer.Current());
+    const std::vector<gp_Pnt> points = sample_projection_edge(edge, deflection);
+    if (points.size() < 2) {
+      continue;
+    }
+    std::vector<std::int64_t> forward;
+    std::vector<std::int64_t> reverse;
+    std::vector<std::array<double, 2>> projected;
+    projected.reserve(points.size());
+    for (const gp_Pnt& point : points) {
+      const double x = point.X() * right.X() + point.Y() * right.Y() + point.Z() * right.Z();
+      const double y = point.X() * page_up.X() + point.Y() * page_up.Y() + point.Z() * page_up.Z();
+      projected.push_back({x, y});
+      forward.push_back(static_cast<std::int64_t>(std::llround(x * kQuantize)));
+      forward.push_back(static_cast<std::int64_t>(std::llround(y * kQuantize)));
+    }
+    for (auto iterator = projected.rbegin(); iterator != projected.rend(); ++iterator) {
+      reverse.push_back(static_cast<std::int64_t>(std::llround((*iterator)[0] * kQuantize)));
+      reverse.push_back(static_cast<std::int64_t>(std::llround((*iterator)[1] * kQuantize)));
+    }
+    const auto& key = reverse < forward ? reverse : forward;
+    if (!seen.insert(key).second) {
+      continue;
+    }
+    for (const auto& point : projected) {
+      coordinates.push_back(point[0]);
+      coordinates.push_back(point[1]);
+    }
+    offsets.push_back(static_cast<std::uint32_t>(coordinates.size() / 2));
+  }
+}
+
 void append_vec(rust::Vec<float>& output, const gp_Vec& value) {
   output.push_back(static_cast<float>(value.X()));
   output.push_back(static_cast<float>(value.Y()));
@@ -976,6 +1217,122 @@ void append_plane(rust::Vec<double>& output, const TopoDS_Face& face) {
   output.push_back(normal.X());
   output.push_back(normal.Y());
   output.push_back(normal.Z());
+}
+
+struct PlanarFaceSignature {
+  bool valid = false;
+  gp_Pnt centroid;
+  gp_Dir normal;
+  double area = 0.0;
+  double perimeter = 0.0;
+  std::uint32_t wire_count = 0;
+  std::uint32_t edge_count = 0;
+};
+
+PlanarFaceSignature planar_face_signature(const TopoDS_Face& face) {
+  PlanarFaceSignature signature;
+  BRepAdaptor_Surface surface(face, true);
+  if (surface.GetType() != GeomAbs_Plane) {
+    return signature;
+  }
+
+  GProp_GProps surface_properties;
+  BRepGProp::SurfaceProperties(face, surface_properties, false, false);
+  GProp_GProps edge_properties;
+  BRepGProp::LinearProperties(face, edge_properties, false, false);
+  TopTools_IndexedMapOfShape wires;
+  TopTools_IndexedMapOfShape edges;
+  TopExp::MapShapes(face, TopAbs_WIRE, wires);
+  TopExp::MapShapes(face, TopAbs_EDGE, edges);
+
+  gp_Dir normal = surface.Plane().Position().Direction();
+  if (face.Orientation() == TopAbs_REVERSED) {
+    normal.Reverse();
+  }
+  signature.valid = true;
+  signature.centroid = surface_properties.CentreOfMass();
+  signature.normal = normal;
+  signature.area = std::abs(surface_properties.Mass());
+  signature.perimeter = std::abs(edge_properties.Mass());
+  signature.wire_count = static_cast<std::uint32_t>(wires.Extent());
+  signature.edge_count = static_cast<std::uint32_t>(edges.Extent());
+  return signature;
+}
+
+void append_face_signature(rust::Vec<double>& output, const TopoDS_Face& face) {
+  const PlanarFaceSignature signature = planar_face_signature(face);
+  if (!signature.valid) {
+    for (int index = 0; index < 8; ++index) {
+      output.push_back(0.0);
+    }
+    return;
+  }
+  output.push_back(1.0);
+  append_point(output, signature.centroid);
+  output.push_back(signature.area);
+  output.push_back(signature.perimeter);
+  output.push_back(static_cast<double>(signature.wire_count));
+  output.push_back(static_cast<double>(signature.edge_count));
+}
+
+bool signature_scalar_matches(double actual, double expected) {
+  const double scale = std::max({1.0, std::abs(actual), std::abs(expected)});
+  return std::abs(actual - expected) <= scale * 1.0e-6;
+}
+
+bool planar_face_signature_matches(
+    const PlanarFaceSignature& actual,
+    const rust::Vec<double>& expected) {
+  if (!actual.valid || expected.size() != 10) {
+    return false;
+  }
+  const gp_Pnt expected_centroid(expected[0], expected[1], expected[2]);
+  const gp_Vec expected_normal(expected[3], expected[4], expected[5]);
+  if (expected_normal.SquareMagnitude() <= 1.0e-18) {
+    return false;
+  }
+  const double length_scale = std::max(
+      {1.0, std::sqrt(std::max(actual.area, 0.0)), actual.perimeter});
+  if (actual.centroid.Distance(expected_centroid) > length_scale * 1.0e-6) {
+    return false;
+  }
+  gp_Vec normalized_expected = expected_normal;
+  normalized_expected.Normalize();
+  if (gp_Vec(actual.normal).Dot(normalized_expected) < 1.0 - 1.0e-7) {
+    return false;
+  }
+  return signature_scalar_matches(actual.area, expected[6]) &&
+         signature_scalar_matches(actual.perimeter, expected[7]) &&
+         actual.wire_count == static_cast<std::uint32_t>(std::llround(expected[8])) &&
+         actual.edge_count == static_cast<std::uint32_t>(std::llround(expected[9]));
+}
+
+TopoDS_Face resolve_planar_face_reference(
+    const TopoDS_Shape& body,
+    const FfiJob& job) {
+  if (job.source_face_signature.size() != 10) {
+    throw std::runtime_error(
+        "Extrude source face has no validated topology signature; reselect it");
+  }
+  TopTools_IndexedMapOfShape faces;
+  TopExp::MapShapes(body, TopAbs_FACE, faces);
+  std::vector<TopoDS_Face> matches;
+  for (int index = 1; index <= faces.Extent(); ++index) {
+    const TopoDS_Face face = TopoDS::Face(faces.FindKey(index));
+    if (planar_face_signature_matches(
+            planar_face_signature(face), job.source_face_signature)) {
+      matches.push_back(face);
+    }
+  }
+  if (matches.empty()) {
+    throw std::runtime_error(
+        "referenced Extrude source face changed or no longer exists");
+  }
+  if (matches.size() != 1) {
+    throw std::runtime_error(
+        "referenced Extrude source face is ambiguous after topology change");
+  }
+  return matches.front();
 }
 
 }  // namespace
@@ -1363,23 +1720,38 @@ void Kernel::apply_job(const FfiJob& job) {
     impl_->bodies[job.result_body_ids[1]] = negative.Shape();
     return;
   }
-  if (job.profile_offsets.size() < 2 ||
-      job.profile_offsets[job.profile_offsets.size() - 1] * 3 !=
-          job.points.size()) {
-    throw std::runtime_error("profile buffers are malformed");
-  }
-  if (job.region_offsets.size() < 2 || job.region_offsets.front() != 0 ||
-      job.region_offsets.back() + 1 != job.profile_offsets.size()) {
-    throw std::runtime_error("profile region buffers are malformed");
-  }
-  const std::size_t profile_count = job.region_offsets.size() - 1;
   std::vector<TopoDS_Shape> tools;
-  if (job.kind == 3) {
-    tools.push_back(make_loft_tool(job));
+  if (job.source_body_id != 0) {
+    if (job.kind != 0 || job.source_face_index == UINT32_MAX) {
+      throw std::runtime_error("exact face source is only valid for Extrude");
+    }
+    auto source_body = impl_->bodies.find(job.source_body_id);
+    if (source_body == impl_->bodies.end()) {
+      throw std::runtime_error("Extrude source body is missing");
+    }
+    // `source_face_index` is only a legacy/debug hint. OCCT map ordering can
+    // change after an upstream edit, so resolve the unique exact signature and
+    // fail safely when the reference changed or became ambiguous.
+    tools.push_back(make_exact_face_tool(
+        job, resolve_planar_face_reference(source_body->second, job)));
   } else {
-    tools.reserve(profile_count);
-    for (std::size_t index = 0; index < profile_count; ++index) {
-      tools.push_back(make_tool(job, index));
+    if (job.profile_offsets.size() < 2 ||
+        job.profile_offsets[job.profile_offsets.size() - 1] * 3 !=
+            job.points.size()) {
+      throw std::runtime_error("profile buffers are malformed");
+    }
+    if (job.region_offsets.size() < 2 || job.region_offsets.front() != 0 ||
+        job.region_offsets.back() + 1 != job.profile_offsets.size()) {
+      throw std::runtime_error("profile region buffers are malformed");
+    }
+    const std::size_t profile_count = job.region_offsets.size() - 1;
+    if (job.kind == 3) {
+      tools.push_back(make_loft_tool(job));
+    } else {
+      tools.reserve(profile_count);
+      for (std::size_t index = 0; index < profile_count; ++index) {
+        tools.push_back(make_tool(job, index));
+      }
     }
   }
 
@@ -1522,6 +1894,7 @@ FfiMesh Kernel::mesh_with_deflection(
         static_cast<std::uint32_t>(output.indices.size()) -
         output.face_first_indices.back());
     append_plane(output.face_plane_data, face);
+    append_face_signature(output.face_signature_data, face);
   }
 
   output.edge_point_offsets.push_back(0);
@@ -1571,6 +1944,173 @@ FfiMesh Kernel::mesh_with_deflection(
     }
     output.edge_point_offsets.push_back(
         static_cast<std::uint32_t>(output.edge_points.size() / 3));
+  }
+  return output;
+}
+
+FfiDrawingProjection Kernel::drawing_projection(
+    const rust::Vec<std::uint64_t>& requested_body_ids,
+    double direction_x,
+    double direction_y,
+    double direction_z,
+    double up_x,
+    double up_y,
+    double up_z,
+    bool include_hidden,
+    bool include_tangent_edges,
+    double deflection,
+    bool has_section_plane,
+    double section_point_x,
+    double section_point_y,
+    double section_point_z,
+    double section_normal_x,
+    double section_normal_y,
+    double section_normal_z,
+    bool has_section_depth,
+    double section_depth) const {
+  if (impl_->bodies.empty()) {
+    throw std::runtime_error("there are no active bodies to project");
+  }
+  gp_Vec direction(direction_x, direction_y, direction_z);
+  gp_Vec up(up_x, up_y, up_z);
+  if (direction.SquareMagnitude() < 1.0e-18 || up.SquareMagnitude() < 1.0e-18) {
+    throw std::runtime_error("drawing projection basis is degenerate");
+  }
+  direction.Normalize();
+  // gp_Ax2's third argument is page X. For a model-to-viewer direction and
+  // page-up vector, up x direction gives page-right.
+  gp_Vec right = up.Crossed(direction);
+  if (right.SquareMagnitude() < 1.0e-18) {
+    throw std::runtime_error("drawing projection direction and up are parallel");
+  }
+  right.Normalize();
+
+  std::vector<TopoDS_Shape> source_shapes;
+  if (requested_body_ids.empty()) {
+    for (const auto& [body_id, shape] : impl_->bodies) {
+      (void)body_id;
+      source_shapes.push_back(shape);
+    }
+  } else {
+    std::set<std::uint64_t> unique_ids;
+    for (const std::uint64_t body_id : requested_body_ids) {
+      if (!unique_ids.insert(body_id).second) {
+        continue;
+      }
+      const auto found = impl_->bodies.find(body_id);
+      if (found == impl_->bodies.end()) {
+        throw std::runtime_error("selected drawing body is missing");
+      }
+      source_shapes.push_back(found->second);
+    }
+  }
+
+  gp_Vec section_normal(section_normal_x, section_normal_y, section_normal_z);
+  const gp_Pnt section_point(section_point_x, section_point_y, section_point_z);
+  if (has_section_plane) {
+    if (section_normal.SquareMagnitude() < 1.0e-18) {
+      throw std::runtime_error("drawing section plane normal is degenerate");
+    }
+    section_normal.Normalize();
+    if (has_section_depth &&
+        (!std::isfinite(section_depth) || section_depth <= 0.0)) {
+      throw std::runtime_error("drawing section depth must be positive");
+    }
+  }
+
+  auto retain_half_space = [](const TopoDS_Shape& source,
+                              const gp_Pln& boundary,
+                              const gp_Pnt& retained_point) {
+    const TopoDS_Face face = BRepBuilderAPI_MakeFace(boundary).Face();
+    const TopoDS_Solid half_space =
+        BRepPrimAPI_MakeHalfSpace(face, retained_point).Solid();
+    BRepAlgoAPI_Common common(source, half_space);
+    common.Build();
+    if (!common.IsDone()) {
+      throw std::runtime_error("OCCT could not clip the drawing section");
+    }
+    return common.Shape();
+  };
+
+  std::vector<TopoDS_Shape> projection_shapes;
+  projection_shapes.reserve(source_shapes.size());
+  for (const TopoDS_Shape& source : source_shapes) {
+    if (!has_section_plane) {
+      projection_shapes.push_back(source);
+      continue;
+    }
+    const gp_Pln front_plane(section_point, gp_Dir(section_normal));
+    const gp_Pnt behind_front = section_point.Translated(section_normal.Multiplied(-1.0));
+    TopoDS_Shape clipped = retain_half_space(source, front_plane, behind_front);
+    if (has_section_depth && !clipped.IsNull()) {
+      const gp_Pnt back_point =
+          section_point.Translated(section_normal.Multiplied(-section_depth));
+      const gp_Pln back_plane(back_point, gp_Dir(section_normal));
+      const gp_Pnt inside_slab = section_point.Translated(
+          section_normal.Multiplied(-section_depth * 0.5));
+      clipped = retain_half_space(clipped, back_plane, inside_slab);
+    }
+    if (!clipped.IsNull()) {
+      projection_shapes.push_back(clipped);
+    }
+  }
+
+  Handle(HLRBRep_Algo) algorithm = new HLRBRep_Algo();
+  for (const TopoDS_Shape& shape : projection_shapes) {
+    algorithm->Add(shape);
+  }
+  algorithm->Projector(HLRAlgo_Projector(
+      gp_Ax2(gp_Pnt(0.0, 0.0, 0.0), gp_Dir(direction), gp_Dir(right))));
+  algorithm->Update();
+  algorithm->Hide();
+
+  HLRBRep_HLRToShape extractor(algorithm);
+  FfiDrawingProjection output;
+  output.visible_offsets.push_back(0);
+  output.hidden_offsets.push_back(0);
+  output.section_offsets.push_back(0);
+  std::set<std::vector<std::int64_t>> seen;
+  const double curve_deflection = std::max(1.0e-4, deflection);
+  append_projection_shape(extractor.VCompound(), curve_deflection,
+                          output.visible_offsets, output.visible_points, seen);
+  append_projection_shape(extractor.OutLineVCompound(), curve_deflection,
+                          output.visible_offsets, output.visible_points, seen);
+  if (include_tangent_edges) {
+    append_projection_shape(extractor.Rg1LineVCompound(), curve_deflection,
+                            output.visible_offsets, output.visible_points, seen);
+    append_projection_shape(extractor.RgNLineVCompound(), curve_deflection,
+                            output.visible_offsets, output.visible_points, seen);
+  }
+  if (include_hidden) {
+    // Keep the same de-duplication set: a coincident visible curve wins over a
+    // hidden result, avoiding double-stroked SVG output.
+    append_projection_shape(extractor.HCompound(), curve_deflection,
+                            output.hidden_offsets, output.hidden_points, seen);
+    append_projection_shape(extractor.OutLineHCompound(), curve_deflection,
+                            output.hidden_offsets, output.hidden_points, seen);
+    if (include_tangent_edges) {
+      append_projection_shape(extractor.Rg1LineHCompound(), curve_deflection,
+                              output.hidden_offsets, output.hidden_points, seen);
+      append_projection_shape(extractor.RgNLineHCompound(), curve_deflection,
+                              output.hidden_offsets, output.hidden_points, seen);
+    }
+  }
+  if (has_section_plane) {
+    const gp_Pln cutting_plane(section_point, gp_Dir(section_normal));
+    gp_Vec page_up = direction.Crossed(right);
+    page_up.Normalize();
+    std::set<std::vector<std::int64_t>> section_seen;
+    for (const TopoDS_Shape& shape : source_shapes) {
+      BRepAlgoAPI_Section section_operation(shape, cutting_plane, false);
+      section_operation.Approximation(true);
+      section_operation.Build();
+      if (!section_operation.IsDone() || section_operation.Shape().IsNull()) {
+        continue;
+      }
+      append_section_shape(
+          section_operation.Shape(), right, page_up, curve_deflection,
+          output.section_offsets, output.section_points, section_seen);
+    }
   }
   return output;
 }

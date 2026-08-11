@@ -28,6 +28,9 @@ import type {
   DatumPlaneRequest,
   DatumPlaneUpdateDto,
   DocumentDto,
+  DrawingDocumentDto,
+  DrawingProjectionDto,
+  DrawingProjectionRequest,
   EditDimensionRequest,
   EndSketchResult,
   ExtrudeDefinitionDto,
@@ -62,6 +65,7 @@ import type {
   PlaneRef,
   PointRequest,
   ProfileCatalogItemDto,
+  ProjectVisibilityDto,
   PolygonRequest,
   PreviewDto,
   RectangleRequest,
@@ -97,6 +101,11 @@ export interface Engine {
   profileCatalog(): Promise<ProfileCatalogItemDto[]>;
   solidScene(): Promise<SolidSceneDto>;
   bodyAppearances(): Promise<BodyAppearance[]>;
+  projectVisibility(): Promise<ProjectVisibilityDto>;
+  setProjectVisibility(visibility: ProjectVisibilityDto): Promise<ProjectVisibilityDto>;
+  drawingDocument(): Promise<DrawingDocumentDto>;
+  setDrawingDocument(document: DrawingDocumentDto): Promise<DrawingDocumentDto>;
+  drawingProjection(request: DrawingProjectionRequest): Promise<DrawingProjectionDto>;
   setBodyAppearance(appearance: BodyAppearance): Promise<BodyAppearance[]>;
   extrudeDefinitions(): Promise<ExtrudeDefinitionDto[]>;
   revolveDefinitions(): Promise<RevolveDefinitionDto[]>;
@@ -134,6 +143,14 @@ export interface Engine {
   reorderFeature(featureId: number, targetIndex: number): Promise<SolidUpdateDto>;
   setDocumentName(name: string): Promise<DocumentDto>;
   exportProjectModel(): Promise<string>;
+  /** Bind the bootstrap engine context to the first frontend tab. */
+  bindProjectSession(sessionId: string): Promise<void>;
+  /** Create and activate a blank retained modeling context for a new tab. */
+  createProjectSession(sessionId: string): Promise<SolidUpdateDto>;
+  /** Activate a retained context; false means it was evicted. */
+  activateProjectSession(sessionId: string): Promise<boolean>;
+  /** Release an inactive tab's native/WASM modeling context. */
+  dropProjectSession(sessionId: string): Promise<void>;
   newProject(): Promise<SolidUpdateDto>;
   loadProjectModel(modelJson: string): Promise<SolidUpdateDto>;
   exportStep(request: StepExportRequest): Promise<Uint8Array>;
@@ -216,9 +233,16 @@ let enginePromise: Promise<Engine> | null = null;
 /** Lazily create the singleton engine for this runtime. */
 export function getEngine(): Promise<Engine> {
   if (!enginePromise) {
-    enginePromise = isTauriRuntime()
-      ? import('./tauri').then((m) => new m.TauriEngine())
-      : import('./wasm').then((m) => m.WasmEngine.create());
+    // Vite replaces MODE at build time. Keeping the desktop branch explicit
+    // lets Rollup remove the browser OCCT/Rust WASM graph from Tauri packages,
+    // while ordinary browser builds retain the convenient development host.
+    if (import.meta.env.MODE === 'desktop') {
+      enginePromise = import('./tauri').then((m) => new m.TauriEngine());
+    } else {
+      enginePromise = isTauriRuntime()
+        ? import('./tauri').then((m) => new m.TauriEngine())
+        : import('./wasm').then((m) => m.WasmEngine.create());
+    }
   }
   return enginePromise;
 }

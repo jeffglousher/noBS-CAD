@@ -13,15 +13,15 @@ import {
   cancelPlanePick,
   deleteDimension,
   deleteEntities,
-  deleteTimelineFeature,
   openExtrude,
   openHole,
-  redoSketch,
-  setTimelineRollback,
-  undoSketch,
+  redoApplicationHistory,
+  undoApplicationHistory,
 } from './engine/controller';
 import { Ribbon } from './components/Ribbon';
 import { BrowserTree } from './components/BrowserTree';
+import { DrawingBrowser } from './components/drawing/DrawingBrowser';
+import { DrawingWorkspace } from './components/drawing/DrawingWorkspace';
 import { ProjectTabBar } from './components/TopBar';
 import { AppearanceDialog } from './components/AppearanceDialog';
 import { SketchPalette } from './components/SketchPalette';
@@ -43,15 +43,27 @@ import { BodyAppearancePanel } from './components/BodyAppearancePanel';
 import { SketchPatternDialog } from './components/SketchPatternDialog';
 import {
   installProjectRecovery,
-  offerProjectRecovery,
+  newProject,
   openProject,
   saveProject,
 } from './files/projectFiles';
+import {
+  hasUnsavedProjects,
+  initializeProjectTabs,
+  installProjectTabRetention,
+} from './files/projectTabs';
 import { SYSTEM_DARK_QUERY } from './theme';
+import { deleteDrawingAnnotation } from './drawing/document';
+import {
+  installNativeEditMenu,
+  nativeMacMenuOwnsUndoRedo,
+} from './nativeEditMenu';
 
 export default function App() {
   const { t } = useTranslation();
   const mode = useAppStore((s) => s.mode);
+  const activeTab = useAppStore((s) => s.activeTab);
+  const drawingWorkspace = activeTab === 'drawing';
   const resolvedTheme = useAppStore((s) => s.resolvedTheme);
   const themePreference = useAppStore((s) => s.themePreference);
   const syncResolvedTheme = useAppStore((s) => s.syncResolvedTheme);
@@ -62,7 +74,12 @@ export default function App() {
     if (initialized.current) return;
     initialized.current = true;
     void loadDocument()
-      .then(() => offerProjectRecovery())
+      .then(async () => {
+        // A new application launch always begins with one clean Untitled
+        // document. Previous emergency snapshots are retained as a fallback,
+        // but are never reopened as the user's active workspace.
+        await initializeProjectTabs();
+      })
       .catch((error) => {
         useAppStore.getState().setConstraintDialog({
           titleKey: 'file.errorTitle',
@@ -72,6 +89,10 @@ export default function App() {
   }, [loadDocument]);
 
   useEffect(() => installProjectRecovery(), []);
+
+  useEffect(() => installProjectTabRetention(), []);
+
+  useEffect(() => installNativeEditMenu(), []);
 
   useEffect(() => {
     const media = window.matchMedia(SYSTEM_DARK_QUERY);
@@ -83,7 +104,7 @@ export default function App() {
 
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
-      if (!useAppStore.getState().dirty) return;
+      if (!hasUnsavedProjects()) return;
       event.preventDefault();
       event.returnValue = '';
     };
@@ -98,28 +119,46 @@ export default function App() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       // Never steal keys from text inputs.
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        // The custom native menu delegates text Undo/Redo back to WebKit. If
+        // WKWebView also exposes the key event, suppress its second edit.
+        if (
+          nativeMacMenuOwnsUndoRedo() &&
+          e.metaKey &&
+          e.key.toLowerCase() === 'z'
+        ) {
+          e.preventDefault();
+        }
+        return;
+      }
       const s = useAppStore.getState();
+      const runProjectAction = (action: () => Promise<unknown>) => {
+        if (s.projectBusy || s.solidBusy) return;
+        s.setProjectBusy(true);
+        void action()
+          .catch((error) => {
+            useAppStore.getState().setConstraintDialog({
+              titleKey: 'file.errorTitle',
+              message: error instanceof Error ? error.message : String(error),
+            });
+          })
+          .finally(() => useAppStore.getState().setProjectBusy(false));
+      };
 
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
         if (s.document === null) return;
-        void saveProject(e.shiftKey).catch((error) => {
-          s.setConstraintDialog({
-            titleKey: 'file.errorTitle',
-            message: error instanceof Error ? error.message : String(error),
-          });
-        });
+        runProjectAction(() => saveProject(e.shiftKey));
         return;
       }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'o') {
         e.preventDefault();
-        void openProject().catch((error) => {
-          s.setConstraintDialog({
-            titleKey: 'file.errorTitle',
-            message: error instanceof Error ? error.message : String(error),
-          });
-        });
+        runProjectAction(openProject);
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        runProjectAction(newProject);
         return;
       }
 
@@ -128,31 +167,25 @@ export default function App() {
       // the surviving graph. Shift+Undo still moves forward when the user
       // has explicitly moved the build cursor backward in the timeline.
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
-        if (s.mode === 'sketch') {
-          e.preventDefault();
-          if (e.shiftKey) void redoSketch();
-          else void undoSketch();
-        } else if (s.mode === 'solid' && s.document && !s.solidBusy) {
-          const current = s.document.rollback_index;
-          if (!e.shiftKey && current === s.document.features.length && current > 0) {
-            e.preventDefault();
-            void deleteTimelineFeature(s.document.features[current - 1].id);
-          } else {
-            const next = e.shiftKey
-              ? Math.min(s.document.features.length, current + 1)
-              : Math.max(0, current - 1);
-            if (next !== current) {
-              e.preventDefault();
-              void setTimelineRollback(next);
-            }
-          }
-        }
+        // On macOS/Tauri the native menu accelerator owns Cmd-Z; letting it
+        // emit one command avoids a duplicate webview keydown action.
+        if (nativeMacMenuOwnsUndoRedo()) return;
+        e.preventDefault();
+        if (e.shiftKey) void redoApplicationHistory();
+        else void undoApplicationHistory();
         return;
       }
 
-      if (s.document === null) return;
-
       if (e.key === 'Escape') {
+        // Escape cancels CAD state only; do not let the WebView/AppKit default
+        // simultaneously leave native macOS full-screen mode.
+        e.preventDefault();
+        // Keep navigation cancellation at the application boundary as well
+        // as the viewport boundary. This remains reliable while the document
+        // is loading or the native child view is being reparented.
+        if (s.navTool !== 'select') s.setNavTool('select');
+        if (s.drawingTool !== null) s.setDrawingTool(null);
+        if (s.drawingPendingViewKind !== null) s.setDrawingPendingViewKind(null);
         // Sketch-mode Esc (end chain / deselect) is handled by the Viewport.
         if (s.mode === 'pickPlane') cancelPlanePick();
         if (s.extrudeDialogFeature !== null) s.closeExtrudeDialog();
@@ -166,6 +199,18 @@ export default function App() {
         if (s.constructionPlaneDialog !== null) s.closeConstructionPlaneDialog();
         if (s.bodyFeatureDialog !== null) s.closeBodyFeatureDialog();
         if (s.sketchPatternDialog !== null) s.closeSketchPatternDialog();
+        return;
+      }
+
+      if (s.document === null) return;
+
+      if (
+        s.activeTab === 'drawing'
+        && (e.key === 'Delete' || e.key === 'Backspace')
+        && s.selectedDrawingAnnotationId !== null
+      ) {
+        e.preventDefault();
+        void deleteDrawingAnnotation(s.selectedDrawingAnnotationId);
         return;
       }
 
@@ -225,18 +270,24 @@ export default function App() {
     <div className="flex h-screen flex-col overflow-hidden bg-panel text-ink">
       <Ribbon />
       <div className="flex min-h-0 flex-1">
-        <BrowserTree />
+        {drawingWorkspace ? <DrawingBrowser /> : <BrowserTree />}
         <div className="flex min-w-0 flex-1 flex-col">
           <ProjectTabBar />
           <main className="relative min-h-0 min-w-0 flex-1">
-            <Viewport key={resolvedTheme} />
-            <BodyAppearancePanel />
-            {mode === 'sketch' && <SketchPalette />}
-            <CommentsPanel />
+            {drawingWorkspace ? (
+              <DrawingWorkspace />
+            ) : (
+              <>
+                <Viewport key={resolvedTheme} />
+                <BodyAppearancePanel />
+                {mode === 'sketch' && <SketchPalette />}
+                <CommentsPanel />
+              </>
+            )}
           </main>
         </div>
       </div>
-      <Timeline />
+      {!drawingWorkspace && <Timeline />}
       <ConstraintDialogHost />
       <SketchPlaneOriginDialog />
       <ExtrudeDialog />

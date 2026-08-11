@@ -9,12 +9,18 @@
  */
 import init, { WasmEngine as WasmEngineInner } from '../engine-wasm/pkg/nbcad_wasm';
 import { unwrapEnvelope, type Engine } from './index';
+import { restoreLoadedDatumHistoryFrames } from './historyFrames';
 import { BrowserOcctKernel } from './occtBrowser';
+import { projectSceneForDrawing } from '../drawing/projection';
 
 /** wasm-pack typings lag until `npm run build:wasm`; keep additive methods typed here. */
 type WasmEngineMethods = WasmEngineInner & {
   body_appearances(): string;
   set_body_appearance(payload: string): string;
+  project_visibility(): string;
+  project_set_visibility(payload: string): string;
+  drawing_document(): string;
+  drawing_set_document(payload: string): string;
 };
 import type {
   AddConstraintResult,
@@ -36,6 +42,9 @@ import type {
   DatumPlaneRequest,
   DatumPlaneUpdateDto,
   DocumentDto,
+  DrawingDocumentDto,
+  DrawingProjectionDto,
+  DrawingProjectionRequest,
   FaceSketchOrigin,
   EditDimensionRequest,
   EndSketchResult,
@@ -75,6 +84,7 @@ import type {
   PolygonRequest,
   PreviewDto,
   ProfileCatalogItemDto,
+  ProjectVisibilityDto,
   RecomputePlanDto,
   RectangleRequest,
   SketchRectangularPatternRequest,
@@ -93,11 +103,24 @@ import type {
   UndoResult,
 } from './types';
 
+interface WasmProjectContext {
+  inner: WasmEngineInner;
+  kernelPromise: Promise<BrowserOcctKernel> | null;
+}
+
 export class WasmEngine implements Engine {
   readonly kind = 'wasm' as const;
-  private kernelPromise: Promise<BrowserOcctKernel> | null = null;
+  private readonly contexts = new Map<string, WasmProjectContext>();
+  private activeContext: WasmProjectContext;
+  private activeSessionId: string | null = null;
 
-  private constructor(private readonly inner: WasmEngineInner) {}
+  private constructor(inner: WasmEngineInner) {
+    this.activeContext = { inner, kernelPromise: null };
+  }
+
+  private get inner(): WasmEngineInner {
+    return this.activeContext.inner;
+  }
 
   /** Instantiate the wasm module and construct the engine. */
   static async create(): Promise<WasmEngine> {
@@ -144,6 +167,30 @@ export class WasmEngine implements Engine {
 
   async bodyAppearances(): Promise<BodyAppearance[]> {
     return unwrapEnvelope((this.inner as WasmEngineMethods).body_appearances());
+  }
+
+  async projectVisibility(): Promise<ProjectVisibilityDto> {
+    return unwrapEnvelope((this.inner as WasmEngineMethods).project_visibility());
+  }
+
+  async setProjectVisibility(visibility: ProjectVisibilityDto): Promise<ProjectVisibilityDto> {
+    return unwrapEnvelope(
+      (this.inner as WasmEngineMethods).project_set_visibility(JSON.stringify(visibility)),
+    );
+  }
+
+  async drawingDocument(): Promise<DrawingDocumentDto> {
+    return unwrapEnvelope((this.inner as WasmEngineMethods).drawing_document());
+  }
+
+  async setDrawingDocument(document: DrawingDocumentDto): Promise<DrawingDocumentDto> {
+    return unwrapEnvelope(
+      (this.inner as WasmEngineMethods).drawing_set_document(JSON.stringify(document)),
+    );
+  }
+
+  async drawingProjection(request: DrawingProjectionRequest): Promise<DrawingProjectionDto> {
+    return projectSceneForDrawing(await this.solidScene(), request);
   }
 
   async setBodyAppearance(appearance: BodyAppearance): Promise<BodyAppearance[]> {
@@ -390,6 +437,65 @@ export class WasmEngine implements Engine {
     return unwrapEnvelope(this.inner.project_export_model());
   }
 
+  async bindProjectSession(sessionId: string): Promise<void> {
+    this.validateSessionId(sessionId);
+    if (this.activeSessionId === sessionId) return;
+    const retained = this.contexts.get(sessionId);
+    if (retained) {
+      this.activeContext = retained;
+      this.activeSessionId = sessionId;
+      return;
+    }
+    if (this.activeSessionId !== null || this.contexts.size !== 0) {
+      throw new Error('the bootstrap project session is already bound');
+    }
+    this.contexts.set(sessionId, this.activeContext);
+    this.activeSessionId = sessionId;
+  }
+
+  async createProjectSession(sessionId: string): Promise<SolidUpdateDto> {
+    this.validateSessionId(sessionId);
+    if (this.contexts.has(sessionId)) {
+      throw new Error('project session already exists');
+    }
+    if (this.contexts.size >= 128) {
+      throw new Error('too many resident project sessions');
+    }
+    const context: WasmProjectContext = {
+      inner: new WasmEngineInner(),
+      kernelPromise: null,
+    };
+    this.contexts.set(sessionId, context);
+    this.activeContext = context;
+    this.activeSessionId = sessionId;
+    return this.currentUpdate();
+  }
+
+  async activateProjectSession(sessionId: string): Promise<boolean> {
+    this.validateSessionId(sessionId);
+    const context = this.contexts.get(sessionId);
+    if (!context) return false;
+    this.activeContext = context;
+    this.activeSessionId = sessionId;
+    return true;
+  }
+
+  async dropProjectSession(sessionId: string): Promise<void> {
+    this.validateSessionId(sessionId);
+    if (this.activeSessionId === sessionId) {
+      throw new Error('cannot drop the active project session');
+    }
+    const context = this.contexts.get(sessionId);
+    if (!context) return;
+    this.contexts.delete(sessionId);
+    context.inner.free();
+    if (context.kernelPromise) {
+      void context.kernelPromise
+        .then((kernel) => kernel.dispose())
+        .catch(() => undefined);
+    }
+  }
+
   async newProject(): Promise<SolidUpdateDto> {
     const plan = unwrapEnvelope<RecomputePlanDto>(this.inner.project_prepare_new());
     return this.executeSolidPlan(plan);
@@ -399,7 +505,8 @@ export class WasmEngine implements Engine {
     const plan = unwrapEnvelope<RecomputePlanDto>(
       this.inner.project_prepare_load(JSON.stringify(modelJson)),
     );
-    return this.executeSolidPlan(plan);
+    const update = await this.executeSolidPlan(plan);
+    return restoreLoadedDatumHistoryFrames(this, update);
   }
 
   async exportStep(request: StepExportRequest): Promise<Uint8Array> {
@@ -415,17 +522,36 @@ export class WasmEngine implements Engine {
   }
 
   private async executeSolidPlan(plan: RecomputePlanDto): Promise<SolidUpdateDto> {
-    const scene = plan.jobs.length === 0
-      ? { bodies: [], errors: plan.errors ?? [] }
-      : (await this.browserKernel()).recompute(plan);
+    let scene;
+    if (plan.jobs.length === 0) {
+      if (this.activeContext.kernelPromise) {
+        (await this.activeContext.kernelPromise).clear();
+      }
+      scene = { bodies: [], errors: plan.errors ?? [] };
+    } else {
+      scene = (await this.browserKernel()).recompute(plan);
+    }
     return unwrapEnvelope(
       this.inner.solid_commit(JSON.stringify({ transaction_id: plan.transaction_id, scene })),
     );
   }
 
   private browserKernel(): Promise<BrowserOcctKernel> {
-    this.kernelPromise ??= BrowserOcctKernel.create();
-    return this.kernelPromise;
+    this.activeContext.kernelPromise ??= BrowserOcctKernel.create();
+    return this.activeContext.kernelPromise;
+  }
+
+  private currentUpdate(): SolidUpdateDto {
+    return {
+      document: unwrapEnvelope(this.inner.document()),
+      scene: unwrapEnvelope(this.inner.solid_scene()),
+    };
+  }
+
+  private validateSessionId(sessionId: string): void {
+    if (sessionId.length === 0 || sessionId.length > 128 || sessionId === '__bootstrap__') {
+      throw new Error('invalid project session id');
+    }
   }
 
   async previewSegment(request: SegmentRequest): Promise<PreviewDto> {
