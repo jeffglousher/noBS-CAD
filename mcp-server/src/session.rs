@@ -366,7 +366,7 @@ mod tests {
 
     #[test]
     fn write_session_rejects_non_uuid() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = lock_env();
         let dir = std::env::temp_dir().join(format!("nbcad-sessions-bad-{}", now_ms()));
         std::env::set_var("NBCAD_SESSION_DIR", &dir);
         assert!(write_session("not-a-uuid", "model.json", "{}").is_err());
@@ -376,7 +376,7 @@ mod tests {
 
     #[test]
     fn claim_release_writer_and_conflict_meta() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = lock_env();
         let unique = test_session_uuid();
         let dir = std::env::temp_dir().join(format!("nbcad-sessions-writer-{unique}"));
         std::env::set_var("NBCAD_SESSION_DIR", &dir);
