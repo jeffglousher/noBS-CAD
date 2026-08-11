@@ -1,0 +1,17 @@
+{
+  "name": "noBS-CAD browser",
+  "install": "rustup target add wasm32-unknown-unknown\nbash -lc 'command -v wasm-pack >/dev/null || cargo install wasm-pack --version 0.13.1 --locked'\nnpm ci\nnpm run build:wasm\nnpx playwright install chromium",
+  "terminals": [
+    {
+      "name": "vite",
+      "command": "npm run dev -- --host 0.0.0.0 --port 5173",
+      "description": "Vite browser app for UI and Playwright work on :5173"
+    }
+  ],
+  "ports": [
+    {
+      "name": "vite",
+      "port": 5173
+    }
+  ]
+}
