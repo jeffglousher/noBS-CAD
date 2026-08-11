@@ -50,16 +50,19 @@ async function main() {
     {
       cwd: ROOT,
       env: { ...process.env, NBCAD_SESSION_DIR: SESSION_DIR },
+      // Drain logs so the Vite child cannot block on a full stdout pipe.
       stdio: ['ignore', 'pipe', 'pipe'],
     },
   );
   let serverLog = '';
-  child.stdout.on('data', (chunk) => {
+  const appendLog = (chunk) => {
     serverLog += chunk.toString();
-  });
-  child.stderr.on('data', (chunk) => {
-    serverLog += chunk.toString();
-  });
+    if (serverLog.length > 32_000) {
+      serverLog = serverLog.slice(-16_000);
+    }
+  };
+  child.stdout.on('data', appendLog);
+  child.stderr.on('data', appendLog);
 
   const browser = await chromium.launch({ headless: true });
   try {
