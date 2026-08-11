@@ -158,5 +158,7 @@ async function main() {
 
 main().catch((error) => {
   console.error('[fail] co-link smoke:', error);
-  process.exit(1);
+  process.exitCode = 1;
+  // Ensure we never leave a hung Vite child behind on failure.
+  setTimeout(() => process.exit(1), 500);
 });
