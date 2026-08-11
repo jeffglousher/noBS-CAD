@@ -312,6 +312,14 @@ pub fn test_session_uuid() -> String {
 #[cfg(test)]
 pub static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+/// Acquire [`ENV_LOCK`], recovering if a prior test panicked while holding it.
+#[cfg(test)]
+pub fn lock_env() -> std::sync::MutexGuard<'static, ()> {
+    ENV_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -327,7 +335,7 @@ mod tests {
 
     #[test]
     fn session_snapshot_roundtrip_skips_control_and_non_uuid() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = lock_env();
         let unique = test_session_uuid();
         let dir = std::env::temp_dir().join(format!("nbcad-sessions-test-{unique}"));
         std::env::set_var("NBCAD_SESSION_DIR", &dir);

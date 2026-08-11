@@ -3336,7 +3336,7 @@ mod tests {
 
     #[test]
     fn read_only_snapshot_attach_refresh_detach() {
-        let _guard = session::ENV_LOCK.lock().unwrap();
+        let _guard = session::lock_env();
         let unique = session::test_session_uuid();
         let dir = std::env::temp_dir().join(format!("nbcad-sessions-attach-{unique}"));
         std::env::set_var("NBCAD_SESSION_DIR", &dir);
@@ -3404,7 +3404,7 @@ mod tests {
 
     #[test]
     fn live_attach_writeback_and_writer_conflict() {
-        let _guard = session::ENV_LOCK.lock().unwrap();
+        let _guard = session::lock_env();
         let unique = session::test_session_uuid();
         let dir = std::env::temp_dir().join(format!("nbcad-sessions-live-{unique}"));
         std::env::set_var("NBCAD_SESSION_DIR", &dir);
@@ -3441,11 +3441,13 @@ mod tests {
         assert_eq!(server.attached_session_mode, SessionAttachMode::Live);
         assert_eq!(session::read_writer(&unique)["writer"], "mcp");
 
+        // Mutate in solid mode (not sketch_begin): writeback exports via
+        // project_export_model, which refuses while a sketch is active.
         let before = session::require_model_json(&unique).unwrap();
         let mutated = server
             .call_tool(
-                "sketch_begin",
-                json!({"plane": {"type": "origin_plane", "plane": "xz"}}),
+                "cad_set_document_name",
+                json!({"name": "LiveWritebackDoc"}),
             )
             .expect("live mutate should succeed while MCP holds writer");
         assert_eq!(mutated["_session"]["writeback"], true);
@@ -3453,6 +3455,10 @@ mod tests {
         assert_eq!(server.attached_generation, 2);
         let after = session::require_model_json(&unique).unwrap();
         assert_ne!(before, after, "model.json should change after writeback");
+        assert!(
+            after.contains("LiveWritebackDoc"),
+            "writeback model should include renamed document"
+        );
         assert_eq!(session::read_writer(&unique)["writer"], "mcp");
         assert_eq!(session::read_writer(&unique)["generation"], 2);
         let heartbeat: Value = serde_json::from_str(
