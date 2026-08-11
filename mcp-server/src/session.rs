@@ -1,10 +1,10 @@
-//! Headless session directories under `NBCAD_SESSION_DIR` (or temp `nbcad-sessions`).
+//! Session directories under `NBCAD_SESSION_DIR` (or temp `nbcad-sessions`).
 //!
-//! This is a **read-only snapshot bridge** helper for MCP goldens and desktop
-//! publish → attach. It is **not** a live UI co-link: MCP never writes
-//! model/focus back after attach.
+//! Supports:
+//! - **read-only snapshot** attach (MCP loads model/focus; never claims writer)
+//! - **live** attach (MCP claims `writer.json`, writebacks `model.json` after mutating tools)
 //!
-//! Layout: `<session_dir>/<uuid>/{model.json,focus.json,heartbeat.json}`.
+//! Layout: `<session_dir>/<uuid>/{model.json,focus.json,heartbeat.json,writer.json}`.
 //! Session ids must be UUID v4 strings.
 
 use std::fs;
@@ -146,6 +146,86 @@ pub fn write_session(session_id: &str, filename: &str, content: &str) -> Result<
     })
 }
 
+/// Read `writer.json`, or a default `{ writer: "none", ... }` when missing/invalid.
+pub fn read_writer(session_id: &str) -> Value {
+    match read_session_file(session_id, "writer.json") {
+        Ok(body) => {
+            let parsed: Value = serde_json::from_str(&body).unwrap_or_else(|_| json!({}));
+            let writer = parsed
+                .get("writer")
+                .and_then(Value::as_str)
+                .unwrap_or("none");
+            let writer = match writer {
+                "ui" | "mcp" | "none" => writer,
+                _ => "none",
+            };
+            json!({
+                "writer": writer,
+                "updated_ms": parsed.get("updated_ms").and_then(Value::as_u64).unwrap_or(0),
+                "generation": parsed.get("generation").and_then(Value::as_u64).unwrap_or(0),
+            })
+        }
+        Err(_) => json!({
+            "writer": "none",
+            "updated_ms": 0,
+            "generation": 0,
+        }),
+    }
+}
+
+/// Atomically claim the session writer lock (`writer.json`).
+pub fn claim_writer(session_id: &str, writer: &str, generation: u64) -> Result<(), String> {
+    require_valid_session_id(session_id)?;
+    if !matches!(writer, "ui" | "mcp" | "none") {
+        return Err(format!(
+            "writer must be 'ui', 'mcp', or 'none' (got '{writer}')"
+        ));
+    }
+    let body = json!({
+        "writer": writer,
+        "updated_ms": now_ms(),
+        "generation": generation,
+    });
+    write_session(
+        session_id,
+        "writer.json",
+        &serde_json::to_string(&body).map_err(|error| error.to_string())?,
+    )
+}
+
+/// Release the writer lock (sets `writer` to `"none"`).
+pub fn release_writer(session_id: &str) -> Result<(), String> {
+    let current = read_writer(session_id);
+    let generation = current
+        .get("generation")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    claim_writer(session_id, "none", generation)
+}
+
+/// Write `model.json` and bump heartbeat for a live session revision.
+pub fn write_model_revision(
+    session_id: &str,
+    model_json: &str,
+    generation: u64,
+    source: &str,
+) -> Result<(), String> {
+    require_valid_session_id(session_id)?;
+    write_session(session_id, "model.json", model_json)?;
+    let heartbeat = json!({
+        "updated_ms": now_ms(),
+        "generation": generation,
+        "source": source,
+        "session_mode": "live",
+        "session_id": session_id,
+    });
+    write_session(
+        session_id,
+        "heartbeat.json",
+        &serde_json::to_string(&heartbeat).map_err(|error| error.to_string())?,
+    )
+}
+
 /// Heartbeat age / staleness for a session directory (no auto-delete).
 pub fn heartbeat_meta(session_id: &str) -> Value {
     match read_session_file(session_id, "heartbeat.json") {
@@ -185,11 +265,13 @@ pub fn sessions_list_json() -> Value {
                         "session_id": session_id,
                         "has_model": has_model,
                         "heartbeat": heartbeat_meta(session_id),
+                        "writer": read_writer(session_id),
                     })
                 })
                 .collect();
             json!({
-                "session_mode": "read_only_snapshot",
+                "session_mode": "snapshot_or_live",
+                "supports_live": true,
                 "sessions": sessions,
                 "session_details": detailed,
                 "session_dir": session_dir().display().to_string(),
@@ -197,7 +279,8 @@ pub fn sessions_list_json() -> Value {
             })
         }
         Err(error) => json!({
-            "session_mode": "read_only_snapshot",
+            "session_mode": "snapshot_or_live",
+            "supports_live": true,
             "sessions": [],
             "session_details": [],
             "session_dir": session_dir().display().to_string(),
@@ -266,6 +349,9 @@ mod tests {
         assert_eq!(list["sessions"][0], unique);
         assert_eq!(list["session_details"][0]["has_model"], true);
         assert_eq!(list["session_details"][0]["heartbeat"]["stale"], false);
+        assert_eq!(list["supports_live"], true);
+        assert_eq!(list["session_mode"], "snapshot_or_live");
+        assert_eq!(list["session_details"][0]["writer"]["writer"], "none");
         std::env::remove_var("NBCAD_SESSION_DIR");
         let _ = fs::remove_dir_all(&dir);
     }
@@ -276,6 +362,48 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("nbcad-sessions-bad-{}", now_ms()));
         std::env::set_var("NBCAD_SESSION_DIR", &dir);
         assert!(write_session("not-a-uuid", "model.json", "{}").is_err());
+        std::env::remove_var("NBCAD_SESSION_DIR");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn claim_release_writer_and_conflict_meta() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let unique = test_session_uuid();
+        let dir = std::env::temp_dir().join(format!("nbcad-sessions-writer-{unique}"));
+        std::env::set_var("NBCAD_SESSION_DIR", &dir);
+
+        let default = read_writer(&unique);
+        assert_eq!(default["writer"], "none");
+        assert_eq!(default["generation"], 0);
+
+        claim_writer(&unique, "mcp", 3).unwrap();
+        let claimed = read_writer(&unique);
+        assert_eq!(claimed["writer"], "mcp");
+        assert_eq!(claimed["generation"], 3);
+        assert!(claimed["updated_ms"].as_u64().unwrap() > 0);
+
+        // UI can overwrite the lock file (conflict is enforced by callers).
+        claim_writer(&unique, "ui", 4).unwrap();
+        assert_eq!(read_writer(&unique)["writer"], "ui");
+        assert_eq!(read_writer(&unique)["generation"], 4);
+
+        release_writer(&unique).unwrap();
+        let released = read_writer(&unique);
+        assert_eq!(released["writer"], "none");
+        assert_eq!(released["generation"], 4);
+
+        write_model_revision(&unique, "{\"version\":2}", 5, "mcp").unwrap();
+        let model = require_model_json(&unique).unwrap();
+        assert!(model.contains("\"version\":2"));
+        let heartbeat: Value =
+            serde_json::from_str(&read_session_file(&unique, "heartbeat.json").unwrap()).unwrap();
+        assert_eq!(heartbeat["generation"], 5);
+        assert_eq!(heartbeat["source"], "mcp");
+        assert_eq!(heartbeat["session_mode"], "live");
+
+        assert!(claim_writer(&unique, "agent", 1).is_err());
+
         std::env::remove_var("NBCAD_SESSION_DIR");
         let _ = fs::remove_dir_all(&dir);
     }

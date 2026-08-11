@@ -118,13 +118,21 @@ impl ToolSpec {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SessionAttachMode {
+    None,
+    ReadOnly,
+    Live,
+}
+
 struct CadServer {
     manager: SketchManager,
     kernel: OcctKernel,
     disclosure: DisclosureState,
-    /// Session id last successfully loaded via read-only `cad_attach` / `cad_refresh`.
-    /// MCP never writes this session's files back (no last-writer-wins vs a UI).
+    /// Session id last successfully loaded via `cad_attach` / `cad_refresh`.
     attached_document_id: Option<String>,
+    attached_session_mode: SessionAttachMode,
+    attached_generation: u64,
     pending_recompute_transaction: Option<u64>,
 }
 
@@ -135,6 +143,8 @@ impl CadServer {
             kernel: OcctKernel::new().map_err(|error| error.to_string())?,
             disclosure: DisclosureState::new(),
             attached_document_id: None,
+            attached_session_mode: SessionAttachMode::None,
+            attached_generation: 0,
             pending_recompute_transaction: None,
         })
     }
@@ -154,6 +164,8 @@ impl CadServer {
         if execution == Execution::Control {
             return self.call_control(name, arguments);
         }
+
+        self.ensure_live_writer_allows_mutate(name)?;
 
         if self.disclosure.advertisement_state(pack, spine) == AdvertisementState::HiddenButCallable
         {
@@ -284,6 +296,7 @@ impl CadServer {
             self.disclosure.auto_hint(focus);
         }
         value = annotate_disclosure(value, &self.disclosure, pack, spine);
+        value = self.maybe_session_writeback(name, value)?;
         Ok(value)
     }
 
@@ -328,16 +341,9 @@ impl CadServer {
                 }
             }
             "cad_list_sessions" => session::sessions_list_json(),
-            "cad_attach" => self.attach_read_only_snapshot(&arguments)?,
-            "cad_refresh" => self.refresh_read_only_snapshot()?,
-            "cad_detach" => {
-                let previous = self.attached_document_id.take();
-                json!({
-                    "detached": true,
-                    "session_id": previous,
-                    "session_mode": "read_only_snapshot",
-                })
-            }
+            "cad_attach" => self.attach_session(&arguments)?,
+            "cad_refresh" => self.refresh_attached_session()?,
+            "cad_detach" => self.detach_session()?,
             other => return Err(format!("unknown control tool: {other}")),
         };
         Ok(value)
@@ -345,7 +351,8 @@ impl CadServer {
 
     /// Load `model.json` (+ optional `focus.json`) into this process.
     /// Marks attached only after a successful model load (Jack §3).
-    fn attach_read_only_snapshot(&mut self, arguments: &Value) -> Result<Value, String> {
+    /// `mode`: `"read_only"` (default) or `"live"` (writer lock + writeback).
+    fn attach_session(&mut self, arguments: &Value) -> Result<Value, String> {
         let session_id = arguments
             .get("session_id")
             .or_else(|| arguments.get("document_id"))
@@ -358,9 +365,28 @@ impl CadServer {
                 session::session_dir().display()
             ));
         }
+        let mode = arguments
+            .get("mode")
+            .and_then(Value::as_str)
+            .unwrap_or("read_only");
+        match mode {
+            "read_only" => self.attach_read_only_snapshot(session_id),
+            "live" => self.attach_live_session(session_id),
+            other => Err(format!(
+                "mode must be 'read_only' or 'live' (got '{other}')"
+            )),
+        }
+    }
+
+    fn attach_read_only_snapshot(&mut self, session_id: &str) -> Result<Value, String> {
         self.load_snapshot_model(session_id)?;
         self.apply_snapshot_focus(session_id);
         self.attached_document_id = Some(session_id.to_string());
+        self.attached_session_mode = SessionAttachMode::ReadOnly;
+        self.attached_generation = session::heartbeat_meta(session_id)
+            .get("generation")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
         Ok(json!({
             "attached": true,
             "session_id": session_id,
@@ -372,13 +398,68 @@ impl CadServer {
         }))
     }
 
+    fn attach_live_session(&mut self, session_id: &str) -> Result<Value, String> {
+        let heartbeat = session::heartbeat_meta(session_id);
+        if heartbeat.get("stale").and_then(Value::as_bool) != Some(false) {
+            return Err(format!(
+                "session '{session_id}' heartbeat is stale or missing; live attach requires a fresh heartbeat (age <= {} ms)",
+                session::HEARTBEAT_STALE_MS
+            ));
+        }
+        self.load_snapshot_model(session_id)?;
+        self.apply_snapshot_focus(session_id);
+        let generation = heartbeat
+            .get("generation")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        session::claim_writer(session_id, "mcp", generation)?;
+        self.attached_document_id = Some(session_id.to_string());
+        self.attached_session_mode = SessionAttachMode::Live;
+        self.attached_generation = generation;
+        Ok(json!({
+            "attached": true,
+            "session_id": session_id,
+            "document_id": session_id,
+            "focus": self.disclosure.active().as_str(),
+            "session_mode": "live",
+            "writeback": true,
+            "generation": generation,
+            "heartbeat": session::heartbeat_meta(session_id),
+        }))
+    }
+
     /// Re-read the currently attached session from disk into this process.
-    fn refresh_read_only_snapshot(&mut self) -> Result<Value, String> {
+    fn refresh_attached_session(&mut self) -> Result<Value, String> {
         let Some(session_id) = self.attached_document_id.clone() else {
             return Err("no session attached; call cad_attach first".to_string());
         };
+        let mode = self.attached_session_mode;
         self.load_snapshot_model(&session_id)?;
         self.apply_snapshot_focus(&session_id);
+        if mode == SessionAttachMode::Live {
+            let writer = session::read_writer(&session_id);
+            let disk_generation = session::heartbeat_meta(&session_id)
+                .get("generation")
+                .and_then(Value::as_u64)
+                .unwrap_or(0);
+            if writer.get("writer").and_then(Value::as_str) == Some("ui")
+                && disk_generation > self.attached_generation
+            {
+                self.attached_generation = disk_generation;
+            } else if disk_generation > self.attached_generation {
+                // Keep MCP generation in sync if heartbeat advanced for any reason.
+                self.attached_generation = disk_generation;
+            }
+            return Ok(json!({
+                "refreshed": true,
+                "session_id": session_id,
+                "focus": self.disclosure.active().as_str(),
+                "session_mode": "live",
+                "writeback": true,
+                "generation": self.attached_generation,
+                "writer": writer,
+            }));
+        }
         Ok(json!({
             "refreshed": true,
             "session_id": session_id,
@@ -386,6 +467,99 @@ impl CadServer {
             "session_mode": "read_only_snapshot",
             "writeback": false,
         }))
+    }
+
+    fn detach_session(&mut self) -> Result<Value, String> {
+        let previous = self.attached_document_id.take();
+        let mode = self.attached_session_mode;
+        self.attached_session_mode = SessionAttachMode::None;
+        self.attached_generation = 0;
+        if mode == SessionAttachMode::Live {
+            if let Some(ref session_id) = previous {
+                session::release_writer(session_id)?;
+            }
+            return Ok(json!({
+                "detached": true,
+                "session_id": previous,
+                "session_mode": "live",
+            }));
+        }
+        Ok(json!({
+            "detached": true,
+            "session_id": previous,
+            "session_mode": "read_only_snapshot",
+        }))
+    }
+
+    fn ensure_live_writer_allows_mutate(&self, tool_name: &str) -> Result<(), String> {
+        if self.attached_session_mode != SessionAttachMode::Live {
+            return Ok(());
+        }
+        if is_session_read_only_tool(tool_name) {
+            return Ok(());
+        }
+        let Some(session_id) = self.attached_document_id.as_deref() else {
+            return Ok(());
+        };
+        let writer = session::read_writer(session_id);
+        if writer.get("writer").and_then(Value::as_str) == Some("ui") {
+            return Err(
+                "session writer conflict: UI holds the writer lock; call cad_refresh or wait"
+                    .to_string(),
+            );
+        }
+        Ok(())
+    }
+
+    fn maybe_session_writeback(&mut self, tool_name: &str, mut value: Value) -> Result<Value, String> {
+        if self.attached_session_mode != SessionAttachMode::Live {
+            return Ok(value);
+        }
+        if is_session_read_only_tool(tool_name) {
+            return Ok(value);
+        }
+        let Some(session_id) = self.attached_document_id.clone() else {
+            return Ok(value);
+        };
+        let writer = session::read_writer(&session_id);
+        if writer.get("writer").and_then(Value::as_str) == Some("ui") {
+            return Err(
+                "session writer conflict: UI holds the writer lock; call cad_refresh or wait"
+                    .to_string(),
+            );
+        }
+        let model = parse_engine_envelope(host::handle(
+            &mut self.manager,
+            "project_export_model",
+            "",
+        ))?;
+        let model_json = match model {
+            Value::String(text) => text,
+            other => serde_json::to_string(&other)
+                .map_err(|error| format!("could not encode model.json: {error}"))?,
+        };
+        let generation = self.attached_generation.saturating_add(1);
+        session::write_model_revision(&session_id, &model_json, generation, "mcp")?;
+        session::claim_writer(&session_id, "mcp", generation)?;
+        self.attached_generation = generation;
+        if let Value::Object(object) = &mut value {
+            object.insert(
+                "_session".to_string(),
+                json!({
+                    "writeback": true,
+                    "generation": generation,
+                }),
+            );
+        } else {
+            value = json!({
+                "result": value,
+                "_session": {
+                    "writeback": true,
+                    "generation": generation,
+                }
+            });
+        }
+        Ok(value)
     }
 
     fn load_snapshot_model(&mut self, session_id: &str) -> Result<(), String> {
@@ -635,6 +809,24 @@ fn parse_engine_envelope(raw: String) -> Result<Value, String> {
             .unwrap_or("unknown noBS CAD engine error")
             .to_string())
     }
+}
+
+/// Tools that never mutate the project model — skip writer checks / writeback.
+fn is_session_read_only_tool(name: &str) -> bool {
+    matches!(
+        name,
+        "solid_scene"
+            | "cad_document"
+            | "cad_project_model"
+            | "solid_export_step"
+            | "solid_export_stl"
+            | "solid_export_3mf"
+            | "solid_tessellate"
+            | "solid_export_preflight"
+            | "material_catalog"
+            | "body_appearances"
+            | "demo_export_pip_3mf"
+    )
 }
 
 fn annotate_disclosure(
@@ -2507,14 +2699,14 @@ fn tool_specs() -> Vec<ToolSpec> {
         ),
         ToolSpec::control(
             "cad_list_sessions",
-            "List read-only session snapshots",
-            "List UUID v4 session directories under NBCAD_SESSION_DIR (skips _* control dirs and non-UUID names). Includes heartbeat age/stale metadata. Use with cad_attach. Snapshot bridge — not a live UI co-link.",
+            "List session snapshots (read-only or live)",
+            "List UUID v4 session directories under NBCAD_SESSION_DIR (skips _* control dirs and non-UUID names). Includes heartbeat age/stale metadata and writer.json lock state. Use with cad_attach in mode read_only (default) or live (writer lock + model writeback).",
             empty_schema(),
         ),
         ToolSpec::control(
             "cad_attach",
-            "Attach read-only session snapshot",
-            "Require UUID v4 session_id and valid model.json; load into this MCP process; optional focus.json. Fails if the id/model is missing or invalid. Never writes back to the session dir.",
+            "Attach session (read-only or live)",
+            "Require UUID v4 session_id and valid model.json; load into this MCP process; optional focus.json. mode=read_only (default): no writer claim, no writeback. mode=live: require fresh heartbeat, claim writer lock as mcp, write model.json back after mutating tools.",
             object_schema(
                 json!({
                     "session_id": {
@@ -2522,6 +2714,11 @@ fn tool_specs() -> Vec<ToolSpec> {
                         "minLength": 36,
                         "maxLength": 36,
                         "description": "UUID v4 session directory name"
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": ["read_only", "live"],
+                        "description": "read_only (default) or live with writer lock + writeback"
                     }
                 }),
                 &["session_id"],
@@ -2529,14 +2726,14 @@ fn tool_specs() -> Vec<ToolSpec> {
         ),
         ToolSpec::control(
             "cad_refresh",
-            "Refresh attached session snapshot",
-            "Re-read model.json (and optional focus.json) for the currently attached session. Explicit refresh — MCP does not watch the filesystem.",
+            "Refresh attached session",
+            "Re-read model.json (and optional focus.json) for the currently attached session. In live mode, syncs generation when the UI advanced the writer lock. Explicit refresh — MCP does not watch the filesystem.",
             empty_schema(),
         ),
         ToolSpec::control(
             "cad_detach",
-            "Detach session snapshot",
-            "Clear the attached session id. Leaves the in-memory document as last loaded; does not delete session files.",
+            "Detach session",
+            "Clear the attached session id. In live mode, releases the writer lock. Leaves the in-memory document as last loaded; does not delete session files.",
             empty_schema(),
         ),
     ];
@@ -3198,7 +3395,92 @@ mod tests {
         let detached = server.call_tool("cad_detach", json!({})).unwrap();
         assert_eq!(detached["detached"], true);
         assert!(server.attached_document_id.is_none());
+        assert_eq!(server.attached_session_mode, SessionAttachMode::None);
         assert!(server.call_tool("cad_refresh", json!({})).is_err());
+
+        std::env::remove_var("NBCAD_SESSION_DIR");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn live_attach_writeback_and_writer_conflict() {
+        let _guard = session::ENV_LOCK.lock().unwrap();
+        let unique = session::test_session_uuid();
+        let dir = std::env::temp_dir().join(format!("nbcad-sessions-live-{unique}"));
+        std::env::set_var("NBCAD_SESSION_DIR", &dir);
+        let (mut donor, _) = mcp_box();
+        let model = donor.call_tool("cad_project_model", json!({})).unwrap();
+        let model_json = model
+            .as_str()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| serde_json::to_string(&model).unwrap());
+        session::write_session(&unique, "model.json", &model_json).unwrap();
+        session::write_session(&unique, "focus.json", "{\"focus\":\"solid\"}").unwrap();
+        session::write_session(
+            &unique,
+            "heartbeat.json",
+            &format!(
+                r#"{{"updated_ms":{},"generation":1,"session_id":"{unique}"}}"#,
+                session::now_ms()
+            ),
+        )
+        .unwrap();
+        session::claim_writer(&unique, "none", 1).unwrap();
+
+        let mut server = CadServer::new().unwrap();
+        let attached = server
+            .call_tool(
+                "cad_attach",
+                json!({"session_id": unique, "mode": "live"}),
+            )
+            .unwrap();
+        assert_eq!(attached["attached"], true);
+        assert_eq!(attached["session_mode"], "live");
+        assert_eq!(attached["writeback"], true);
+        assert_eq!(attached["generation"], 1);
+        assert_eq!(server.attached_session_mode, SessionAttachMode::Live);
+        assert_eq!(session::read_writer(&unique)["writer"], "mcp");
+
+        let before = session::require_model_json(&unique).unwrap();
+        let mutated = server
+            .call_tool(
+                "sketch_begin",
+                json!({"plane": {"type": "origin_plane", "plane": "xz"}}),
+            )
+            .expect("live mutate should succeed while MCP holds writer");
+        assert_eq!(mutated["_session"]["writeback"], true);
+        assert_eq!(mutated["_session"]["generation"], 2);
+        assert_eq!(server.attached_generation, 2);
+        let after = session::require_model_json(&unique).unwrap();
+        assert_ne!(before, after, "model.json should change after writeback");
+        assert_eq!(session::read_writer(&unique)["writer"], "mcp");
+        assert_eq!(session::read_writer(&unique)["generation"], 2);
+        let heartbeat: Value = serde_json::from_str(
+            &session::read_session_file(&unique, "heartbeat.json").unwrap(),
+        )
+        .unwrap();
+        assert_eq!(heartbeat["generation"], 2);
+        assert_eq!(heartbeat["source"], "mcp");
+        assert_eq!(heartbeat["session_mode"], "live");
+
+        session::claim_writer(&unique, "ui", 3).unwrap();
+        let conflict = server
+            .call_tool(
+                "cad_set_document_name",
+                json!({"name": "ShouldConflict"}),
+            )
+            .expect_err("UI writer lock must block MCP mutate");
+        assert!(
+            conflict.contains("session writer conflict"),
+            "unexpected conflict message: {conflict}"
+        );
+
+        let detached = server.call_tool("cad_detach", json!({})).unwrap();
+        assert_eq!(detached["detached"], true);
+        assert_eq!(detached["session_mode"], "live");
+        assert!(server.attached_document_id.is_none());
+        assert_eq!(server.attached_session_mode, SessionAttachMode::None);
+        assert_eq!(session::read_writer(&unique)["writer"], "none");
 
         std::env::remove_var("NBCAD_SESSION_DIR");
         let _ = std::fs::remove_dir_all(&dir);
