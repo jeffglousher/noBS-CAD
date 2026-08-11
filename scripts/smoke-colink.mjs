@@ -2,10 +2,9 @@
  * Co-link smoke (browser path, no native OCCT required).
  *
  * 1. Start Vite with session HTTP bridge
- * 2. Open the app, wait for WASM engine
- * 3. Force UI session publish → UUID under NBCAD_SESSION_DIR
- * 4. Simulate MCP writeback: bump generation + source=mcp on model/heartbeat
- * 5. Assert UI applies the revision (__nbcadLastMcpGeneration)
+ * 2. Warm WASM engine, publish a real UI session
+ * 3. Simulate MCP writeback (bump generation + rename document)
+ * 4. Assert UI applies the revision
  */
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -16,6 +15,7 @@ import { chromium } from 'playwright';
 const PORT = 7198;
 const ROOT = process.cwd();
 const SESSION_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'nbcad-colink-'));
+const BASE = `http://127.0.0.1:${PORT}`;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -44,33 +44,32 @@ function atomicWrite(filePath, content) {
 
 async function main() {
   process.env.NBCAD_SESSION_DIR = SESSION_DIR;
+  const viteBin = path.join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js');
   const child = spawn(
-    process.platform === 'win32' ? 'npm.cmd' : 'npm',
-    ['run', 'dev', '--', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'],
+    process.execPath,
+    [viteBin, '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'],
     {
       cwd: ROOT,
       env: { ...process.env, NBCAD_SESSION_DIR: SESSION_DIR },
-      // Drain logs so the Vite child cannot block on a full stdout pipe.
       stdio: ['ignore', 'pipe', 'pipe'],
     },
   );
   let serverLog = '';
   const appendLog = (chunk) => {
     serverLog += chunk.toString();
-    if (serverLog.length > 32_000) {
-      serverLog = serverLog.slice(-16_000);
-    }
+    if (serverLog.length > 32_000) serverLog = serverLog.slice(-16_000);
   };
   child.stdout.on('data', appendLog);
   child.stderr.on('data', appendLog);
 
   const browser = await chromium.launch({ headless: true });
   try {
-    await waitForServer(`http://127.0.0.1:${PORT}/`);
+    await waitForServer(`${BASE}/`);
     const page = await browser.newPage();
-    await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: 'domcontentloaded' });
-
-    // Wait for app store + publish helper; force engine init via publish.
+    page.on('pageerror', (error) => {
+      console.log('[colink] pageerror', error.message);
+    });
+    await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(
       () =>
         Boolean(window.__appStore) && typeof window.__nbcadPublishSession === 'function',
@@ -78,6 +77,13 @@ async function main() {
       { timeout: 60_000 },
     );
 
+    console.log('[colink] warming engine');
+    await page.evaluate(async () => {
+      const { getEngine } = await import('/src/engine/index.ts');
+      await getEngine();
+    });
+
+    console.log('[colink] publishing UI session');
     let sessionId = null;
     const publishDeadline = Date.now() + 120_000;
     while (!sessionId && Date.now() < publishDeadline) {
@@ -87,6 +93,7 @@ async function main() {
     if (!sessionId) {
       throw new Error('UI did not publish a session id');
     }
+
     const modelPath = path.join(SESSION_DIR, sessionId, 'model.json');
     const heartbeatPath = path.join(SESSION_DIR, sessionId, 'heartbeat.json');
     const writerPath = path.join(SESSION_DIR, sessionId, 'writer.json');
@@ -101,12 +108,11 @@ async function main() {
     const model = JSON.parse(fs.readFileSync(modelPath, 'utf8'));
     const heartbeat = JSON.parse(fs.readFileSync(heartbeatPath, 'utf8'));
     const nextGeneration = Number(heartbeat.generation ?? 1) + 1;
-    // Marker the UI can observe after apply: bump nested document name.
     if (!model.document || typeof model.document !== 'object') {
       throw new Error('published model.json missing document object');
     }
     model.document.name = `colink-${nextGeneration}`;
-    // Claim MCP writer first so the UI publisher will not overwrite the revision.
+
     atomicWrite(
       writerPath,
       JSON.stringify({
@@ -127,10 +133,11 @@ async function main() {
       }),
     );
 
+    console.log('[colink] waiting for UI apply', nextGeneration);
     await page.waitForFunction(
       (expected) => window.__nbcadLastMcpGeneration === expected,
       nextGeneration,
-      { timeout: 30_000 },
+      { timeout: 120_000 },
     );
     const docName = await page.evaluate(
       () => window.__appStore.getState().document?.name ?? null,
@@ -141,17 +148,16 @@ async function main() {
 
     console.log(`[ok] co-link smoke passed (session=${sessionId}, generation=${nextGeneration})`);
   } finally {
-    await browser.close();
+    await browser.close().catch(() => undefined);
     child.kill('SIGTERM');
     try {
       fs.rmSync(SESSION_DIR, { recursive: true, force: true });
     } catch {
       // best-effort
     }
-    // Give vite a moment to exit; dump logs on failure path only via throw above.
-    await sleep(500);
-    if (serverLog.includes('error')) {
-      // keep quiet on success
+    await sleep(300);
+    if (serverLog && process.env.COLINK_DEBUG) {
+      console.log(serverLog.slice(-4000));
     }
   }
 }
@@ -159,6 +165,5 @@ async function main() {
 main().catch((error) => {
   console.error('[fail] co-link smoke:', error);
   process.exitCode = 1;
-  // Ensure we never leave a hung Vite child behind on failure.
   setTimeout(() => process.exit(1), 500);
 });

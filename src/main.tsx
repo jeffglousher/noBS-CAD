@@ -3,7 +3,11 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { BevyUiParityLab } from './dev/BevyUiParityLab';
 import { I18nProvider } from './i18n';
-import { publishSessionBridgeNow, startSessionBridge } from './sessionBridge';
+import {
+  publishSessionBridgeNow,
+  startSessionBridge,
+  watchSessionBridge,
+} from './sessionBridge';
 import { useAppStore } from './store/appStore';
 import './index.css';
 
@@ -12,11 +16,13 @@ declare global {
   interface Window {
     __appStore?: typeof useAppStore;
     __nbcadPublishSession?: () => Promise<string | null>;
+    __nbcadWatchSession?: (sessionId: string, generation?: number) => void;
     __nbcadLastMcpGeneration?: number;
   }
 }
 window.__appStore = useAppStore;
 window.__nbcadPublishSession = publishSessionBridgeNow;
+window.__nbcadWatchSession = watchSessionBridge;
 startSessionBridge();
 
 const showBevyUiLab =

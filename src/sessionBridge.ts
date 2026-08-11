@@ -281,3 +281,9 @@ export async function publishSessionBridgeNow(): Promise<string | null> {
   await publishNow();
   return knownSessionId;
 }
+
+/** Test/helper: watch an existing session id for MCP writeback (skip OCCT publish). */
+export function watchSessionBridge(sessionId: string, generation = 0): void {
+  knownSessionId = sessionId;
+  lastSeenGeneration = generation;
+}
