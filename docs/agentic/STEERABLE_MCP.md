@@ -9,6 +9,9 @@
 5. **Headless goldens** must work without `cad_attach`.
 6. **Offline/local** invariant; stdio is current transport, not forever law.
 7. When adding a modeling tool: update `tags_for_tool` in `disclosure.rs` **and** the pack matrix test.
+8. **MQ pattern:** system-integration / multi-window transport tests must go through
+   `nbcad-mcp-bus` (`InMemoryBus` or `bus-jsonl`). Do not “prove” broker routing with
+   direct mutex calls. See [mcp-message-bus.md](../mcp-message-bus.md).
 
 ## Modes
 
