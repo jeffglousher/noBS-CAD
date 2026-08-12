@@ -14,6 +14,7 @@ epic [#9](https://github.com/jackControls/noBS-CAD/issues/9).
 2. Envelope carries `correlation_id`, `reply_to`, JSON-RPC `payload`, and routing headers
 3. Worker handles JSON-RPC and publishes the **primary** reply to `reply_to`
 4. Side-channel MCP notifications go to `nbcad.mcp.<route>.notify`
+5. Multi-window registry RPCs use `nbcad.mcp.broker.control` (`broker/list|register|unregister`)
 
 CI **requires** this pattern via `InMemoryBus` tests (`cargo test -p nbcad-mcp-bus`).
 Kernel goldens may still call tools in-process; transport/broker tests must not.
@@ -48,10 +49,12 @@ Default transport remains `stdio` when `NBCAD_MCP_TRANSPORT` is unset.
 cargo test -p nbcad-mcp-bus
 # Windows / OCCT:
 cargo test --manifest-path mcp-server/Cargo.toml mcp_tools_call_must_roundtrip_through_message_bus
+# Optional runtime demo (needs a built nbcad-mcp):
+NBCAD_MCP_BIN=./mcp-server/target/release/nbcad-mcp node scripts/mcp-bus-jsonl-demo.mjs
 ```
 
 ## Non-goals (this slice)
 
 - Embedding `rdkafka` / `paho-mqtt` / `async-nats` inside `nbcad-mcp`
 - Replacing MCP protocol `2025-06-18` with the `2026-07-28` stateless core
-- Full multi-window product broker UI (subjects are ready; product attach comes next)
+- Full multi-window product broker UI (control-plane registry + subjects are ready; UI attach comes next)

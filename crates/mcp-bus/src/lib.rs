@@ -17,11 +17,16 @@
 //!   Direct in-process `call_tool` remains allowed for kernel goldens, but
 //!   transport/broker tests cannot bypass the bus.
 
+mod broker;
 mod envelope;
 mod memory;
 mod subjects;
 mod worker;
 
+pub use broker::{
+    broker_control_subject, list_via_bus, process_broker_one, register_via_bus, BrokerHandler,
+    WindowEntry, WindowRegistry,
+};
 pub use envelope::{BusError, BusHeaders, BusMessage};
 pub use memory::InMemoryBus;
 pub use subjects::{
