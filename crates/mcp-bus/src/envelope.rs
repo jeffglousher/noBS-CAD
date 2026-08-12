@@ -82,10 +82,7 @@ impl BusMessage {
     }
 
     pub fn reply_frame(&self, payload: impl Into<Vec<u8>>) -> Result<Self, BusError> {
-        let reply_to = self
-            .reply_to
-            .clone()
-            .ok_or(BusError::MissingReplyTo)?;
+        let reply_to = self.reply_to.clone().ok_or(BusError::MissingReplyTo)?;
         Ok(Self {
             subject: reply_to,
             correlation_id: self.correlation_id.clone(),
@@ -96,7 +93,8 @@ impl BusMessage {
     }
 
     pub fn payload_json(&self) -> Result<serde_json::Value, BusError> {
-        serde_json::from_slice(&self.payload).map_err(|error| BusError::InvalidJson(error.to_string()))
+        serde_json::from_slice(&self.payload)
+            .map_err(|error| BusError::InvalidJson(error.to_string()))
     }
 }
 

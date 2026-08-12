@@ -61,8 +61,8 @@ mod tests {
 
     #[test]
     fn subjects_are_stable_for_broker_mapping() {
-        let route = DocumentRoute::document("11111111-1111-4111-8111-111111111111")
-            .with_window("win-a");
+        let route =
+            DocumentRoute::document("11111111-1111-4111-8111-111111111111").with_window("win-a");
         assert_eq!(
             request_subject(&route),
             "nbcad.mcp.11111111-1111-4111-8111-111111111111.win-a.req"

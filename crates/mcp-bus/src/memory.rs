@@ -36,7 +36,10 @@ impl InMemoryBus {
 
     fn pop_exact(&self, subject: &str) -> Option<BusMessage> {
         let mut guard = self.inner.lock().expect("mcp-bus mutex");
-        guard.queues.get_mut(subject).and_then(|queue| queue.pop_front())
+        guard
+            .queues
+            .get_mut(subject)
+            .and_then(|queue| queue.pop_front())
     }
 
     fn wait_pop(&self, subject: &str, timeout: Duration) -> Result<BusMessage, BusError> {
@@ -53,10 +56,7 @@ impl InMemoryBus {
                 return Err(BusError::Timeout);
             }
             let wait = deadline.saturating_duration_since(now);
-            let (next, wait_result) = self
-                .cvar
-                .wait_timeout(guard, wait)
-                .expect("mcp-bus wait");
+            let (next, wait_result) = self.cvar.wait_timeout(guard, wait).expect("mcp-bus wait");
             guard = next;
             if wait_result.timed_out()
                 && guard
@@ -78,10 +78,7 @@ impl Bus for InMemoryBus {
     }
 
     fn request(&self, message: BusMessage, timeout: Duration) -> Result<BusMessage, BusError> {
-        let reply_to = message
-            .reply_to
-            .clone()
-            .ok_or(BusError::MissingReplyTo)?;
+        let reply_to = message.reply_to.clone().ok_or(BusError::MissingReplyTo)?;
         let correlation_id = message.correlation_id.clone();
         self.publish(message)?;
         let started = Instant::now();

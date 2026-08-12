@@ -18,10 +18,7 @@ impl RpcHandler for EchoHandler {
         let request: Value = serde_json::from_slice(request_json)
             .map_err(|error| BusError::InvalidJson(error.to_string()))?;
         let id = request.get("id").cloned().unwrap_or(Value::Null);
-        let method = request
-            .get("method")
-            .and_then(Value::as_str)
-            .unwrap_or("");
+        let method = request.get("method").and_then(Value::as_str).unwrap_or("");
         let primary = json!({
             "jsonrpc": "2.0",
             "id": id,
@@ -110,10 +107,7 @@ fn request_reply_requires_in_memory_bus_pattern() {
         )
         .expect("list_changed should land on notify subject");
     let notify_body: Value = notify.payload_json().unwrap();
-    assert_eq!(
-        notify_body["method"],
-        "notifications/tools/list_changed"
-    );
+    assert_eq!(notify_body["method"], "notifications/tools/list_changed");
 
     worker.join().unwrap();
 }

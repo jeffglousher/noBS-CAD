@@ -511,7 +511,11 @@ impl CadServer {
         Ok(())
     }
 
-    fn maybe_session_writeback(&mut self, tool_name: &str, mut value: Value) -> Result<Value, String> {
+    fn maybe_session_writeback(
+        &mut self,
+        tool_name: &str,
+        mut value: Value,
+    ) -> Result<Value, String> {
         if self.attached_session_mode != SessionAttachMode::Live {
             return Ok(value);
         }
@@ -528,11 +532,8 @@ impl CadServer {
                     .to_string(),
             );
         }
-        let model = parse_engine_envelope(host::handle(
-            &mut self.manager,
-            "project_export_model",
-            "",
-        ))?;
+        let model =
+            parse_engine_envelope(host::handle(&mut self.manager, "project_export_model", ""))?;
         let model_json = match model {
             Value::String(text) => text,
             other => serde_json::to_string(&other)
@@ -3489,7 +3490,10 @@ mod tests {
             .call_tool("cad_attach", json!({"session_id": "My Document"}))
             .is_err());
         // Missing model must refuse attach (and leave nothing attached).
-        let missing = format!("00000000-0000-4000-8000-{:012x}", session::now_ms().wrapping_add(1) & 0xffffffffffff);
+        let missing = format!(
+            "00000000-0000-4000-8000-{:012x}",
+            session::now_ms().wrapping_add(1) & 0xffffffffffff
+        );
         std::fs::create_dir_all(dir.join(&missing)).unwrap();
         assert!(server
             .call_tool("cad_attach", json!({"session_id": missing}))
@@ -3671,10 +3675,7 @@ mod tests {
 
         let mut server = CadServer::new().unwrap();
         let attached = server
-            .call_tool(
-                "cad_attach",
-                json!({"session_id": unique, "mode": "live"}),
-            )
+            .call_tool("cad_attach", json!({"session_id": unique, "mode": "live"}))
             .unwrap();
         assert_eq!(attached["attached"], true);
         assert_eq!(attached["session_mode"], "live");
@@ -3687,10 +3688,7 @@ mod tests {
         // project_export_model, which refuses while a sketch is active.
         let before = session::require_model_json(&unique).unwrap();
         let mutated = server
-            .call_tool(
-                "cad_set_document_name",
-                json!({"name": "LiveWritebackDoc"}),
-            )
+            .call_tool("cad_set_document_name", json!({"name": "LiveWritebackDoc"}))
             .expect("live mutate should succeed while MCP holds writer");
         assert_eq!(mutated["_session"]["writeback"], true);
         assert_eq!(mutated["_session"]["generation"], 2);
@@ -3703,20 +3701,16 @@ mod tests {
         );
         assert_eq!(session::read_writer(&unique)["writer"], "mcp");
         assert_eq!(session::read_writer(&unique)["generation"], 2);
-        let heartbeat: Value = serde_json::from_str(
-            &session::read_session_file(&unique, "heartbeat.json").unwrap(),
-        )
-        .unwrap();
+        let heartbeat: Value =
+            serde_json::from_str(&session::read_session_file(&unique, "heartbeat.json").unwrap())
+                .unwrap();
         assert_eq!(heartbeat["generation"], 2);
         assert_eq!(heartbeat["source"], "mcp");
         assert_eq!(heartbeat["session_mode"], "live");
 
         session::claim_writer(&unique, "ui", 3).unwrap();
         let conflict = server
-            .call_tool(
-                "cad_set_document_name",
-                json!({"name": "ShouldConflict"}),
-            )
+            .call_tool("cad_set_document_name", json!({"name": "ShouldConflict"}))
             .expect_err("UI writer lock must block MCP mutate");
         assert!(
             conflict.contains("session writer conflict"),

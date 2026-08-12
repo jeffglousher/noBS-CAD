@@ -102,10 +102,7 @@ impl RpcHandler for BrokerHandler {
         let request: Value = serde_json::from_slice(request_json)
             .map_err(|error| BusError::InvalidJson(error.to_string()))?;
         let id = request.get("id").cloned().unwrap_or(Value::Null);
-        let method = request
-            .get("method")
-            .and_then(Value::as_str)
-            .unwrap_or("");
+        let method = request.get("method").and_then(Value::as_str).unwrap_or("");
         let params = request.get("params").cloned().unwrap_or_else(|| json!({}));
 
         let result = match method {
@@ -137,9 +134,7 @@ impl RpcHandler for BrokerHandler {
                 json!({ "unregistered": removed, "route": route.token() })
             }
             other => {
-                return Err(BusError::Handler(format!(
-                    "unknown broker method: {other}"
-                )));
+                return Err(BusError::Handler(format!("unknown broker method: {other}")));
             }
         };
 
@@ -148,8 +143,9 @@ impl RpcHandler for BrokerHandler {
             "id": id,
             "result": result
         });
-        Ok(vec![serde_json::to_vec(&response)
-            .map_err(|error| BusError::Handler(error.to_string()))?])
+        Ok(vec![
+            serde_json::to_vec(&response).map_err(|error| BusError::Handler(error.to_string()))?
+        ])
     }
 }
 
