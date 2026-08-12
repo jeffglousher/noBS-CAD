@@ -33,7 +33,7 @@ Keep `disclosure::tags_for_tool` aligned when adding dialogs or export tools.
 `cad_list_sessions` / `cad_attach` / `cad_refresh` / `cad_detach` under
 `NBCAD_SESSION_DIR`:
 
-- session ids are **UUID v4** (document names rejected);
+- session ids are **UUID v8** (BLAKE3, nbcad layout 1); legacy v4 dirs still attach;
 - UI publishes `<uuid>/{model,focus,heartbeat,writer}.json` (Tauri or Vite HTTP bridge);
 - `mode: "read_only"` (default) — load only; no writeback; no writer claim;
 - `mode: "live"` — fresh heartbeat required; MCP claims `writer=mcp` and writebacks

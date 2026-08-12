@@ -15,7 +15,7 @@ import type {
   SketchDto,
   SolidUpdateDto,
 } from '../engine/types';
-import { translate } from '../i18n';
+import { Domain, mint } from '../ids/nbcadUuid';
 import { dropApplicationHistory } from '../engine/applicationHistory';
 import {
   exportProjectModelWithVisibility,
@@ -54,7 +54,6 @@ export interface RecoverableProjectTab {
 
 const runtimes = new Map<string, ProjectTabRuntime>();
 let currentProjectTarget: SaveTarget | null = null;
-let nextTabId = 1;
 const LONG_IDLE_EVICTION_MS = 60 * 60 * 1_000;
 const RETENTION_CHECK_MS = 30_000;
 
@@ -79,10 +78,7 @@ function emptyDrawingDocument(): DrawingDocumentDto {
 }
 
 function createTabId(): string {
-  const randomId = globalThis.crypto?.randomUUID?.();
-  const id = randomId ?? `project-${Date.now()}-${nextTabId}`;
-  nextTabId += 1;
-  return id;
+  return mint(Domain.Tab);
 }
 
 function summaryFromActiveState(id: string): ProjectTabSummary {

@@ -15,7 +15,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { Domain, isValidSessionId, mint } from './nbcad-id.mjs';
 
 const PREFIX = '/__nbcad_session';
 
@@ -28,12 +28,6 @@ function sessionRoot() {
 
 function nowMs() {
   return Date.now();
-}
-
-function isUuidV4(id) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    id,
-  );
 }
 
 function atomicWrite(filePath, content) {
@@ -86,7 +80,7 @@ function publisherFor(windowKey = 'browser') {
   let publisher = publishers.get(windowKey);
   if (!publisher) {
     publisher = {
-      sessionId: randomUUID(),
+      sessionId: mint(Domain.Session),
       nextGeneration: 0,
       lastApplied: 0,
     };
@@ -241,7 +235,7 @@ export function createSessionHttpBridge() {
             return;
           }
 
-          if (parts.length === 2 && isUuidV4(parts[0])) {
+          if (parts.length === 2 && isValidSessionId(parts[0])) {
             const sessionId = parts[0];
             const file = parts[1];
             const dir = path.join(root, sessionId);

@@ -14,7 +14,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Deserialize;
 use serde_json::json;
-use uuid::Uuid;
 
 #[derive(Debug)]
 struct WindowPublisher {
@@ -26,7 +25,7 @@ struct WindowPublisher {
 impl WindowPublisher {
     fn new() -> Self {
         Self {
-            session_id: Uuid::new_v4().to_string(),
+            session_id: nbcad_id::mint_string(nbcad_id::Domain::Session),
             next_generation: 0,
             last_applied_generation: 0,
         }

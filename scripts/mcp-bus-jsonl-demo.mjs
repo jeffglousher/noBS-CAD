@@ -12,7 +12,7 @@
 
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { randomUUID } from 'node:crypto';
+import { Domain, mint } from './nbcad-id.mjs';
 
 const bin = process.env.NBCAD_MCP_BIN;
 if (!bin) {
@@ -48,7 +48,7 @@ rl.on('line', (line) => {
 });
 
 function request(method, params = {}, id = 1) {
-  const correlation = randomUUID();
+  const correlation = mint(Domain.Correlation);
   const payload = JSON.stringify({ jsonrpc: '2.0', id, method, params });
   const frame = {
     subject: `nbcad.mcp.${documentId}.req`,

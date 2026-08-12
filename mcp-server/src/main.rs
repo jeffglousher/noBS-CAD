@@ -2701,20 +2701,20 @@ fn tool_specs() -> Vec<ToolSpec> {
         ToolSpec::control(
             "cad_list_sessions",
             "List session snapshots (read-only or live)",
-            "List UUID v4 session directories under NBCAD_SESSION_DIR (skips _* control dirs and non-UUID names). Includes heartbeat age/stale metadata and writer.json lock state. Use with cad_attach in mode read_only (default) or live (writer lock + model writeback).",
+            "List session directories under NBCAD_SESSION_DIR (skips _* control dirs and non-UUID names). Session ids are BLAKE3 UUID v8 (nbcad layout 1); legacy v4 dirs still list. Includes heartbeat age/stale metadata and writer.json lock state. Use with cad_attach in mode read_only (default) or live (writer lock + model writeback).",
             empty_schema(),
         ),
         ToolSpec::control(
             "cad_attach",
             "Attach session (read-only or live)",
-            "Require UUID v4 session_id and valid model.json; load into this MCP process; optional focus.json. mode=read_only (default): no writer claim, no writeback. mode=live: require fresh heartbeat, claim writer lock as mcp, write model.json back after mutating tools.",
+            "Require UUID v8 (nbcad layout 1; legacy v4 accepted) session_id and valid model.json; load into this MCP process; optional focus.json. mode=read_only (default): no writer claim, no writeback. mode=live: require fresh heartbeat, claim writer lock as mcp, write model.json back after mutating tools.",
             object_schema(
                 json!({
                     "session_id": {
                         "type": "string",
                         "minLength": 36,
                         "maxLength": 36,
-                        "description": "UUID v4 session directory name"
+                        "description": "UUID v8 (nbcad layout 1) or legacy v4 session directory name"
                     },
                     "mode": {
                         "type": "string",
@@ -3507,15 +3507,12 @@ mod tests {
         .unwrap();
 
         let mut server = CadServer::new().unwrap();
-        // Document-name ids are rejected (UUID v4 required).
+        // Document-name ids are rejected.
         assert!(server
             .call_tool("cad_attach", json!({"session_id": "My Document"}))
             .is_err());
         // Missing model must refuse attach (and leave nothing attached).
-        let missing = format!(
-            "00000000-0000-4000-8000-{:012x}",
-            session::now_ms().wrapping_add(1) & 0xffffffffffff
-        );
+        let missing = session::test_session_uuid();
         std::fs::create_dir_all(dir.join(&missing)).unwrap();
         assert!(server
             .call_tool("cad_attach", json!({"session_id": missing}))
@@ -3523,7 +3520,11 @@ mod tests {
         assert!(server.attached_document_id.is_none());
 
         let listed = server.call_tool("cad_list_sessions", json!({})).unwrap();
-        assert_eq!(listed["sessions"][0], unique);
+        let sessions = listed["sessions"].as_array().expect("sessions");
+        assert!(
+            sessions.iter().any(|id| id == unique),
+            "listed sessions should include the published id"
+        );
         assert_eq!(listed["session_details"][0]["heartbeat"]["stale"], false);
 
         let attached = server

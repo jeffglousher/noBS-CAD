@@ -39,7 +39,8 @@ Tags: `mcp-server/src/disclosure.rs` (`tags_for_tool`).
 Headless goldens work **without** attach.
 UI publishes under:
 `<NBCAD_SESSION_DIR>/<uuid>/{model.json,focus.json,heartbeat.json,writer.json}`
-(atomic writes, generation-guarded). Session ids are **UUID v4**, not document names.
+(atomic writes, generation-guarded). Session ids are **UUID v8** (BLAKE3, nbcad
+layout 1); legacy v4 directories still attach. Document names are rejected.
 
 - **Desktop (Tauri):** native `mcp_session_bridge_*` commands.
 - **Browser/WASM (Vite):** `/__nbcad_session/*` middleware (`scripts/session-http-bridge.mjs`).

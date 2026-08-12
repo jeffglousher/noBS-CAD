@@ -11,6 +11,7 @@ members = [
     "crates/solid",
     "crates/occt",
     "crates/export",
+    "crates/id",
     "crates/mcp-bus",
     "crates/wasm",
     "xtask",

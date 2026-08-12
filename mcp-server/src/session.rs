@@ -5,7 +5,7 @@
 //! - **live** attach (MCP claims `writer.json`, writebacks `model.json` after mutating tools)
 //!
 //! Layout: `<session_dir>/<uuid>/{model.json,focus.json,heartbeat.json,writer.json}`.
-//! Session ids must be UUID v4 strings.
+//! Session ids are BLAKE3 UUID v8 (nbcad layout 1); legacy v4 dirs still attach.
 
 use std::fs;
 use std::io::Write;
@@ -33,38 +33,9 @@ pub fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
-/// UUID v4 string form (8-4-4-4-12 hex with version nibble `4` and RFC variant).
+/// BLAKE3 UUID v8 (layout 1), or legacy random v4 session directories.
 pub fn is_valid_session_id(session_id: &str) -> bool {
-    let bytes = session_id.as_bytes();
-    if bytes.len() != 36 {
-        return false;
-    }
-    for (index, byte) in bytes.iter().enumerate() {
-        match index {
-            8 | 13 | 18 | 23 => {
-                if *byte != b'-' {
-                    return false;
-                }
-            }
-            14 => {
-                if *byte != b'4' {
-                    return false;
-                }
-            }
-            19 => {
-                let lower = byte.to_ascii_lowercase();
-                if !matches!(lower, b'8' | b'9' | b'a' | b'b') {
-                    return false;
-                }
-            }
-            _ => {
-                if !byte.is_ascii_hexdigit() {
-                    return false;
-                }
-            }
-        }
-    }
-    true
+    nbcad_id::is_valid_session_id(session_id)
 }
 
 pub fn require_valid_session_id(session_id: &str) -> Result<(), String> {
@@ -72,7 +43,8 @@ pub fn require_valid_session_id(session_id: &str) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!(
-            "session_id must be a UUID v4 string (got '{session_id}')"
+            "session_id must be a UUID v8 (nbcad layout {}) string (got '{session_id}')",
+            nbcad_id::LAYOUT_VERSION
         ))
     }
 }
@@ -317,10 +289,10 @@ fn session_path(session_id: &str, filename: &str) -> Result<PathBuf, String> {
     Ok(session_dir().join(session_id).join(filename))
 }
 
-/// Deterministic-looking UUID v4 for tests (unique via `now_ms` nibble).
+/// Unique session id for tests (BLAKE3 UUID v8).
 #[cfg(test)]
 pub fn test_session_uuid() -> String {
-    format!("00000000-0000-4000-8000-{:012x}", now_ms() & 0xffffffffffff)
+    nbcad_id::mint_string(nbcad_id::Domain::Session)
 }
 
 /// Serialize tests that mutate `NBCAD_SESSION_DIR`.
@@ -340,9 +312,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn uuid_v4_validation_accepts_and_rejects() {
-        assert!(is_valid_session_id("123e4567-e89b-42d3-a456-426614174000"));
-        assert!(!is_valid_session_id("123e4567-e89b-12d3-a456-426614174000")); // not version 4
+    fn uuid_v8_validation_accepts_and_rejects() {
+        let minted = test_session_uuid();
+        assert!(is_valid_session_id(&minted));
+        assert!(nbcad_id::is_nbcad_uuid(&minted));
+        assert!(is_valid_session_id("123e4567-e89b-42d3-a456-426614174000")); // legacy v4
+        assert!(!is_valid_session_id("123e4567-e89b-12d3-a456-426614174000"));
         assert!(!is_valid_session_id("My Document"));
         assert!(!is_valid_session_id("../escape"));
         assert!(!is_valid_session_id(""));

@@ -144,7 +144,7 @@ impl BusMessage {
     ) -> Self {
         Self {
             subject: subject.into(),
-            correlation_id: uuid::Uuid::new_v4().to_string(),
+            correlation_id: nbcad_id::mint_string(nbcad_id::Domain::Correlation),
             reply_to: Some(reply_to.into()),
             headers,
             payload: payload.into(),

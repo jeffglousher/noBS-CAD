@@ -28,6 +28,8 @@ Kernel goldens may still call tools in-process; transport/broker tests must not.
 | **Kafka** | Topic per subject family (or `.`→`_`); `correlation_id` / `reply_to` in headers; compact reply topics or inbox partitions |
 
 Schema stamp: `nbcad.mcp-bus.v1` (`BUS_SCHEMA_VERSION`).
+Correlation and session IDs are **BLAKE3 UUID v8** (internal layout version 1 in
+byte 0). See `crates/id`.
 
 ## Runtime bridge (no broker SDK in CAD)
 

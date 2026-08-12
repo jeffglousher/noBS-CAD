@@ -110,7 +110,7 @@ Body through the same replayable history as the interactive application.
 `cad_load_project_model` transactionally restores and recomputes it, and
 `cad_new_project` clears to an empty document. The read-only **snapshot bridge**
 uses `cad_list_sessions` / `cad_attach` / `cad_refresh` / `cad_detach` under
-`NBCAD_SESSION_DIR` (UUID v4 session ids; require valid `model.json`; never write
+`NBCAD_SESSION_DIR` (UUID v8 session ids via BLAKE3; legacy v4 still attaches; require valid `model.json`; never write
 back). Desktop Tauri publishes the snapshot files; MCP only reads.
 Each MCP process still owns one headless document unless attached.
 Revisioned MCP→UI sync and installer/UI launch remain follow-ups.

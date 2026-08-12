@@ -5,6 +5,7 @@ Host-neutral Rust CAD crates (shared by UI / WASM / MCP where applicable).
 | Crate | Role |
 |-------|------|
 | `core` / `sketch` / `solid` / `occt` / `export` / `wasm` | Geometry / document / history / adapters |
+| `id` | BLAKE3 UUID v8 (internal layout version in byte 0) |
 | `mcp-bus` | Transport-agnostic MCP request/reply bus (`InMemoryBus` required in CI; NATS/Kafka/MQTT-shaped subjects) |
 
 MCP tool surface lives in [../mcp-server/](../mcp-server/), not here.

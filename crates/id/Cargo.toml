@@ -1,0 +1,10 @@
+[package]
+name = "nbcad-id"
+version = "0.1.0"
+edition = "2021"
+description = "BLAKE3-derived RFC 9562 UUID v8 identifiers with an internal layout version"
+license = "LGPL-2.0-or-later"
+repository = "https://github.com/jackControls/noBS-CAD"
+
+[dependencies]
+blake3 = "1"

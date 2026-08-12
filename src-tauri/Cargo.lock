@@ -3900,6 +3900,7 @@ dependencies = [
  "hidapi",
  "nbcad-core",
  "nbcad-export",
+ "nbcad-id",
  "nbcad-occt",
  "nbcad-sketch",
  "nbcad-solid",
@@ -3915,7 +3916,6 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
- "uuid",
  "webview2-com",
  "windows 0.62.0",
  "windows-core 0.61.2",
@@ -3938,6 +3938,13 @@ dependencies = [
  "serde",
  "serde_json",
  "zip",
+]
+
+[[package]]
+name = "nbcad-id"
+version = "0.1.0"
+dependencies = [
+ "blake3",
 ]
 
 [[package]]

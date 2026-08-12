@@ -159,7 +159,7 @@ fn broker_request<B: Bus>(
     headers: BusHeaders,
     timeout: Duration,
 ) -> Result<Value, BusError> {
-    let correlation = uuid::Uuid::new_v4().to_string();
+    let correlation = nbcad_id::mint_string(nbcad_id::Domain::Correlation);
     let reply_to = response_subject(&DocumentRoute::document("broker"), &correlation);
     let mut message = BusMessage::request(
         broker_control_subject(),

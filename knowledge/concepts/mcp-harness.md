@@ -26,6 +26,7 @@ Proposals: [proposed architecture](../../docs/proposed-architecture.md).
 | `cad_attach mode=read_only` | Snapshot load; no writeback |
 | `cad_attach mode=live` | Writer lock + `model.json` writeback; UI polls revisions |
 | Browser co-link path | Vite `/__nbcad_session/*` + `npm run smoke:colink` |
+| Session / correlation IDs | BLAKE3 UUID v8 (nbcad layout 1); legacy v4 dirs still attach |
 | `nbcad-mcp-bus` + `InMemoryBus` | CI-required request/reply pattern; `NBCAD_MCP_TRANSPORT=bus-jsonl` bridge |
 
 ## Still proposed
