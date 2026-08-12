@@ -2892,6 +2892,17 @@ enum StdinEvent {
     Eof,
 }
 
+/// Transport selection:
+/// - default / `stdio`: classic MCP JSON-RPC lines on stdin/stdout
+/// - `bus-jsonl`: each line is a [`nbcad_mcp_bus::BusMessage`] JSON frame
+///   (request/reply). External Kafka/MQTT/NATS connectors translate broker
+///   messages ↔ this envelope without embedding SDKs in the CAD process.
+fn selected_transport() -> String {
+    std::env::var("NBCAD_MCP_TRANSPORT")
+        .unwrap_or_else(|_| "stdio".to_string())
+        .to_ascii_lowercase()
+}
+
 fn main() {
     let mut server = match CadServer::new() {
         Ok(server) => server,
@@ -2901,6 +2912,13 @@ fn main() {
         }
     };
 
+    match selected_transport().as_str() {
+        "bus-jsonl" | "bus" => run_bus_jsonl(&mut server),
+        _ => run_stdio(&mut server),
+    }
+}
+
+fn run_stdio(server: &mut CadServer) {
     // Jack §2: do not block forever on stdin. A reader thread feeds lines;
     // the main loop wakes on the next disclosure deadline so list_changed /
     // soft-TTL can flush with no later client ping.
@@ -2922,7 +2940,7 @@ fn main() {
 
     let mut stdout = io::stdout().lock();
     loop {
-        let due = idle_due_messages(&mut server);
+        let due = idle_due_messages(server);
         if !due.is_empty() {
             if !write_jsonrpc_messages(&mut stdout, &due) {
                 break;
@@ -2934,7 +2952,7 @@ fn main() {
             Some(ms) => match rx.recv_timeout(Duration::from_millis(ms.max(1))) {
                 Ok(event) => event,
                 Err(RecvTimeoutError::Timeout) => {
-                    let due = idle_due_messages(&mut server);
+                    let due = idle_due_messages(server);
                     if !write_jsonrpc_messages(&mut stdout, &due) {
                         break;
                     }
@@ -2955,7 +2973,7 @@ fn main() {
                     continue;
                 }
                 let outgoing = match serde_json::from_str::<Value>(&line) {
-                    Ok(message) => handle_message(&mut server, message),
+                    Ok(message) => handle_message(server, message),
                     Err(error) => vec![error_response(
                         Value::Null,
                         -32700,
@@ -2967,6 +2985,113 @@ fn main() {
                 }
             }
         }
+    }
+}
+
+fn run_bus_jsonl(server: &mut CadServer) {
+    eprintln!(
+        "nbcad-mcp transport=bus-jsonl schema={}",
+        nbcad_mcp_bus::BUS_SCHEMA_VERSION
+    );
+    let stdin = io::stdin();
+    let mut stdout = io::stdout().lock();
+    for line in stdin.lock().lines() {
+        let line = match line {
+            Ok(line) => line,
+            Err(_) => break,
+        };
+        if line.trim().is_empty() {
+            continue;
+        }
+        let request: nbcad_mcp_bus::BusMessage = match serde_json::from_str(&line) {
+            Ok(message) => message,
+            Err(error) => {
+                eprintln!("bus-jsonl parse error: {error}");
+                continue;
+            }
+        };
+        let frames = match server.handle_bus_rpc(&request.payload) {
+            Ok(frames) => frames,
+            Err(error) => {
+                eprintln!("bus-jsonl handler error: {error}");
+                continue;
+            }
+        };
+        let mut frames = frames.into_iter();
+        if let Some(primary) = frames.next() {
+            match request.reply_frame(primary) {
+                Ok(reply) => {
+                    if serde_json::to_writer(&mut stdout, &reply).is_err()
+                        || writeln!(stdout).is_err()
+                        || stdout.flush().is_err()
+                    {
+                        break;
+                    }
+                }
+                Err(error) => eprintln!("bus-jsonl reply error: {error}"),
+            }
+        }
+        if let Some(document_id) = request.headers.document_id.clone() {
+            let route = nbcad_mcp_bus::DocumentRoute {
+                document_id,
+                window_id: request.headers.window_id.clone(),
+            };
+            let notify_subject = nbcad_mcp_bus::notify_subject(&route);
+            for frame in frames {
+                let mut message = match request.reply_frame(frame) {
+                    Ok(message) => message,
+                    Err(_) => continue,
+                };
+                message.subject = notify_subject.clone();
+                message.reply_to = None;
+                if serde_json::to_writer(&mut stdout, &message).is_err()
+                    || writeln!(stdout).is_err()
+                    || stdout.flush().is_err()
+                {
+                    return;
+                }
+            }
+        }
+        let due = idle_due_messages(server);
+        for notification in due {
+            if let Some(document_id) = request.headers.document_id.clone() {
+                let route = nbcad_mcp_bus::DocumentRoute {
+                    document_id,
+                    window_id: request.headers.window_id.clone(),
+                };
+                let payload = match serde_json::to_vec(&notification) {
+                    Ok(bytes) => bytes,
+                    Err(_) => continue,
+                };
+                let message = nbcad_mcp_bus::BusMessage {
+                    subject: nbcad_mcp_bus::notify_subject(&route),
+                    correlation_id: request.correlation_id.clone(),
+                    reply_to: None,
+                    headers: request.headers.clone(),
+                    payload,
+                };
+                if serde_json::to_writer(&mut stdout, &message).is_err()
+                    || writeln!(stdout).is_err()
+                    || stdout.flush().is_err()
+                {
+                    return;
+                }
+            }
+        }
+    }
+}
+
+impl CadServer {
+    fn handle_bus_rpc(&mut self, request_json: &[u8]) -> Result<Vec<Vec<u8>>, String> {
+        let message: Value = serde_json::from_slice(request_json)
+            .map_err(|error| format!("invalid JSON-RPC payload: {error}"))?;
+        let outgoing = handle_message(self, message);
+        outgoing
+            .into_iter()
+            .map(|value| {
+                serde_json::to_vec(&value).map_err(|error| format!("encode response: {error}"))
+            })
+            .collect()
     }
 }
 
@@ -3400,6 +3525,123 @@ mod tests {
 
         std::env::remove_var("NBCAD_SESSION_DIR");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    struct BusCadHandler {
+        server: CadServer,
+    }
+
+    impl nbcad_mcp_bus::RpcHandler for BusCadHandler {
+        fn handle_rpc(
+            &mut self,
+            request_json: &[u8],
+        ) -> Result<Vec<Vec<u8>>, nbcad_mcp_bus::BusError> {
+            self.server
+                .handle_bus_rpc(request_json)
+                .map_err(nbcad_mcp_bus::BusError::Handler)
+        }
+    }
+
+    #[test]
+    fn mcp_tools_call_must_roundtrip_through_message_bus() {
+        use nbcad_mcp_bus::{
+            process_one, request_subject, response_subject, Bus, BusHeaders, BusMessage,
+            DocumentRoute, InMemoryBus,
+        };
+        use std::thread;
+        use std::time::Duration;
+
+        let bus = InMemoryBus::new();
+        let route = DocumentRoute::document("dddddddd-dddd-4ddd-8ddd-dddddddddddd");
+        let req_subject = request_subject(&route);
+
+        let worker_bus = bus.clone();
+        let worker_subject = req_subject.clone();
+        let worker = thread::spawn(move || {
+            let mut handler = BusCadHandler {
+                server: CadServer::new().expect("OCCT MCP server"),
+            };
+            // initialize
+            process_one(
+                &worker_bus,
+                &worker_subject,
+                &mut handler,
+                Duration::from_secs(5),
+            )
+            .expect("initialize via bus");
+            // tools/call cad_set_document_name
+            process_one(
+                &worker_bus,
+                &worker_subject,
+                &mut handler,
+                Duration::from_secs(5),
+            )
+            .expect("tools/call via bus");
+        });
+
+        let init = {
+            let correlation = "bus-init";
+            let mut message = BusMessage::request(
+                req_subject.clone(),
+                response_subject(&route, correlation),
+                BusHeaders::new()
+                    .with_document(route.document_id.clone())
+                    .with_protocol(LATEST_PROTOCOL),
+                serde_json::to_vec(&json!({
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "initialize",
+                    "params": { "protocolVersion": LATEST_PROTOCOL }
+                }))
+                .unwrap(),
+            );
+            message.correlation_id = correlation.into();
+            message
+        };
+        let init_reply = bus
+            .request(init, Duration::from_secs(5))
+            .expect("initialize reply on bus");
+        let init_body: Value = init_reply.payload_json().unwrap();
+        assert_eq!(init_body["result"]["protocolVersion"], LATEST_PROTOCOL);
+        assert_eq!(
+            init_body["result"]["capabilities"]["tools"]["listChanged"],
+            true
+        );
+
+        let call = {
+            let correlation = "bus-rename";
+            let mut message = BusMessage::request(
+                req_subject,
+                response_subject(&route, correlation),
+                BusHeaders::new().with_document(route.document_id.clone()),
+                serde_json::to_vec(&json!({
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "cad_set_document_name",
+                        "arguments": { "name": "BusRoutedDoc" }
+                    }
+                }))
+                .unwrap(),
+            );
+            message.correlation_id = correlation.into();
+            message
+        };
+        let call_reply = bus
+            .request(call, Duration::from_secs(5))
+            .expect("tools/call reply on bus");
+        let call_body: Value = call_reply.payload_json().unwrap();
+        assert_eq!(call_body["result"]["isError"], false);
+        let text = call_body["result"]["content"][0]["text"]
+            .as_str()
+            .unwrap_or("");
+        assert!(
+            text.contains("BusRoutedDoc") || call_body["result"]["structuredContent"].is_object(),
+            "bus-routed rename should succeed: {call_body}"
+        );
+
+        worker.join().unwrap();
     }
 
     #[test]

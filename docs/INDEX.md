@@ -12,6 +12,7 @@
 | Doc | Audience | When to update |
 |-----|----------|----------------|
 | [mcp-harness.md](mcp-harness.md) | Humans + agents | Any MCP behavior change |
+| [mcp-message-bus.md](mcp-message-bus.md) | System integrators | Kafka/MQTT/NATS bus envelope |
 | [agent-mcp.md](agent-mcp.md) | Day-to-day agents | Workflow changes |
 | [../mcp-server/README.md](../mcp-server/README.md) | Integrators | Tool surface / build |
 | [../mcp-server/OKRs.md](../mcp-server/OKRs.md) | Maintainers | MCP milestone changes |

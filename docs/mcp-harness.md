@@ -15,7 +15,7 @@ machine (or CI runner).
 ## Today (as-built on this branch)
 | Topic | Current state |
 |-------|----------------|
-| Transport | **stdio** JSON-RPC (`nbcad-mcp`) — logs on **stderr** |
+| Transport | **stdio** JSON-RPC (`nbcad-mcp`) — logs on **stderr**; optional **`bus-jsonl`** envelope for Kafka/MQTT/NATS connectors ([mcp-message-bus.md](mcp-message-bus.md)) |
 | Tools | **105** modeling tools + control/export helpers |
 | Disclosure | Soft focus-scoped; `tools.listChanged: true`; ~300 ms throttle |
 | Notify worker | Stdin reader thread + timed wake — `list_changed` / soft-TTL flush **without** a later client ping |
@@ -65,8 +65,14 @@ Focus / mode / soft-TTL changes schedule `notifications/tools/list_changed`.
 The server wakes on that deadline even if the client is idle — it does **not**
 require a later `ping` or tool call to flush the notification.
 
+### Message bus (system integration)
+Host-neutral crate `nbcad-mcp-bus` defines request/reply subjects and an
+`InMemoryBus` that **CI requires**. Set `NBCAD_MCP_TRANSPORT=bus-jsonl` so an
+external connector can bridge Kafka/MQTT/NATS without linking broker SDKs into
+the CAD process. Details: [mcp-message-bus.md](mcp-message-bus.md).
+
 ## Proposed (not shipped here)
 - In-process shared engine (today’s live mode is revisioned file co-link)
 - MCP client installer (`install-mcp`) and UI launch/window control
-- Multi-window broker
+- Full multi-window product broker (subject layout exists; UI routing next)
 See [proposed-architecture.md](proposed-architecture.md).

@@ -1,17 +1,20 @@
 ---
 type: Concept
 title: MCP harness
-description: Local MCP stdio automation with read-only snapshots and live UI co-link.
+description: Local MCP stdio automation with live co-link and MQ-ready bus envelope.
 status: stable
-updated: 2026-08-11
+updated: 2026-08-12
 ---
 
 # MCP harness
 
 `mcp-server/` provides `nbcad-mcp`: a **stdio** MCP server for local
-automation and testing (no required cloud).
+automation and testing (no required cloud). Optional `bus-jsonl` transport
+exposes the same JSON-RPC over a request/reply envelope for Kafka/MQTT/NATS
+connectors.
 
 Canonical notes: [MCP harness](../../docs/mcp-harness.md).
+Message bus: [MCP message bus](../../docs/mcp-message-bus.md).
 Proposals: [proposed architecture](../../docs/proposed-architecture.md).
 
 ## Honest today
@@ -23,11 +26,13 @@ Proposals: [proposed architecture](../../docs/proposed-architecture.md).
 | `cad_attach mode=read_only` | Snapshot load; no writeback |
 | `cad_attach mode=live` | Writer lock + `model.json` writeback; UI polls revisions |
 | Browser co-link path | Vite `/__nbcad_session/*` + `npm run smoke:colink` |
+| `nbcad-mcp-bus` + `InMemoryBus` | CI-required request/reply pattern; `NBCAD_MCP_TRANSPORT=bus-jsonl` bridge |
 
 ## Still proposed
 
 1. In-process shared engine (beyond revisioned file co-link)
-2. Multi-window routing later if needed (not P0)
+2. Full multi-window product broker (subject layout ready)
+3. First-party NATS/Kafka connector binary
 
 See also the [MCP playbook](../../docs/agent-mcp.md) and
 [server documentation](../../mcp-server/README.md).

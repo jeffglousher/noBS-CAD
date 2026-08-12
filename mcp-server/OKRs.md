@@ -40,3 +40,12 @@ Parent directions: [../docs/goals.md](../docs/goals.md) · As-built:
 |----|--------|--------|
 | M5.1 | `cargo test --manifest-path mcp-server/Cargo.toml` with OCCT | Required for merge |
 | M5.2 | `.github/workflows/mcp-server.yml` | Required path |
+
+## M6 — Message-queue transport
+
+| KR | Target | Status |
+|----|--------|--------|
+| M6.1 | `nbcad-mcp-bus` request/reply + `InMemoryBus` CI tests | Shipped |
+| M6.2 | `NBCAD_MCP_TRANSPORT=bus-jsonl` bridge for external Kafka/MQTT/NATS connectors | Shipped |
+| M6.3 | MCP tools/call round-trip test **through** the bus (OCCT) | Shipped |
+| M6.4 | First-party NATS/Kafka connector binary (optional) | Next |

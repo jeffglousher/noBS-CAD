@@ -4,6 +4,11 @@
 It covers most sketch and solid-modeling tools with **soft focus-scoped
 disclosure** (`tools.listChanged: true`). Out-of-focus tools stay callable.
 
+For message-queued systems (Kafka / MQTT / NATS), set
+`NBCAD_MCP_TRANSPORT=bus-jsonl` and bridge `BusMessage` frames — see
+[docs/mcp-message-bus.md](../docs/mcp-message-bus.md). Stdio remains the
+default editor path.
+
 > Notes: [docs/mcp-harness.md](../docs/mcp-harness.md).
 > Proposed ideas (in-process co-link, multi-window broker, …):
 > [docs/proposed-architecture.md](../docs/proposed-architecture.md).

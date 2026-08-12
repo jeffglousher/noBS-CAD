@@ -16,6 +16,7 @@ nbcad-core = { path = "../crates/core" }
 nbcad-sketch = { path = "../crates/sketch" }
 nbcad-solid = { path = "../crates/solid" }
 nbcad-export = { path = "../crates/export" }
+nbcad-mcp-bus = { path = "../crates/mcp-bus" }
 nbcad-occt = { path = "../crates/occt", features = ["native-occt"] }
 
 [dev-dependencies]

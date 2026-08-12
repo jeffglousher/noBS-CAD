@@ -60,14 +60,19 @@ in-process shared engine.
 
 ---
 
-## 3. Multi-window / multi-document MCP broker — Deferred
+## 3. Multi-window / multi-document MCP broker — Proposed (bus foundation landed)
 
-Multiple open windows may matter later. A stdio **broker** that routes by
-`window_id` / `document_id` is one option; one MCP process per document is
-another (especially for CI).
+Multiple open windows must be addressable ([upstream #12](https://github.com/jackControls/noBS-CAD/issues/12)).
+One MCP process per document remains valid for CI goldens.
 
-**Not a P0 product requirement** until real use cases justify it. Co-link to
-one active document comes first.
+**Bus foundation (shipped in `nbcad-mcp-bus`):** request/reply subjects
+`nbcad.mcp.<document_id>[.<window_id>].req` with correlated `reply_to`, plus
+`notify` side-channel. In-memory bus is mandatory in CI; Kafka/MQTT/NATS map
+onto the same envelope via `NBCAD_MCP_TRANSPORT=bus-jsonl`. See
+[mcp-message-bus.md](mcp-message-bus.md).
+
+**Still open:** product broker that lists live windows and attaches agents
+without cross-talk; stdio convenience wrapper that speaks bus under the hood.
 
 ---
 
