@@ -193,6 +193,21 @@ pub fn claim_writer(session_id: &str, writer: &str, generation: u64) -> Result<(
     )
 }
 
+/// Claim the writer lock unless another party already holds it.
+pub fn try_claim_writer(session_id: &str, writer: &str, generation: u64) -> Result<(), String> {
+    let existing = read_writer(session_id)
+        .get("writer")
+        .and_then(Value::as_str)
+        .unwrap_or("none")
+        .to_string();
+    if existing != "none" && existing != writer {
+        return Err(format!(
+            "session writer conflict: {existing} holds the writer lock; call cad_refresh or wait"
+        ));
+    }
+    claim_writer(session_id, writer, generation)
+}
+
 /// Release the writer lock (sets `writer` to `"none"`).
 pub fn release_writer(session_id: &str) -> Result<(), String> {
     let current = read_writer(session_id);
@@ -391,10 +406,13 @@ mod tests {
         assert_eq!(claimed["generation"], 3);
         assert!(claimed["updated_ms"].as_u64().unwrap() > 0);
 
-        // UI can overwrite the lock file (conflict is enforced by callers).
+        // UI can overwrite the lock file (conflict is enforced by try_claim / callers).
         claim_writer(&unique, "ui", 4).unwrap();
         assert_eq!(read_writer(&unique)["writer"], "ui");
         assert_eq!(read_writer(&unique)["generation"], 4);
+        assert!(try_claim_writer(&unique, "mcp", 5)
+            .unwrap_err()
+            .contains("session writer conflict"));
 
         release_writer(&unique).unwrap();
         let released = read_writer(&unique);

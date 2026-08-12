@@ -181,3 +181,122 @@ fn missing_reply_to_is_a_hard_bus_error() {
         .expect_err("request/reply pattern requires reply_to");
     assert_eq!(err, BusError::MissingReplyTo);
 }
+
+#[test]
+fn request_ignores_unrelated_correlation_without_livelock() {
+    let bus = InMemoryBus::new();
+    let route = DocumentRoute::document("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee");
+    let reply_to = response_subject(&route, "wanted");
+    bus.publish(BusMessage {
+        subject: reply_to.clone(),
+        correlation_id: "decoy".into(),
+        reply_to: None,
+        headers: BusHeaders::new(),
+        payload: br#"{"decoy":true}"#.to_vec(),
+    })
+    .unwrap();
+
+    let worker_bus = bus.clone();
+    let req_subject = request_subject(&route);
+    let worker_subject = req_subject.clone();
+    let worker = thread::spawn(move || {
+        let mut handler = EchoHandler;
+        process_one(
+            &worker_bus,
+            &worker_subject,
+            &mut handler,
+            Duration::from_secs(2),
+        )
+        .unwrap();
+    });
+
+    let mut message = BusMessage::request(
+        req_subject,
+        reply_to.clone(),
+        BusHeaders::new().with_document(route.document_id.clone()),
+        serde_json::to_vec(&json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "ping",
+            "params": {}
+        }))
+        .unwrap(),
+    );
+    message.correlation_id = "wanted".into();
+    let reply = bus.request(message, Duration::from_secs(2)).unwrap();
+    assert_eq!(reply.correlation_id, "wanted");
+    let leftover = bus.try_recv(&reply_to).unwrap().expect("decoy remains");
+    assert_eq!(leftover.correlation_id, "decoy");
+    worker.join().unwrap();
+}
+
+#[test]
+fn handler_error_replies_instead_of_hanging() {
+    struct Boom;
+    impl RpcHandler for Boom {
+        fn handle_rpc(&mut self, _: &[u8]) -> Result<Vec<Vec<u8>>, BusError> {
+            Err(BusError::Handler("nope".into()))
+        }
+    }
+
+    let bus = InMemoryBus::new();
+    let route = DocumentRoute::document("ffffffff-ffff-4fff-8fff-ffffffffffff");
+    let req_subject = request_subject(&route);
+    let worker_bus = bus.clone();
+    let worker_subject = req_subject.clone();
+    let worker = thread::spawn(move || {
+        let mut handler = Boom;
+        process_one(
+            &worker_bus,
+            &worker_subject,
+            &mut handler,
+            Duration::from_secs(2),
+        )
+        .unwrap();
+    });
+
+    let mut message = BusMessage::request(
+        req_subject,
+        response_subject(&route, "err-1"),
+        BusHeaders::new().with_document(route.document_id.clone()),
+        serde_json::to_vec(&json!({
+            "jsonrpc": "2.0",
+            "id": 9,
+            "method": "tools/call",
+            "params": {}
+        }))
+        .unwrap(),
+    );
+    message.correlation_id = "err-1".into();
+    let reply = bus.request(message, Duration::from_secs(2)).unwrap();
+    let body: Value = reply.payload_json().unwrap();
+    assert_eq!(body["id"], 9);
+    assert!(body["error"]["message"].as_str().unwrap().contains("nope"));
+    worker.join().unwrap();
+}
+
+#[test]
+fn payload_serializes_as_utf8_string_not_byte_array() {
+    let message = BusMessage::request(
+        "nbcad.mcp.x.req",
+        "nbcad.mcp.x.res.c",
+        BusHeaders::new(),
+        br#"{"jsonrpc":"2.0"}"#.to_vec(),
+    );
+    let encoded = serde_json::to_value(&message).unwrap();
+    assert!(
+        encoded["payload"].is_string(),
+        "payload must be a JSON string for MQ connectors, got {encoded}"
+    );
+    let roundtrip: BusMessage = serde_json::from_value(encoded).unwrap();
+    assert_eq!(roundtrip.payload, br#"{"jsonrpc":"2.0"}"#);
+
+    let legacy = json!({
+        "subject": "s",
+        "correlation_id": "c",
+        "payload": [123, 125]
+    });
+    let parsed: BusMessage = serde_json::from_value(legacy).unwrap();
+    assert_eq!(parsed.payload, b"{}");
+    assert_eq!(parsed.headers.schema, BUS_SCHEMA_VERSION);
+}

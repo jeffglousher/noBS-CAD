@@ -49,10 +49,7 @@ rl.on('line', (line) => {
 
 function request(method, params = {}, id = 1) {
   const correlation = randomUUID();
-  const payload = Buffer.from(
-    JSON.stringify({ jsonrpc: '2.0', id, method, params }),
-    'utf8',
-  );
+  const payload = JSON.stringify({ jsonrpc: '2.0', id, method, params });
   const frame = {
     subject: `nbcad.mcp.${documentId}.req`,
     correlation_id: correlation,
@@ -62,8 +59,7 @@ function request(method, params = {}, id = 1) {
       document_id: documentId,
       protocol_version: '2025-06-18',
     },
-    // serde_json for Vec<u8> expects a byte array
-    payload: [...payload],
+    payload,
   };
   const promise = new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -82,8 +78,11 @@ function request(method, params = {}, id = 1) {
 }
 
 function payloadJson(message) {
-  const bytes = Uint8Array.from(message.payload);
-  return JSON.parse(Buffer.from(bytes).toString('utf8'));
+  const raw = message.payload;
+  if (typeof raw === 'string') {
+    return JSON.parse(raw);
+  }
+  return JSON.parse(Buffer.from(Uint8Array.from(raw)).toString('utf8'));
 }
 
 const init = await request('initialize', { protocolVersion: '2025-06-18' }, 1);

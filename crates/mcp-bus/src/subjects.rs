@@ -30,11 +30,11 @@ impl DocumentRoute {
         self
     }
 
-    /// Token used inside subjects. Window is optional suffix.
+    /// Token used inside subjects. Empty window ids are omitted.
     pub fn token(&self) -> String {
         match &self.window_id {
-            Some(window) => format!("{}.{}", self.document_id, window),
-            None => self.document_id.clone(),
+            Some(window) if !window.is_empty() => format!("{}.{}", self.document_id, window),
+            _ => self.document_id.clone(),
         }
     }
 }
@@ -49,10 +49,6 @@ pub fn response_subject(route: &DocumentRoute, correlation_id: &str) -> String {
 
 pub fn notify_subject(route: &DocumentRoute) -> String {
     format!("nbcad.mcp.{}.notify", route.token())
-}
-
-pub fn broker_list_subject() -> String {
-    "nbcad.mcp.broker.list".to_string()
 }
 
 #[cfg(test)]
@@ -71,6 +67,9 @@ mod tests {
             response_subject(&route, "corr-1"),
             "nbcad.mcp.11111111-1111-4111-8111-111111111111.win-a.res.corr-1"
         );
-        assert_eq!(broker_list_subject(), "nbcad.mcp.broker.list");
+        assert_eq!(
+            DocumentRoute::document("doc").with_window("").token(),
+            "doc"
+        );
     }
 }

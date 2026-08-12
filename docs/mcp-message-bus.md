@@ -43,6 +43,12 @@ broker credentials and translates:
 
 Default transport remains `stdio` when `NBCAD_MCP_TRANSPORT` is unset.
 
+## Honest limits
+
+- **Transport, not a scale-out kernel.** `nbcad-mcp` still owns **one in-process document**. The bus lets you *address* that worker with `document_id` / `window_id` and run it behind Kafka/MQTT/NATS. Horizontal scale means **one worker process per document**, not one shared stateless replica.
+- **MCP protocol remains `2025-06-18`** (initialize handshake on stdio). The bus envelope is request/reply; it is not the `2026-07-28` spec.
+- **Broker registry** (`broker/list|register|unregister`) is the control-plane contract for #12. The desktop UI does not register windows yet.
+
 ## Local proof without a broker
 
 ```sh

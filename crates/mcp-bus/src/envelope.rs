@@ -2,24 +2,61 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt;
 
+use crate::subjects::DocumentRoute;
 use crate::BUS_SCHEMA_VERSION;
 
+mod payload_bytes {
+    use serde::de::{self, SeqAccess, Visitor};
+    use serde::{Deserializer, Serializer};
+    use std::fmt;
+
+    pub fn serialize<S: Serializer>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error> {
+        let text = std::str::from_utf8(bytes).map_err(serde::ser::Error::custom)?;
+        serializer.serialize_str(text)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D::Error> {
+        struct PayloadVisitor;
+        impl<'de> Visitor<'de> for PayloadVisitor {
+            type Value = Vec<u8>;
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("UTF-8 JSON string or byte array")
+            }
+            fn visit_str<E: de::Error>(self, value: &str) -> Result<Vec<u8>, E> {
+                Ok(value.as_bytes().to_vec())
+            }
+            fn visit_string<E: de::Error>(self, value: String) -> Result<Vec<u8>, E> {
+                Ok(value.into_bytes())
+            }
+            fn visit_bytes<E: de::Error>(self, value: &[u8]) -> Result<Vec<u8>, E> {
+                Ok(value.to_vec())
+            }
+            fn visit_byte_buf<E: de::Error>(self, value: Vec<u8>) -> Result<Vec<u8>, E> {
+                Ok(value)
+            }
+            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Vec<u8>, A::Error> {
+                let mut bytes = Vec::with_capacity(seq.size_hint().unwrap_or(0));
+                while let Some(byte) = seq.next_element::<u8>()? {
+                    bytes.push(byte);
+                }
+                Ok(bytes)
+            }
+        }
+        deserializer.deserialize_any(PayloadVisitor)
+    }
+}
+
 /// Stable routing / tracing headers carried beside the JSON-RPC body.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BusHeaders {
-    /// MCP document / session target (UUID or headless token).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub document_id: Option<String>,
-    /// UI window target when multi-window broker is active.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub window_id: Option<String>,
-    /// MCP protocol version the client intends (e.g. `2025-06-18`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub protocol_version: Option<String>,
-    /// Bus envelope schema (`nbcad.mcp-bus.v1`).
     #[serde(default = "default_schema")]
     pub schema: String,
-    /// Extra broker-specific keys (kept ordered for golden tests).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub extra: BTreeMap<String, String>,
 }
@@ -28,12 +65,21 @@ fn default_schema() -> String {
     BUS_SCHEMA_VERSION.to_string()
 }
 
+impl Default for BusHeaders {
+    fn default() -> Self {
+        Self {
+            document_id: None,
+            window_id: None,
+            protocol_version: None,
+            schema: default_schema(),
+            extra: BTreeMap::new(),
+        }
+    }
+}
+
 impl BusHeaders {
     pub fn new() -> Self {
-        Self {
-            schema: default_schema(),
-            ..Self::default()
-        }
+        Self::default()
     }
 
     pub fn with_document(mut self, document_id: impl Into<String>) -> Self {
@@ -42,7 +88,12 @@ impl BusHeaders {
     }
 
     pub fn with_window(mut self, window_id: impl Into<String>) -> Self {
-        self.window_id = Some(window_id.into());
+        let window_id = window_id.into();
+        self.window_id = if window_id.is_empty() {
+            None
+        } else {
+            Some(window_id)
+        };
         self
     }
 
@@ -50,9 +101,27 @@ impl BusHeaders {
         self.protocol_version = Some(protocol_version.into());
         self
     }
+
+    /// Route used for request/notify subjects. Empty window ids are ignored.
+    pub fn route(&self) -> Option<DocumentRoute> {
+        let document_id = self.document_id.as_deref()?.trim();
+        if document_id.is_empty() {
+            return None;
+        }
+        let window_id = self
+            .window_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string);
+        Some(DocumentRoute {
+            document_id: document_id.to_string(),
+            window_id,
+        })
+    }
 }
 
-/// One frame on the bus: subject + correlation + JSON-RPC payload bytes.
+/// One frame on the bus: subject + correlation + JSON-RPC payload.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BusMessage {
     pub subject: String,
@@ -61,7 +130,8 @@ pub struct BusMessage {
     pub reply_to: Option<String>,
     #[serde(default)]
     pub headers: BusHeaders,
-    /// UTF-8 JSON-RPC request or response body.
+    /// JSON-RPC body. Serialized as a UTF-8 string (legacy byte arrays still parse).
+    #[serde(with = "payload_bytes")]
     pub payload: Vec<u8>,
 }
 
@@ -90,6 +160,16 @@ impl BusMessage {
             headers: self.headers.clone(),
             payload: payload.into(),
         })
+    }
+
+    pub fn notify_frame(&self, subject: impl Into<String>, payload: impl Into<Vec<u8>>) -> Self {
+        Self {
+            subject: subject.into(),
+            correlation_id: self.correlation_id.clone(),
+            reply_to: None,
+            headers: self.headers.clone(),
+            payload: payload.into(),
+        }
     }
 
     pub fn payload_json(&self) -> Result<serde_json::Value, BusError> {

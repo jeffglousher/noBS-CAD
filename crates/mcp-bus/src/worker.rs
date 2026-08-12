@@ -1,7 +1,9 @@
 use std::time::Duration;
 
+use serde_json::{json, Value};
+
 use crate::envelope::{BusError, BusMessage};
-use crate::subjects::{notify_subject, DocumentRoute};
+use crate::subjects::notify_subject;
 
 /// Minimal bus surface shared by in-memory and external brokers.
 pub trait Bus: Send + Sync {
@@ -18,11 +20,46 @@ pub trait RpcHandler {
     fn handle_rpc(&mut self, request_json: &[u8]) -> Result<Vec<Vec<u8>>, BusError>;
 }
 
-/// Receive one request from `request_subject`, invoke handler, publish replies.
-///
-/// - **First** frame → correlated `reply_to` (request/reply).
-/// - **Further** frames (e.g. `notifications/tools/list_changed`) →
-///   `nbcad.mcp.<route>.notify` when `document_id` is present on the request.
+/// Turn handler frames into bus messages: first frame → `reply_to`, rest → notify.
+pub fn complete_request(
+    request: &BusMessage,
+    frames: Vec<Vec<u8>>,
+) -> Result<Vec<BusMessage>, BusError> {
+    let mut outgoing = Vec::with_capacity(frames.len().max(1));
+    let mut frames = frames.into_iter();
+    match frames.next() {
+        Some(primary) => outgoing.push(request.reply_frame(primary)?),
+        None if request.reply_to.is_some() => {
+            outgoing.push(request.reply_frame(b"{}".to_vec())?);
+        }
+        None => {}
+    }
+    if let Some(route) = request.headers.route() {
+        let notify = notify_subject(&route);
+        for frame in frames {
+            outgoing.push(request.notify_frame(notify.clone(), frame));
+        }
+    }
+    Ok(outgoing)
+}
+
+/// Correlated JSON-RPC error on `reply_to` so clients do not hang.
+pub fn jsonrpc_error_frames(request: &BusMessage, code: i64, message: &str) -> Vec<BusMessage> {
+    let id = request
+        .payload_json()
+        .ok()
+        .and_then(|value| value.get("id").cloned())
+        .unwrap_or(Value::Null);
+    let body = json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "error": { "code": code, "message": message }
+    });
+    let payload = serde_json::to_vec(&body).unwrap_or_else(|_| b"{}".to_vec());
+    request.reply_frame(payload).into_iter().collect()
+}
+
+/// Receive one request, invoke handler, publish replies (or a JSON-RPC error).
 pub fn process_one<B: Bus, H: RpcHandler>(
     bus: &B,
     request_subject: &str,
@@ -30,38 +67,13 @@ pub fn process_one<B: Bus, H: RpcHandler>(
     timeout: Duration,
 ) -> Result<usize, BusError> {
     let request = bus.recv(request_subject, timeout)?;
-    let frames = handler.handle_rpc(&request.payload)?;
-    let mut published = 0usize;
-    let mut frames = frames.into_iter();
-
-    if let Some(primary) = frames.next() {
-        let reply = request.reply_frame(primary)?;
-        bus.publish(reply)?;
-        published += 1;
-    } else if request.reply_to.is_some() {
-        // Notification-only inbound still unblocks a waiting request() caller.
-        let reply = request.reply_frame(b"{}".to_vec())?;
-        bus.publish(reply)?;
-        published += 1;
+    let outgoing = match handler.handle_rpc(&request.payload) {
+        Ok(frames) => complete_request(&request, frames)?,
+        Err(error) => jsonrpc_error_frames(&request, -32603, &error.to_string()),
+    };
+    let published = outgoing.len();
+    for message in outgoing {
+        bus.publish(message)?;
     }
-
-    if let Some(document_id) = request.headers.document_id.clone() {
-        let route = DocumentRoute {
-            document_id,
-            window_id: request.headers.window_id.clone(),
-        };
-        let notify = notify_subject(&route);
-        for frame in frames {
-            let mut message = request.reply_frame(frame)?;
-            message.subject = notify.clone();
-            message.reply_to = None;
-            bus.publish(message)?;
-            published += 1;
-        }
-    } else {
-        // No route — drop trailing notify frames rather than pollute reply_to.
-        let _ = frames.count();
-    }
-
     Ok(published)
 }

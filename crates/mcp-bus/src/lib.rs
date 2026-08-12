@@ -29,10 +29,8 @@ pub use broker::{
 };
 pub use envelope::{BusError, BusHeaders, BusMessage};
 pub use memory::InMemoryBus;
-pub use subjects::{
-    broker_list_subject, notify_subject, request_subject, response_subject, DocumentRoute,
-};
-pub use worker::{process_one, Bus, RpcHandler};
+pub use subjects::{notify_subject, request_subject, response_subject, DocumentRoute};
+pub use worker::{complete_request, jsonrpc_error_frames, process_one, Bus, RpcHandler};
 
 /// Crate-level protocol tag stamped on bus headers (not the MCP protocolVersion).
 pub const BUS_SCHEMA_VERSION: &str = "nbcad.mcp-bus.v1";

@@ -4,7 +4,7 @@
 //! modeling traffic — tests cannot bypass the queue.
 
 use std::collections::BTreeMap;
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -52,29 +52,23 @@ impl WindowRegistry {
         Self::default()
     }
 
-    pub fn upsert(&self, entry: WindowEntry) {
-        let key = entry.key();
+    fn lock(&self) -> MutexGuard<'_, BTreeMap<String, WindowEntry>> {
         self.entries
             .lock()
-            .expect("broker registry")
-            .insert(key, entry);
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    pub fn upsert(&self, entry: WindowEntry) {
+        let key = entry.key();
+        self.lock().insert(key, entry);
     }
 
     pub fn remove(&self, route: &DocumentRoute) -> bool {
-        self.entries
-            .lock()
-            .expect("broker registry")
-            .remove(&route.token())
-            .is_some()
+        self.lock().remove(&route.token()).is_some()
     }
 
     pub fn list(&self) -> Vec<WindowEntry> {
-        self.entries
-            .lock()
-            .expect("broker registry")
-            .values()
-            .cloned()
-            .collect()
+        self.lock().values().cloned().collect()
     }
 }
 
@@ -106,17 +100,17 @@ impl RpcHandler for BrokerHandler {
         let params = request.get("params").cloned().unwrap_or_else(|| json!({}));
 
         let result = match method {
-            "broker/list" | "nbcad.broker.list" => json!({
+            "broker/list" => json!({
                 "schema": BUS_SCHEMA_VERSION,
                 "windows": self.registry.list(),
             }),
-            "broker/register" | "nbcad.broker.register" => {
+            "broker/register" => {
                 let entry: WindowEntry = serde_json::from_value(params)
                     .map_err(|error| BusError::Handler(error.to_string()))?;
                 self.registry.upsert(entry.clone());
                 json!({ "registered": true, "window": entry })
             }
-            "broker/unregister" | "nbcad.broker.unregister" => {
+            "broker/unregister" => {
                 let document_id = params
                     .get("document_id")
                     .and_then(Value::as_str)
