@@ -63,6 +63,8 @@ jobs:
         run: |
           cargo fmt --all -- --check
           if ($LASTEXITCODE -ne 0) { throw "cargo fmt check failed" }
+          cargo fmt --manifest-path mcp-server/Cargo.toml -- --check
+          if ($LASTEXITCODE -ne 0) { throw "mcp-server fmt check failed" }
 
       - name: MSVC environment
         id: msvc

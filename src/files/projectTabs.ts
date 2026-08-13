@@ -16,6 +16,7 @@ import type {
   SolidUpdateDto,
 } from '../engine/types';
 import { Domain, mint } from '../ids/nbcadUuid';
+import { translate } from '../i18n';
 import { dropApplicationHistory } from '../engine/applicationHistory';
 import {
   exportProjectModelWithVisibility,

@@ -4008,7 +4008,9 @@ mod tests {
         let listed = server.call_tool("cad_list_sessions", json!({})).unwrap();
         let sessions = listed["sessions"].as_array().expect("sessions");
         assert!(
-            sessions.iter().any(|id| id == unique),
+            sessions
+                .iter()
+                .any(|id| id.as_str() == Some(unique.as_str())),
             "listed sessions should include the published id"
         );
         assert_eq!(listed["session_details"][0]["heartbeat"]["stale"], false);
