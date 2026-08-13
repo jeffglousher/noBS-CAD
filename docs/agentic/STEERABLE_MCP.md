@@ -42,9 +42,9 @@ Keep `disclosure::tags_for_tool` aligned when adding dialogs or export tools.
 - session ids are **UUID v8** (BLAKE3, nbcad layout 1); legacy v4 dirs still attach;
 - UI publishes `<uuid>/{model,focus,heartbeat,writer}.json` (Tauri or Vite HTTP bridge);
 - `mode: "read_only"` (default) — load only; no writeback; no writer claim;
-- `mode: "live"` — fresh heartbeat required; MCP claims `writer=mcp` and writebacks
-  `model.json` after mutating tools; UI polls `source: "mcp"` generations;
-- writer conflict errors when UI holds the lock;
+- `mode: "live"` — fresh heartbeat required; MCP **takes** the lock from `ui`/`none` and writebacks
+  `model.json` after mutating tools; UI polls `source: "mcp"` generations and must not clobber them;
+- writer conflict errors when UI holds the lock after attach; `cad_refresh` loads the UI model without stealing;
 - headless goldens still work without attach.
 
 Installer / UI launch: [#32](https://github.com/jackControls/noBS-CAD/pull/32).

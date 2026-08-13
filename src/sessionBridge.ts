@@ -88,6 +88,7 @@ let started = false;
 let applyingExternal = false;
 let lastSeenGeneration = 0;
 let knownSessionId: string | null = null;
+let skipPublishUntil = 0;
 
 interface PublishReservation {
   session_id: string;
@@ -157,12 +158,16 @@ async function writeHeartbeat(): Promise<void> {
 }
 
 async function writerIsMcp(sessionId: string | null): Promise<boolean> {
-  if (!sessionId || !useHttpBridge()) return false;
+  if (!sessionId) return false;
   try {
-    const writer = (await httpJson(`/__nbcad_session/${sessionId}/writer.json`)) as {
-      writer?: string;
-    };
-    return writer.writer === 'mcp';
+    if (useHttpBridge()) {
+      const writer = (await httpJson(`/__nbcad_session/${sessionId}/writer.json`)) as {
+        writer?: string;
+      };
+      return writer.writer === 'mcp';
+    }
+    const snapshot = await invoke<{ writer?: { writer?: string } }>('mcp_session_bridge_poll');
+    return snapshot.writer?.writer === 'mcp';
   } catch {
     return false;
   }
@@ -170,6 +175,7 @@ async function writerIsMcp(sessionId: string | null): Promise<boolean> {
 
 async function publishNow(): Promise<void> {
   if (applyingExternal) return;
+  if (Date.now() < skipPublishUntil) return;
   const state = useAppStore.getState();
   // Browser always publishes when the HTTP bridge is available; Tauri when native.
   if (!useHttpBridge() && state.engineKind !== 'tauri') return;
@@ -210,27 +216,44 @@ async function pollWriteback(): Promise<void> {
   if (state.mode === 'sketch' || state.activeTool || state.solidBusy || state.projectBusy) {
     return;
   }
-  if (!useHttpBridge()) {
-    // Desktop poll via reading session files is not exposed yet; browser path
-    // covers cloud/co-link smoke. Tauri can still publish for MCP attach.
-    return;
-  }
   try {
-    const heartbeat = (await httpJson(
-      `/__nbcad_session/${knownSessionId}/heartbeat.json`,
-    )) as { generation?: number; source?: string };
-    const generation = Number(heartbeat.generation ?? 0);
-    if (generation <= lastSeenGeneration) return;
-    if (heartbeat.source !== 'mcp') {
-      lastSeenGeneration = generation;
-      return;
+    let generation = 0;
+    let source: string | undefined;
+    let modelJson: string | null = null;
+    if (useHttpBridge()) {
+      const heartbeat = (await httpJson(
+        `/__nbcad_session/${knownSessionId}/heartbeat.json`,
+      )) as { generation?: number; source?: string };
+      generation = Number(heartbeat.generation ?? 0);
+      source = heartbeat.source;
+      if (generation <= lastSeenGeneration) return;
+      if (source !== 'mcp') {
+        lastSeenGeneration = generation;
+        return;
+      }
+      const model = await httpJson(`/__nbcad_session/${knownSessionId}/model.json`);
+      modelJson = typeof model === 'string' ? model : JSON.stringify(model);
+    } else {
+      const snapshot = await invoke<{
+        generation?: number;
+        source?: string;
+        model_json?: string;
+      }>('mcp_session_bridge_poll');
+      generation = Number(snapshot.generation ?? 0);
+      source = snapshot.source;
+      if (generation <= lastSeenGeneration) return;
+      if (source !== 'mcp') {
+        lastSeenGeneration = generation;
+        return;
+      }
+      modelJson = snapshot.model_json ?? null;
     }
-    const model = await httpJson(`/__nbcad_session/${knownSessionId}/model.json`);
-    const modelJson = typeof model === 'string' ? model : JSON.stringify(model);
+    if (!modelJson) return;
     applyingExternal = true;
     try {
       await applyExternalProjectModel(modelJson);
       lastSeenGeneration = generation;
+      skipPublishUntil = Date.now() + 1_000;
       if (typeof window !== 'undefined') {
         (window as Window & { __nbcadLastMcpGeneration?: number }).__nbcadLastMcpGeneration =
           generation;

@@ -557,6 +557,7 @@ pub fn run() {
             session_bridge::mcp_session_bridge_reserve,
             session_bridge::mcp_session_bridge_write,
             session_bridge::mcp_session_bridge_heartbeat,
+            session_bridge::mcp_session_bridge_poll,
             six_dof_mouse::six_dof_mouse_devices,
             six_dof_mouse::six_dof_mouse_connect,
             six_dof_mouse::six_dof_mouse_disconnect,

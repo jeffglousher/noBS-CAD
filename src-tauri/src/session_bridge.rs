@@ -58,6 +58,18 @@ fn session_root() -> PathBuf {
         .unwrap_or_else(|| std::env::temp_dir().join("nbcad-sessions"))
 }
 
+fn read_json_file(path: &Path) -> Option<serde_json::Value> {
+    let body = fs::read_to_string(path).ok()?;
+    serde_json::from_str(&body).ok()
+}
+
+fn read_writer_file(dir: &Path) -> Option<String> {
+    read_json_file(&dir.join("writer.json"))?
+        .get("writer")?
+        .as_str()
+        .map(str::to_string)
+}
+
 fn atomic_write(path: &Path, content: &str) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|error| error.to_string())?;
@@ -104,7 +116,7 @@ impl SessionBridgeState {
         Ok(json!({
             "session_id": publisher.session_id,
             "generation": publisher.next_generation,
-            "session_mode": "read_only_snapshot",
+            "session_mode": "live",
         }))
     }
 
@@ -133,19 +145,29 @@ impl SessionBridgeState {
                 "session_id": publisher.session_id,
                 "generation": parsed.generation,
                 "last_applied_generation": publisher.last_applied_generation,
-                "session_mode": "read_only_snapshot",
+                "session_mode": "live",
             }));
         }
 
         let dir = session_root().join(&publisher.session_id);
         fs::create_dir_all(&dir).map_err(|error| format!("create session dir: {error}"))?;
 
+        if read_writer_file(&dir).as_deref() == Some("mcp") {
+            return Ok(json!({
+                "skipped": true,
+                "reason": "writer_held_by_mcp",
+                "session_id": publisher.session_id,
+                "generation": parsed.generation,
+                "session_mode": "live",
+            }));
+        }
+
         let focus_body = serde_json::to_string_pretty(&json!({
             "focus": parsed.focus,
             "session_id": publisher.session_id,
             "updated_ms": now_ms(),
             "generation": parsed.generation,
-            "session_mode": "read_only_snapshot",
+            "session_mode": "live",
         }))
         .map_err(|error| format!("encode focus.json: {error}"))?;
 
@@ -153,13 +175,22 @@ impl SessionBridgeState {
             "updated_ms": now_ms(),
             "generation": parsed.generation,
             "session_id": publisher.session_id,
-            "session_mode": "read_only_snapshot",
+            "session_mode": "live",
+            "source": "ui",
         }))
         .map_err(|error| format!("encode heartbeat.json: {error}"))?;
+
+        let writer_body = serde_json::to_string_pretty(&json!({
+            "writer": "ui",
+            "updated_ms": now_ms(),
+            "generation": parsed.generation,
+        }))
+        .map_err(|error| format!("encode writer.json: {error}"))?;
 
         atomic_write(&dir.join("model.json"), &parsed.model_json)?;
         atomic_write(&dir.join("focus.json"), &focus_body)?;
         atomic_write(&dir.join("heartbeat.json"), &heartbeat_body)?;
+        atomic_write(&dir.join("writer.json"), &writer_body)?;
 
         publisher.last_applied_generation = parsed.generation;
 
@@ -168,8 +199,8 @@ impl SessionBridgeState {
             "session_id": publisher.session_id,
             "session_dir": dir.display().to_string(),
             "generation": parsed.generation,
-            "session_mode": "read_only_snapshot",
-            "writeback": false,
+            "session_mode": "live",
+            "writeback": true,
         }))
     }
 
@@ -182,7 +213,7 @@ impl SessionBridgeState {
             return Ok(json!({
                 "skipped": true,
                 "reason": "no_window_session",
-                "session_mode": "read_only_snapshot",
+                "session_mode": "live",
             }));
         };
 
@@ -192,16 +223,42 @@ impl SessionBridgeState {
                 "skipped": true,
                 "reason": "no_session_dir",
                 "session_id": publisher.session_id,
-                "session_mode": "read_only_snapshot",
+                "session_mode": "live",
             }));
         }
 
+        let existing = read_json_file(&dir.join("heartbeat.json")).unwrap_or(json!({}));
+        let mcp_holds = read_writer_file(&dir).as_deref() == Some("mcp")
+            || (existing.get("source").and_then(serde_json::Value::as_str) == Some("mcp")
+                && existing
+                    .get("generation")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(0)
+                    > publisher.last_applied_generation);
+        let generation = if mcp_holds {
+            existing
+                .get("generation")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(publisher.last_applied_generation)
+        } else {
+            publisher.last_applied_generation
+        };
+        let source = if mcp_holds {
+            existing
+                .get("source")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("mcp")
+        } else {
+            "ui"
+        };
+
         let heartbeat_body = serde_json::to_string_pretty(&json!({
             "updated_ms": now_ms(),
-            "generation": publisher.last_applied_generation,
+            "generation": generation,
             "session_id": publisher.session_id,
-            "session_mode": "read_only_snapshot",
+            "session_mode": "live",
             "kind": "heartbeat",
+            "source": source,
         }))
         .map_err(|error| format!("encode heartbeat.json: {error}"))?;
         atomic_write(&dir.join("heartbeat.json"), &heartbeat_body)?;
@@ -209,9 +266,37 @@ impl SessionBridgeState {
         Ok(json!({
             "skipped": false,
             "session_id": publisher.session_id,
-            "generation": publisher.last_applied_generation,
-            "session_mode": "read_only_snapshot",
-            "writeback": false,
+            "generation": generation,
+            "source": source,
+            "preserved_mcp": mcp_holds,
+            "session_mode": "live",
+            "writeback": true,
+        }))
+    }
+
+    fn poll_for_window(&self, window_label: &str) -> Result<serde_json::Value, String> {
+        let publishers = self
+            .publishers
+            .lock()
+            .map_err(|_| "session publisher lock poisoned".to_string())?;
+        let Some(publisher) = publishers.get(window_label) else {
+            return Err("no window session".to_string());
+        };
+        let dir = session_root().join(&publisher.session_id);
+        let heartbeat = read_json_file(&dir.join("heartbeat.json")).unwrap_or(json!({}));
+        let writer = read_json_file(&dir.join("writer.json")).unwrap_or(json!({
+            "writer": "none",
+            "generation": 0,
+            "updated_ms": 0
+        }));
+        let model_json = fs::read_to_string(dir.join("model.json")).unwrap_or_default();
+        Ok(json!({
+            "session_id": publisher.session_id,
+            "generation": heartbeat.get("generation").cloned().unwrap_or(json!(0)),
+            "source": heartbeat.get("source").cloned().unwrap_or(json!(null)),
+            "writer": writer,
+            "model_json": model_json,
+            "session_mode": "live",
         }))
     }
 }
@@ -225,7 +310,7 @@ pub fn mcp_session_bridge_reserve(
     state.reserve_for_window(window.label())
 }
 
-/// Publish a read-only snapshot for MCP attach.
+/// Publish a live snapshot for MCP attach.
 ///
 /// Payload JSON: `{ focus, model_json, generation }`.
 #[tauri::command]
@@ -240,12 +325,22 @@ pub fn mcp_session_bridge_write(
 }
 
 /// Refresh `heartbeat.json` only — no model export / generation bump.
+/// Preserves MCP generation/source while MCP holds the writer lock.
 #[tauri::command]
 pub fn mcp_session_bridge_heartbeat(
     window: tauri::WebviewWindow,
     state: tauri::State<'_, SessionBridgeState>,
 ) -> Result<serde_json::Value, String> {
     state.heartbeat_for_window(window.label())
+}
+
+/// Poll the current window session for MCP writeback (generation/source/model).
+#[tauri::command]
+pub fn mcp_session_bridge_poll(
+    window: tauri::WebviewWindow,
+    state: tauri::State<'_, SessionBridgeState>,
+) -> Result<serde_json::Value, String> {
+    state.poll_for_window(window.label())
 }
 
 #[cfg(test)]
@@ -336,8 +431,8 @@ mod tests {
         assert_ne!(main_session, second_session);
         assert_eq!(main_generation, 1);
         assert_eq!(second_generation, 1);
-        assert_eq!(main_session.as_bytes()[14], b'4');
-        assert_eq!(second_session.as_bytes()[14], b'4');
+        assert_eq!(main_session.as_bytes()[14], b'8');
+        assert_eq!(second_session.as_bytes()[14], b'8');
 
         state
             .write_for_window("main", payload(main_generation, "main"))
@@ -375,6 +470,60 @@ mod tests {
         assert!(
             beat.contains("\"kind\": \"heartbeat\"") || beat.contains("\"kind\":\"heartbeat\"")
         );
+        let writer = fs::read_to_string(dir.join(&session_id).join("writer.json")).unwrap();
+        assert!(writer.contains("\"writer\": \"ui\"") || writer.contains("\"writer\":\"ui\""));
+
+        std::env::remove_var("NBCAD_SESSION_DIR");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn heartbeat_preserves_mcp_revision_and_poll_reads_it() {
+        let _test = TEST_LOCK.lock().unwrap();
+        let state = SessionBridgeState::default();
+        let dir = std::env::temp_dir().join(format!("nbcad-bridge-mcp-{}", now_ms()));
+        std::env::set_var("NBCAD_SESSION_DIR", &dir);
+
+        let (session_id, generation) = reserve(&state, "main");
+        state
+            .write_for_window("main", payload(generation, "ui"))
+            .unwrap();
+        let session_dir = dir.join(&session_id);
+        atomic_write(
+            &session_dir.join("writer.json"),
+            r#"{"writer":"mcp","updated_ms":1,"generation":9}"#,
+        )
+        .unwrap();
+        atomic_write(
+            &session_dir.join("heartbeat.json"),
+            r#"{"updated_ms":1,"generation":9,"source":"mcp","session_mode":"live"}"#,
+        )
+        .unwrap();
+        atomic_write(
+            &session_dir.join("model.json"),
+            r#"{"version":1,"marker":"mcp"}"#,
+        )
+        .unwrap();
+
+        let beat = state.heartbeat_for_window("main").unwrap();
+        assert_eq!(beat["preserved_mcp"], true);
+        assert_eq!(beat["source"], "mcp");
+        assert_eq!(beat["generation"], 9);
+        let model = fs::read_to_string(session_dir.join("model.json")).unwrap();
+        assert!(model.contains("\"marker\":\"mcp\""));
+
+        let (_, next) = reserve(&state, "main");
+        let skipped = state
+            .write_for_window("main", payload(next, "should-not-steal"))
+            .unwrap();
+        assert_eq!(skipped["skipped"], true);
+        assert_eq!(skipped["reason"], "writer_held_by_mcp");
+
+        let poll = state.poll_for_window("main").unwrap();
+        assert_eq!(poll["source"], "mcp");
+        assert_eq!(poll["generation"], 9);
+        assert_eq!(poll["writer"]["writer"], "mcp");
+        assert!(poll["model_json"].as_str().unwrap().contains("mcp"));
 
         std::env::remove_var("NBCAD_SESSION_DIR");
         let _ = fs::remove_dir_all(&dir);

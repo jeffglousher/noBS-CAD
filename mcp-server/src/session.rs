@@ -167,12 +167,25 @@ pub fn claim_writer(session_id: &str, writer: &str, generation: u64) -> Result<(
 
 /// Claim the writer lock unless another party already holds it.
 pub fn try_claim_writer(session_id: &str, writer: &str, generation: u64) -> Result<(), String> {
+    claim_writer_from(session_id, writer, generation, &[])
+}
+
+/// Claim `writer` if the lock is free, already ours, or held by one of `from`.
+///
+/// Live MCP attach uses `from = ["ui"]` so a UI-published session can be taken
+/// over. Ordinary mutate paths keep using [`try_claim_writer`].
+pub fn claim_writer_from(
+    session_id: &str,
+    writer: &str,
+    generation: u64,
+    from: &[&str],
+) -> Result<(), String> {
     let existing = read_writer(session_id)
         .get("writer")
         .and_then(Value::as_str)
         .unwrap_or("none")
         .to_string();
-    if existing != "none" && existing != writer {
+    if existing != "none" && existing != writer && !from.contains(&existing.as_str()) {
         return Err(format!(
             "session writer conflict: {existing} holds the writer lock; call cad_refresh or wait"
         ));
@@ -389,10 +402,14 @@ mod tests {
             .unwrap_err()
             .contains("session writer conflict"));
 
+        claim_writer_from(&unique, "mcp", 6, &["ui"]).unwrap();
+        assert_eq!(read_writer(&unique)["writer"], "mcp");
+        assert_eq!(read_writer(&unique)["generation"], 6);
+
         release_writer(&unique).unwrap();
         let released = read_writer(&unique);
         assert_eq!(released["writer"], "none");
-        assert_eq!(released["generation"], 4);
+        assert_eq!(released["generation"], 6);
 
         write_model_revision(&unique, "{\"version\":2}", 5, "mcp").unwrap();
         let model = require_model_json(&unique).unwrap();
@@ -404,6 +421,17 @@ mod tests {
         assert_eq!(heartbeat["session_mode"], "live");
 
         assert!(claim_writer(&unique, "agent", 1).is_err());
+
+        write_session(
+            &unique,
+            "heartbeat.json",
+            &format!(
+                r#"{{"updated_ms":{},"generation":1}}"#,
+                now_ms().saturating_sub(HEARTBEAT_STALE_MS + 1_000)
+            ),
+        )
+        .unwrap();
+        assert_eq!(heartbeat_meta(&unique)["stale"], true);
 
         std::env::remove_var("NBCAD_SESSION_DIR");
         let _ = fs::remove_dir_all(&dir);

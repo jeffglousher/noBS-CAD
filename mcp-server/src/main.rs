@@ -422,7 +422,7 @@ impl CadServer {
             .get("generation")
             .and_then(Value::as_u64)
             .unwrap_or(0);
-        session::try_claim_writer(session_id, "mcp", generation)?;
+        session::claim_writer_from(session_id, "mcp", generation, &["ui"])?;
         self.attached_document_id = Some(session_id.to_string());
         self.attached_session_mode = SessionAttachMode::Live;
         self.attached_generation = generation;
@@ -4220,6 +4220,145 @@ mod tests {
         assert!(server.attached_document_id.is_none());
         assert_eq!(server.attached_session_mode, SessionAttachMode::None);
         assert_eq!(session::read_writer(&unique)["writer"], "none");
+
+        std::env::remove_var("NBCAD_SESSION_DIR");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    fn write_ui_session(unique: &str, model_json: &str, generation: u64, writer: &str) {
+        session::write_session(unique, "model.json", model_json).unwrap();
+        session::write_session(unique, "focus.json", "{\"focus\":\"solid\"}").unwrap();
+        session::write_session(
+            unique,
+            "heartbeat.json",
+            &format!(
+                r#"{{"updated_ms":{},"generation":{generation},"session_id":"{unique}","source":"ui","session_mode":"live"}}"#,
+                session::now_ms()
+            ),
+        )
+        .unwrap();
+        session::claim_writer(unique, writer, generation).unwrap();
+    }
+
+    #[test]
+    fn live_attach_takes_lock_from_ui_published_session() {
+        let _guard = session::lock_env();
+        let unique = session::test_session_uuid();
+        let dir = std::env::temp_dir().join(format!("nbcad-sessions-from-ui-{unique}"));
+        std::env::set_var("NBCAD_SESSION_DIR", &dir);
+        let (mut donor, _) = mcp_box();
+        let model = donor.call_tool("cad_project_model", json!({})).unwrap();
+        let model_json = model
+            .as_str()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| serde_json::to_string(&model).unwrap());
+        write_ui_session(&unique, &model_json, 1, "ui");
+
+        let mut server = CadServer::new().unwrap();
+        let attached = server
+            .call_tool("cad_attach", json!({"session_id": unique, "mode": "live"}))
+            .expect("live attach must take a UI-published session");
+        assert_eq!(attached["attached"], true);
+        assert_eq!(attached["session_mode"], "live");
+        assert_eq!(session::read_writer(&unique)["writer"], "mcp");
+
+        std::env::remove_var("NBCAD_SESSION_DIR");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn live_attach_rejects_stale_heartbeat() {
+        let _guard = session::lock_env();
+        let unique = session::test_session_uuid();
+        let dir = std::env::temp_dir().join(format!("nbcad-sessions-stale-{unique}"));
+        std::env::set_var("NBCAD_SESSION_DIR", &dir);
+        let (mut donor, _) = mcp_box();
+        let model = donor.call_tool("cad_project_model", json!({})).unwrap();
+        let model_json = model
+            .as_str()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| serde_json::to_string(&model).unwrap());
+        session::write_session(&unique, "model.json", &model_json).unwrap();
+        session::write_session(
+            &unique,
+            "heartbeat.json",
+            &format!(
+                r#"{{"updated_ms":{},"generation":1,"session_id":"{unique}"}}"#,
+                session::now_ms().saturating_sub(session::HEARTBEAT_STALE_MS + 5_000)
+            ),
+        )
+        .unwrap();
+        session::claim_writer(&unique, "ui", 1).unwrap();
+
+        let mut server = CadServer::new().unwrap();
+        let error = server
+            .call_tool("cad_attach", json!({"session_id": unique, "mode": "live"}))
+            .expect_err("stale heartbeat must refuse live attach");
+        assert!(
+            error.contains("stale"),
+            "unexpected stale-attach error: {error}"
+        );
+        assert_eq!(session::read_writer(&unique)["writer"], "ui");
+
+        std::env::remove_var("NBCAD_SESSION_DIR");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn live_refresh_loads_ui_revision_then_blocks_until_lock_returns() {
+        let _guard = session::lock_env();
+        let unique = session::test_session_uuid();
+        let dir = std::env::temp_dir().join(format!("nbcad-sessions-refresh-ui-{unique}"));
+        std::env::set_var("NBCAD_SESSION_DIR", &dir);
+        let (mut donor, _) = mcp_box();
+        donor
+            .call_tool("cad_set_document_name", json!({"name": "BeforeUi"}))
+            .unwrap();
+        let model = donor.call_tool("cad_project_model", json!({})).unwrap();
+        let model_json = model
+            .as_str()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| serde_json::to_string(&model).unwrap());
+        write_ui_session(&unique, &model_json, 1, "none");
+
+        let mut server = CadServer::new().unwrap();
+        server
+            .call_tool("cad_attach", json!({"session_id": unique, "mode": "live"}))
+            .unwrap();
+
+        let mut ui_model: Value = serde_json::from_str(&model_json).unwrap();
+        ui_model["document"]["name"] = json!("FromUiEdit");
+        let ui_json = serde_json::to_string(&ui_model).unwrap();
+        session::write_session(&unique, "model.json", &ui_json).unwrap();
+        session::write_session(
+            &unique,
+            "heartbeat.json",
+            &format!(
+                r#"{{"updated_ms":{},"generation":4,"session_id":"{unique}","source":"ui","session_mode":"live"}}"#,
+                session::now_ms()
+            ),
+        )
+        .unwrap();
+        session::claim_writer(&unique, "ui", 4).unwrap();
+
+        let blocked = server
+            .call_tool("cad_set_document_name", json!({"name": "ShouldWait"}))
+            .expect_err("UI lock must block MCP mutate");
+        assert!(blocked.contains("session writer conflict"));
+
+        let refreshed = server.call_tool("cad_refresh", json!({})).unwrap();
+        assert_eq!(refreshed["refreshed"], true);
+        assert_eq!(refreshed["generation"], 4);
+        assert_eq!(refreshed["writer"]["writer"], "ui");
+        let loaded = server.call_tool("cad_project_model", json!({})).unwrap();
+        let loaded_text = loaded
+            .as_str()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| loaded.to_string());
+        assert!(
+            loaded_text.contains("FromUiEdit"),
+            "refresh should load UI model, got {loaded_text}"
+        );
 
         std::env::remove_var("NBCAD_SESSION_DIR");
         let _ = std::fs::remove_dir_all(&dir);

@@ -27,7 +27,7 @@ default editor path.
 
 **Spine controls:** `cad_get_focus`, `cad_set_focus`, disclosure mode get/set,
 `cad_list_all_tools`, `cad_cancel_recompute`, `cad_list_sessions`, `cad_attach`,
-`cad_refresh`, `cad_detach` (read-only session snapshots).
+`cad_refresh`, `cad_detach` (read-only snapshot or live writeback).
 
 **Print:** prefer `solid_export_3mf` (mm + materials + slicer Metadata). Also
 `solid_export_stl`, `solid_export_step` (CAD), `material_catalog`,
@@ -120,10 +120,12 @@ Body through the same replayable history as the interactive application.
 
 `cad_project_model` returns the authoritative versioned `model.json`,
 `cad_load_project_model` transactionally restores and recomputes it, and
-`cad_new_project` clears to an empty document. The read-only **snapshot bridge**
-uses `cad_list_sessions` / `cad_attach` / `cad_refresh` / `cad_detach` under
-`NBCAD_SESSION_DIR` (UUID v8 session ids via BLAKE3; legacy v4 still attaches; require valid `model.json`; never write
-back). Desktop Tauri publishes the snapshot files; MCP only reads.
+`cad_new_project` clears to an empty document. Session co-link uses
+`cad_list_sessions` / `cad_attach` / `cad_refresh` / `cad_detach` under
+`NBCAD_SESSION_DIR` (UUID v8 via BLAKE3; legacy v4 still attaches).
+`mode=read_only` loads a snapshot. `mode=live` takes the writer lock from a
+UI-published session and writebacks `model.json` after mutating tools. UI
+polls `source: "mcp"` revisions; UI heartbeat must not clobber them.
 Each MCP process still owns one headless document unless attached.
 Revisioned MCP→UI sync and installer/UI launch remain follow-ups.
 

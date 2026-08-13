@@ -43,17 +43,17 @@ UI publishes under:
 (atomic writes, generation-guarded). Session ids are **UUID v8** (BLAKE3, nbcad
 layout 1); legacy v4 directories still attach. Document names are rejected.
 
-- **Desktop (Tauri):** native `mcp_session_bridge_*` commands.
+- **Desktop (Tauri):** `mcp_session_bridge_reserve|write|heartbeat|poll` (live writer.json + MCP-preserving heartbeat).
 - **Browser/WASM (Vite):** `/__nbcad_session/*` middleware (`scripts/session-http-bridge.mjs`).
 
 Attach modes:
 1. `cad_list_sessions` — UUID dirs; heartbeat `age_ms` / `stale`; `writer` lock metadata.
 2. `cad_attach` with `mode: "read_only"` (default) — load snapshot; **no** writeback; does not claim `writer.json`.
-3. `cad_attach` with `mode: "live"` — requires a **fresh** heartbeat; claims `writer=mcp`; after mutating tools, MCP writebacks `model.json` + bumps generation (`source: "mcp"`). UI polls and applies.
-4. Writer conflict: if `writer.json` is `ui`, MCP mutates fail with a clear error until `cad_refresh` / UI releases the lock.
+3. `cad_attach` with `mode: "live"` — requires a **fresh** heartbeat; **takes** the writer lock from `ui` or `none` (`writer=mcp`). After mutating tools, MCP writebacks `model.json` and bumps generation (`source: "mcp"`). UI polls and applies. While MCP holds the lock, UI publish/heartbeat must not clobber that revision.
+4. Writer conflict: if `writer.json` is `ui` *after* live attach, MCP mutates fail until `cad_refresh` (loads the UI model) / the lock returns to MCP. `cad_refresh` does not steal the lock.
 5. `cad_refresh` / `cad_detach` — re-read or clear attach; live detach releases the writer lock.
 
-Smoke: `npm run smoke:colink` (browser publish → simulated MCP revision → UI apply).
+Tests: `npm run test:session-bridge` (HTTP both directions, no WASM). Smoke: `npm run smoke:colink` (browser publish → MCP revision → heartbeat must preserve MCP → UI apply).
 Installer / UI launch: [#32](https://github.com/jackControls/noBS-CAD/pull/32).
 Build and tool flow: [mcp-server/README.md](../mcp-server/README.md).
 Day-to-day playbook: [agent-mcp.md](agent-mcp.md).

@@ -5,6 +5,8 @@
 - **Update**: MCP harness concept now records recommended protocol
   `2026-07-28` (`server/discover` + `_meta`). `initialize` is a compatibility
   pathway only; the first legacy reply includes the runtime-upgrade manual.
+  Live co-link takes a UI-published writer lock; UI heartbeat must not clobber
+  MCP revisions (`npm run test:session-bridge`).
 
 ## 2026-07-29
 

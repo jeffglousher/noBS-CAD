@@ -15,6 +15,7 @@ on:
       - 'scripts/smoke-wasm.mjs'
       - 'scripts/smoke-colink.mjs'
       - 'scripts/session-http-bridge.mjs'
+      - 'scripts/test-session-http-bridge.mjs'
       - 'scripts/nbcad-id.mjs'
       - 'scripts/check-nbcad-id.mjs'
       - 'crates/id/**'
@@ -33,6 +34,7 @@ on:
       - 'scripts/smoke-wasm.mjs'
       - 'scripts/smoke-colink.mjs'
       - 'scripts/session-http-bridge.mjs'
+      - 'scripts/test-session-http-bridge.mjs'
       - 'scripts/nbcad-id.mjs'
       - 'scripts/check-nbcad-id.mjs'
       - 'crates/id/**'
@@ -83,6 +85,9 @@ jobs:
 
       - name: Typecheck + production build
         run: npm run build
+
+      - name: Session bridge bidirectional tests
+        run: npm run test:session-bridge
 
       - name: Co-link smoke (browser session bridge)
         run: npm run smoke:colink

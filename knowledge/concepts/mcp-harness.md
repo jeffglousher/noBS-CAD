@@ -26,7 +26,7 @@ Proposals: [proposed architecture](../../docs/proposed-architecture.md).
 | Soft focus disclosure, `listChanged: true` | Spine + active/soft packs; hidden tools stay callable |
 | Headless document per MCP process | Goldens work without UI attach |
 | `cad_attach mode=read_only` | Snapshot load; no writeback |
-| `cad_attach mode=live` | Writer lock + `model.json` writeback; UI polls revisions |
+| `cad_attach mode=live` | Takes lock from UI-published session; writeback + UI poll |
 | Browser co-link path | Vite `/__nbcad_session/*` + `npm run smoke:colink` |
 | Session / correlation IDs | BLAKE3 UUID v8 (nbcad layout 1); legacy v4 dirs still attach |
 | `nbcad-mcp-bus` + `InMemoryBus` | CI-required request/reply pattern; `NBCAD_MCP_TRANSPORT=bus-jsonl` bridge |

@@ -105,6 +105,11 @@ async function main() {
       throw new Error(`model.json missing under ${SESSION_DIR}/${sessionId}`);
     }
 
+    const writer = JSON.parse(fs.readFileSync(writerPath, 'utf8'));
+    if (writer.writer !== 'ui') {
+      throw new Error(`expected writer=ui after UI publish, got ${writer.writer}`);
+    }
+
     const model = JSON.parse(fs.readFileSync(modelPath, 'utf8'));
     const heartbeat = JSON.parse(fs.readFileSync(heartbeatPath, 'utf8'));
     const nextGeneration = Number(heartbeat.generation ?? 1) + 1;
@@ -132,6 +137,22 @@ async function main() {
         source: 'mcp',
       }),
     );
+
+    const beat = await fetch(`${BASE}/__nbcad_session/heartbeat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ window: 'browser' }),
+    });
+    const beatBody = await beat.json();
+    if (beatBody.source !== 'mcp' || Number(beatBody.generation) !== nextGeneration) {
+      throw new Error(
+        `UI heartbeat clobbered MCP revision: ${JSON.stringify(beatBody)}`,
+      );
+    }
+    const stillMcp = JSON.parse(fs.readFileSync(heartbeatPath, 'utf8'));
+    if (stillMcp.source !== 'mcp' || Number(stillMcp.generation) !== nextGeneration) {
+      throw new Error(`heartbeat.json lost MCP source/generation: ${JSON.stringify(stillMcp)}`);
+    }
 
     console.log('[colink] waiting for UI apply', nextGeneration);
     await page.waitForFunction(
