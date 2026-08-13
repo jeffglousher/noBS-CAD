@@ -13,6 +13,7 @@ use serde_json::{json, Map, Value};
 
 mod disclosure;
 mod session;
+mod surfaces;
 
 use disclosure::{
     auto_focus_for_tool, tags_for_tool, AdvertisementState, DisclosureMode, DisclosureState,
@@ -27,7 +28,7 @@ const META_CLIENT_INFO: &str = "io.modelcontextprotocol/clientInfo";
 const META_CLIENT_CAPABILITIES: &str = "io.modelcontextprotocol/clientCapabilities";
 const META_SERVER_INFO: &str = "io.modelcontextprotocol/serverInfo";
 const UNSUPPORTED_PROTOCOL_VERSION: i64 = -32022;
-const MODELING_TOOL_COUNT: usize = 105;
+const MODELING_TOOL_COUNT: usize = 109;
 
 #[derive(Clone, Copy)]
 enum Payload {
@@ -849,6 +850,8 @@ fn is_session_read_only_tool(name: &str) -> bool {
         "solid_scene"
             | "cad_document"
             | "cad_project_model"
+            | "cad_project_visibility"
+            | "cad_drawing_document"
             | "solid_export_step"
             | "solid_export_stl"
             | "solid_export_3mf"
@@ -1424,6 +1427,56 @@ fn tool_specs() -> Vec<ToolSpec> {
             "project_prepare_new",
             Payload::Empty,
             empty_schema(),
+        ),
+        ToolSpec::direct(
+            "cad_project_visibility",
+            "Get project visibility",
+            "Return Browser hidden-body / hidden-datum / hidden-sketch identities.",
+            "project_visibility",
+            Payload::Empty,
+            empty_schema(),
+        ),
+        ToolSpec::direct(
+            "cad_set_project_visibility",
+            "Set project visibility",
+            "Set Browser visibility using stable body ids, datum ids, and sketch names.",
+            "project_set_visibility",
+            Payload::Field("visibility"),
+            object_schema(
+                json!({
+                    "visibility": {
+                        "type": "object",
+                        "description": "ProjectVisibilityDto: hidden_body_ids, hidden_datum_plane_ids, hidden_sketch_names.",
+                        "additionalProperties": true
+                    }
+                }),
+                &["visibility"],
+            ),
+        ),
+        ToolSpec::direct(
+            "cad_drawing_document",
+            "Get drawing document",
+            "Return the technical drawing DTO stored in the project (sheets and view intent; not generated HLR curves). DXF/print remain UI commands.",
+            "drawing_document",
+            Payload::Empty,
+            empty_schema(),
+        ),
+        ToolSpec::direct(
+            "cad_set_drawing_document",
+            "Set drawing document",
+            "Replace the drawing DTO after engine validation. Same path the UI uses; does not run OCCT projection or write DXF.",
+            "drawing_set_document",
+            Payload::Field("drawing"),
+            object_schema(
+                json!({
+                    "drawing": {
+                        "type": "object",
+                        "description": "DrawingDocumentDto (sheets, active_sheet_id, id counters, styles).",
+                        "additionalProperties": true
+                    }
+                }),
+                &["drawing"],
+            ),
         ),
         ToolSpec::direct(
             "sketch_begin",
@@ -2680,7 +2733,7 @@ fn tool_specs() -> Vec<ToolSpec> {
                 json!({
                     "focus": {
                         "type": "string",
-                        "enum": ["document", "sketch", "solid", "modify", "body_ops", "datums", "history", "inspect", "print"]
+                        "enum": ["document", "sketch", "solid", "modify", "body_ops", "datums", "history", "inspect", "print", "drawing"]
                     },
                     "explicit": {
                         "type": "boolean",
@@ -2842,11 +2895,11 @@ fn server_info() -> Value {
 }
 
 fn modeling_manual() -> &'static str {
-    "Modeling: one persistent headless CAD document. Begin and finish sketches before solid features. Use returned entity/body/face/edge ids. Soft disclosure is on; out-of-focus tools stay callable. Typical loop: sketch_begin → sketch_add_* / constraints → sketch_finish → sketch_profiles → solid_extrude (or revolve/sweep/loft/rib) → solid_scene / cad_document. Optional UI co-link: cad_list_sessions → cad_attach."
+    "Modeling: one persistent headless CAD document. Begin and finish sketches before solid features. Use returned entity/body/face/edge ids. Soft disclosure is on; out-of-focus tools stay callable. Typical loop: sketch_begin → sketch_add_* / constraints → sketch_finish → sketch_profiles → solid_extrude (or revolve/sweep/loft/rib) → solid_scene / cad_document. Optional UI co-link: cad_list_sessions → cad_attach. Drawings: cad_drawing_document / nbcad://drawing. Print: solid_export_3mf."
 }
 
 fn modern_protocol_manual() -> &'static str {
-    "Recommended protocol is MCP 2026-07-28. Call server/discover (initialize is not required). On every request set params._meta.io.modelcontextprotocol/protocolVersion to \"2026-07-28\" and params._meta.io.modelcontextprotocol/clientCapabilities to {}. Include io.modelcontextprotocol/clientInfo when you can. Spec: https://modelcontextprotocol.io/specification/2026-07-28/ — research that revision at runtime if your client can."
+    "Recommended protocol is MCP 2026-07-28. Call server/discover (initialize is not required). On every request set params._meta.io.modelcontextprotocol/protocolVersion to \"2026-07-28\" and params._meta.io.modelcontextprotocol/clientCapabilities to {}. Include io.modelcontextprotocol/clientInfo when you can. Then tools/list, resources/list, and prompts/list. Spec: https://modelcontextprotocol.io/specification/2026-07-28/ — research that revision at runtime if your client can."
 }
 
 fn server_instructions() -> String {
@@ -2895,7 +2948,11 @@ fn apply_protocol_nudge(value: &mut Value, nudge: Option<Value>) {
 }
 
 fn server_capabilities() -> Value {
-    json!({ "tools": { "listChanged": true } })
+    json!({
+        "tools": { "listChanged": true },
+        "resources": {},
+        "prompts": {}
+    })
 }
 
 fn request_meta(message: &Value) -> Option<&Value> {
@@ -3089,6 +3146,80 @@ fn handle_message(server: &mut CadServer, message: Value) -> Vec<Value> {
             };
             vec![response(id, result)]
         }
+        "resources/list" => {
+            let id = id.unwrap_or(Value::Null);
+            if requested_modern_protocol(&message).is_some() {
+                if let Err(error) = require_modern_meta(&message, &id) {
+                    return vec![error];
+                }
+            }
+            vec![response(id, surfaces::list_resources())]
+        }
+        "resources/templates/list" => {
+            let id = id.unwrap_or(Value::Null);
+            if requested_modern_protocol(&message).is_some() {
+                if let Err(error) = require_modern_meta(&message, &id) {
+                    return vec![error];
+                }
+            }
+            vec![response(id, surfaces::list_resource_templates())]
+        }
+        "resources/read" => {
+            let id = id.unwrap_or(Value::Null);
+            if requested_modern_protocol(&message).is_some() {
+                if let Err(error) = require_modern_meta(&message, &id) {
+                    return vec![error];
+                }
+            }
+            let Some(uri) = message.pointer("/params/uri").and_then(Value::as_str) else {
+                return vec![error_response(
+                    id,
+                    -32602,
+                    "resources/read is missing params.uri",
+                )];
+            };
+            match read_product_resource(server, uri) {
+                Ok(result) => vec![response(id, result)],
+                Err(error) => vec![error_response_data(
+                    id,
+                    -32602,
+                    error,
+                    json!({ "uri": uri }),
+                )],
+            }
+        }
+        "prompts/list" => {
+            let id = id.unwrap_or(Value::Null);
+            if requested_modern_protocol(&message).is_some() {
+                if let Err(error) = require_modern_meta(&message, &id) {
+                    return vec![error];
+                }
+            }
+            vec![response(id, surfaces::list_prompts())]
+        }
+        "prompts/get" => {
+            let id = id.unwrap_or(Value::Null);
+            if requested_modern_protocol(&message).is_some() {
+                if let Err(error) = require_modern_meta(&message, &id) {
+                    return vec![error];
+                }
+            }
+            let Some(name) = message.pointer("/params/name").and_then(Value::as_str) else {
+                return vec![error_response(
+                    id,
+                    -32602,
+                    "prompts/get is missing params.name",
+                )];
+            };
+            let arguments = message
+                .pointer("/params/arguments")
+                .cloned()
+                .unwrap_or_else(|| json!({}));
+            match surfaces::get_prompt(name, &arguments) {
+                Ok(result) => vec![response(id, result)],
+                Err(error) => vec![error_response(id, -32602, error)],
+            }
+        }
         _ if id.is_none() => Vec::new(),
         _ => vec![error_response(
             id.unwrap_or(Value::Null),
@@ -3111,6 +3242,23 @@ fn idle_due_messages(server: &mut CadServer) -> Vec<Value> {
         outgoing.push(notification);
     }
     outgoing
+}
+
+fn read_product_resource(server: &mut CadServer, uri: &str) -> Result<Value, String> {
+    let body = match surfaces::parse_resource_uri(uri)? {
+        surfaces::ResourceKind::Document => server.call_tool("cad_document", json!({}))?,
+        surfaces::ResourceKind::Project => server.call_tool("cad_project_model", json!({}))?,
+        surfaces::ResourceKind::Scene => server.call_tool("solid_scene", json!({}))?,
+        surfaces::ResourceKind::Drawing => server.call_tool("cad_drawing_document", json!({}))?,
+        surfaces::ResourceKind::Focus => server.disclosure.status_json(),
+        surfaces::ResourceKind::Sessions => session::sessions_list_json(),
+        surfaces::ResourceKind::Session(session_id) => {
+            session::require_valid_session_id(&session_id)?;
+            let raw = session::require_model_json(&session_id)?;
+            serde_json::from_str(&raw).unwrap_or(Value::String(raw))
+        }
+    };
+    Ok(surfaces::resource_contents(uri, &body))
 }
 
 fn write_jsonrpc_messages(stdout: &mut impl Write, messages: &[Value]) -> bool {
@@ -3403,7 +3551,7 @@ mod tests {
         assert_eq!(
             all_tools.len(),
             MODELING_TOOL_COUNT + 19,
-            "105 modeling tools plus 8 print helpers and 11 control tools"
+            "109 modeling tools plus 8 print helpers and 11 control tools"
         );
         let modeling_count = all_tools
             .iter()
@@ -3459,6 +3607,11 @@ mod tests {
             initialized["result"]["capabilities"]["tools"]["listChanged"],
             true
         );
+        assert_eq!(
+            initialized["result"]["capabilities"]["resources"],
+            json!({})
+        );
+        assert_eq!(initialized["result"]["capabilities"]["prompts"], json!({}));
         let instructions = initialized["result"]["instructions"].as_str().unwrap();
         assert!(instructions.contains("2026-07-28"));
         assert!(instructions.contains("server/discover"));
@@ -3530,6 +3683,8 @@ mod tests {
             discovered["result"]["capabilities"]["tools"]["listChanged"],
             true
         );
+        assert_eq!(discovered["result"]["capabilities"]["resources"], json!({}));
+        assert_eq!(discovered["result"]["capabilities"]["prompts"], json!({}));
         assert_eq!(
             discovered["result"]["_meta"][META_SERVER_INFO]["name"],
             "nbcad"
@@ -3545,6 +3700,147 @@ mod tests {
             !instructions.contains("may still use initialize"),
             "discover must not recommend initialize: {instructions}"
         );
+    }
+
+    #[test]
+    fn resources_and_prompts_cover_product_surfaces() {
+        let mut server = CadServer::new().unwrap();
+        let listed = handle_message(
+            &mut server,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "resources/list",
+                "params": { "_meta": modern_meta() }
+            }),
+        )
+        .pop()
+        .unwrap();
+        let uris: Vec<_> = listed["result"]["resources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|item| item["uri"].as_str())
+            .collect();
+        assert!(uris.contains(&"nbcad://document"));
+        assert!(uris.contains(&"nbcad://drawing"));
+        assert!(uris.contains(&"nbcad://sessions"));
+
+        let document = handle_message(
+            &mut server,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "resources/read",
+                "params": { "_meta": modern_meta(), "uri": "nbcad://document" }
+            }),
+        )
+        .pop()
+        .unwrap();
+        assert_eq!(document["result"]["resultType"], "complete");
+        assert_eq!(
+            document["result"]["contents"][0]["mimeType"],
+            "application/json"
+        );
+        assert!(
+            document["result"]["contents"][0]["text"]
+                .as_str()
+                .unwrap()
+                .len()
+                > 2
+        );
+
+        let drawing = handle_message(
+            &mut server,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "resources/read",
+                "params": { "_meta": modern_meta(), "uri": "nbcad://drawing" }
+            }),
+        )
+        .pop()
+        .unwrap();
+        assert_eq!(drawing["result"]["resultType"], "complete");
+
+        let missing = handle_message(
+            &mut server,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 4,
+                "method": "resources/read",
+                "params": { "_meta": modern_meta(), "uri": "nbcad://nope" }
+            }),
+        )
+        .pop()
+        .unwrap();
+        assert_eq!(missing["error"]["code"], -32602);
+
+        let prompts = handle_message(
+            &mut server,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 5,
+                "method": "prompts/list",
+                "params": { "_meta": modern_meta() }
+            }),
+        )
+        .pop()
+        .unwrap();
+        let names: Vec<_> = prompts["result"]["prompts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|item| item["name"].as_str())
+            .collect();
+        assert!(names.contains(&"model_box"));
+        assert!(names.contains(&"print_3mf"));
+        assert!(names.contains(&"drawing_read"));
+
+        let box_prompt = handle_message(
+            &mut server,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 6,
+                "method": "prompts/get",
+                "params": { "_meta": modern_meta(), "name": "model_box" }
+            }),
+        )
+        .pop()
+        .unwrap();
+        assert!(box_prompt["result"]["messages"][0]["content"]["text"]
+            .as_str()
+            .unwrap()
+            .contains("sketch_begin"));
+    }
+
+    #[test]
+    fn drawing_and_visibility_tools_roundtrip() {
+        let mut server = CadServer::new().unwrap();
+        let drawing = server.call_tool("cad_drawing_document", json!({})).unwrap();
+        assert!(drawing.get("sheets").is_some());
+        let written = server
+            .call_tool("cad_set_drawing_document", json!({ "drawing": drawing }))
+            .unwrap();
+        assert_eq!(written["sheets"], drawing["sheets"]);
+
+        let visibility = server
+            .call_tool("cad_project_visibility", json!({}))
+            .unwrap();
+        assert!(visibility.get("hidden_body_ids").is_some());
+        let updated = server
+            .call_tool(
+                "cad_set_project_visibility",
+                json!({
+                    "visibility": {
+                        "hidden_body_ids": [],
+                        "hidden_datum_plane_ids": [],
+                        "hidden_sketch_names": []
+                    }
+                }),
+            )
+            .unwrap();
+        assert_eq!(updated["hidden_body_ids"], json!([]));
     }
 
     #[test]
@@ -3761,9 +4057,9 @@ mod tests {
             *packs.entry(tool.pack.as_str()).or_default() += 1;
         }
         assert_eq!(packs.values().sum::<usize>(), MODELING_TOOL_COUNT);
-        // Modeling registry covers 8 packs; print helpers are outside MODELING_TOOL_COUNT.
+        // Modeling registry covers 9 packs; print helpers are outside MODELING_TOOL_COUNT.
         assert_eq!(packs.len(), FocusPack::ALL.len() - 1);
-        assert_eq!(packs["document"], 5);
+        assert_eq!(packs["document"], 7);
         assert_eq!(packs["sketch"], 50);
         assert_eq!(packs["solid"], 10);
         assert!(packs["modify"] >= 6);
@@ -3771,6 +4067,7 @@ mod tests {
         assert!(packs["datums"] >= 6);
         assert!(packs["history"] >= 3);
         assert_eq!(packs["inspect"], 12);
+        assert_eq!(packs["drawing"], 2);
         assert!(!packs.contains_key("print"));
     }
 
@@ -3874,6 +4171,7 @@ mod tests {
             ("history", "solid_delete_feature"),
             ("inspect", "solid_scene"),
             ("print", "solid_export_3mf"),
+            ("drawing", "cad_drawing_document"),
         ];
         for (focus, tool_name) in expectations {
             let mut server = CadServer::new().unwrap();

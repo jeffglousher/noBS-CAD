@@ -193,6 +193,13 @@ pub fn claim_writer_from(
     claim_writer(session_id, writer, generation)
 }
 
+fn read_window_label(session_id: &str) -> Value {
+    match read_session_file(session_id, "window.json") {
+        Ok(body) => serde_json::from_str(&body).unwrap_or(Value::Null),
+        Err(_) => Value::Null,
+    }
+}
+
 /// Release the writer lock (sets `writer` to `"none"`).
 pub fn release_writer(session_id: &str) -> Result<(), String> {
     let current = read_writer(session_id);
@@ -266,6 +273,7 @@ pub fn sessions_list_json() -> Value {
                         "has_model": has_model,
                         "heartbeat": heartbeat_meta(session_id),
                         "writer": read_writer(session_id),
+                        "window": read_window_label(session_id),
                     })
                 })
                 .collect();

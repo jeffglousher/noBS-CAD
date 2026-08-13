@@ -27,14 +27,17 @@ export type McpFocusPack =
   | 'datums'
   | 'history'
   | 'inspect'
-  | 'print';
+  | 'print'
+  | 'drawing';
 
 /** Keep in sync with mcp-server/src/disclosure.rs focus packs. */
 export function focusFromUi(
   mode: AppMode,
   activeTool: SketchTool,
   solidDialog: string | null,
+  activeTab?: string,
 ): McpFocusPack {
+  if (activeTab === 'drawing') return 'drawing';
   if (solidDialog) {
     switch (solidDialog) {
       case 'fillet':
@@ -182,7 +185,12 @@ async function publishNow(): Promise<void> {
   if (state.mode === 'sketch' || state.activeTool) return;
   // Respect live writer lock: do not overwrite while MCP holds the session.
   if (await writerIsMcp(knownSessionId)) return;
-  const focus = focusFromUi(state.mode, state.activeTool, activeSolidDialog(state));
+  const focus = focusFromUi(
+    state.mode,
+    state.activeTool,
+    activeSolidDialog(state),
+    state.activeTab,
+  );
   try {
     const engine = await getEngine();
     const model = await exportProjectModelWithVisibility(engine);

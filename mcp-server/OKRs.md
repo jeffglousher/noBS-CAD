@@ -9,7 +9,7 @@ Parent directions: [../docs/goals.md](../docs/goals.md) · As-built:
 |----|--------|--------|
 | M1.1 | Default advertised tools ≪ full catalog in `dynamic` mode | On `feat/3mf-print-export` |
 | M1.2 | Out-of-focus tools stay callable | On branch |
-| M1.3 | 105 modeling tools tagged in disclosure matrix | On branch |
+| M1.3 | 109 modeling tools tagged in disclosure matrix | This PR |
 | M1.4 | Pack matrix CI (list + per-pack representatives) | On branch |
 
 ## M2 — Escape hatch (branch)
@@ -57,3 +57,4 @@ Parent directions: [../docs/goals.md](../docs/goals.md) · As-built:
 | M7.1 | `server/discover` + per-request `_meta` (`2026-07-28`) is the recommended path | This PR |
 | M7.2 | `initialize` remains a compatibility pathway (not recommended); first reply includes the 2026 success manual | This PR |
 | M7.3 | Unsupported version → JSON-RPC `-32022` | This PR |
+| M7.4 | `resources/list|read` + `prompts/list|get` for product surfaces | This PR |

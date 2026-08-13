@@ -56,8 +56,10 @@ Soft disclosure: out-of-focus tools stay **callable**; results may include
 | Box | rectangle → extrude → one body |
 | Hole | box → hole on a face |
 
-Print-ready **3MF** with materials/colors is a **target**, not available via MCP
-yet. **STEP:** `solid_export_step` (AP242 base64).
+Print-ready **3MF** with materials/colors: `solid_export_preflight` then
+`solid_export_3mf` (slicer Metadata hints, not a sliced G-code project).
+**STEP:** `solid_export_step` (AP242 base64). **Drawings:** `cad_drawing_document`
+/ `nbcad://drawing` for sheet/view intent; DXF/print remain UI commands.
 
 ## Failures
 

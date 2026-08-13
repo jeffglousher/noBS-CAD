@@ -110,6 +110,10 @@ async function main() {
     assert.equal(writer.payload.writer, 'ui');
     assert.equal(writer.payload.generation, 1);
 
+    const windowFile = await jsonRequest(port, 'GET', `/${sessionId}/window.json`);
+    assert.equal(windowFile.status, 200);
+    assert.equal(windowFile.payload.window, 'browser');
+
     const heartbeat = await jsonRequest(port, 'GET', `/${sessionId}/heartbeat.json`);
     assert.equal(heartbeat.payload.source, 'ui');
     assert.equal(heartbeat.payload.generation, 1);
@@ -227,6 +231,14 @@ async function main() {
       (await jsonRequest(port, 'GET', `/${windowB.payload.session_id}/model.json`)).payload.document
         .name,
       'WindowB',
+    );
+    assert.equal(
+      (await jsonRequest(port, 'GET', `/${windowA.payload.session_id}/window.json`)).payload.window,
+      'window-a',
+    );
+    assert.equal(
+      (await jsonRequest(port, 'GET', `/${windowB.payload.session_id}/window.json`)).payload.window,
+      'window-b',
     );
   } finally {
     await close(server);

@@ -8,6 +8,8 @@
   Live co-link takes a UI-published writer lock; UI heartbeat must not clobber
   MCP revisions (`npm run test:session-bridge`). Switching `cad_attach` to
   another session releases the previous live writer; a failed switch keeps it.
+  MCP resources (`nbcad://…`) and prompts cover document/scene/drawing/sessions;
+  drawing DTO + Browser visibility tools wrap existing engine methods.
 
 ## 2026-07-29
 

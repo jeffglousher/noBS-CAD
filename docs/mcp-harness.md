@@ -16,8 +16,8 @@ machine (or CI runner).
 | Topic | Current state |
 |-------|----------------|
 | Transport | **stdio** JSON-RPC (`nbcad-mcp`) — logs on **stderr**; optional **`bus-jsonl`** envelope for Kafka/MQTT/NATS connectors ([mcp-message-bus.md](mcp-message-bus.md)) |
-| Protocol | **Recommended `2026-07-28`:** `server/discover` + per-request `_meta`. `initialize` (`2025-06-18`) is a compatibility pathway only — first reply includes the runtime-upgrade manual. Unsupported versions return JSON-RPC `-32022`. |
-| Tools | **105** modeling tools + control/export helpers |
+| Protocol | **Recommended `2026-07-28`:** `server/discover` + per-request `_meta`. `initialize` (`2025-06-18`) is a compatibility pathway only — first reply includes the runtime-upgrade manual. Unsupported versions return JSON-RPC `-32022`. Resources (`nbcad://…`) and prompts are advertised. |
+| Tools | **109** modeling tools + control/export helpers (includes drawing DTO + Browser visibility) |
 | Disclosure | Soft focus-scoped; `tools.listChanged: true`; ~300 ms throttle |
 | Notify worker | Stdin reader thread + timed wake — `list_changed` / soft-TTL flush **without** a later client ping |
 | Document | One persistent feature history **per MCP process** |
@@ -32,14 +32,14 @@ Spine → active pack → soft packs (60 s TTL, LRU 2). Hidden tools stay
 
 ### Focus packs
 ```text
-document | sketch | solid | modify | body_ops | datums | history | inspect | print
+document | sketch | solid | modify | body_ops | datums | history | inspect | print | drawing
 ```
 Tags: `mcp-server/src/disclosure.rs` (`tags_for_tool`).
 
 ### Session bridge (read-only snapshot + live co-link)
 Headless goldens work **without** attach.
 UI publishes under:
-`<NBCAD_SESSION_DIR>/<uuid>/{model.json,focus.json,heartbeat.json,writer.json}`
+`<NBCAD_SESSION_DIR>/<uuid>/{model.json,focus.json,heartbeat.json,writer.json,window.json}`
 (atomic writes, generation-guarded). Session ids are **UUID v8** (BLAKE3, nbcad
 layout 1); legacy v4 directories still attach. Document names are rejected.
 
@@ -47,7 +47,7 @@ layout 1); legacy v4 directories still attach. Document names are rejected.
 - **Browser/WASM (Vite):** `/__nbcad_session/*` middleware (`scripts/session-http-bridge.mjs`).
 
 Attach modes:
-1. `cad_list_sessions` — UUID dirs; heartbeat `age_ms` / `stale`; `writer` lock metadata.
+1. `cad_list_sessions` — UUID dirs; heartbeat `age_ms` / `stale`; `writer` lock metadata; optional `window` label from `window.json`.
 2. `cad_attach` with `mode: "read_only"` (default) — load snapshot; **no** writeback; does not claim `writer.json`.
 3. `cad_attach` with `mode: "live"` — requires a **fresh** heartbeat; **takes** the writer lock from `ui` or `none` (`writer=mcp`). After mutating tools, MCP writebacks `model.json` and bumps generation (`source: "mcp"`). UI polls and applies. While MCP holds the lock, UI publish/heartbeat must not clobber that revision.
 4. Writer conflict: if `writer.json` is `ui` *after* live attach, MCP mutates fail until `cad_refresh` (loads the UI model) / the lock returns to MCP. `cad_refresh` does not steal the lock.

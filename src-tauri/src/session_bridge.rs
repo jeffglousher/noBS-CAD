@@ -191,6 +191,13 @@ impl SessionBridgeState {
         atomic_write(&dir.join("focus.json"), &focus_body)?;
         atomic_write(&dir.join("heartbeat.json"), &heartbeat_body)?;
         atomic_write(&dir.join("writer.json"), &writer_body)?;
+        let window_body = serde_json::to_string_pretty(&json!({
+            "window": window_label,
+            "session_id": publisher.session_id,
+            "session_mode": "live",
+        }))
+        .map_err(|error| format!("encode window.json: {error}"))?;
+        atomic_write(&dir.join("window.json"), &window_body)?;
 
         publisher.last_applied_generation = parsed.generation;
 
@@ -386,8 +393,10 @@ mod tests {
             .unwrap();
         assert_eq!(stale["skipped"], true);
         assert_eq!(stale["reason"], "stale_generation");
-        let model = fs::read_to_string(dir.join(session_id).join("model.json")).unwrap();
+        let model = fs::read_to_string(dir.join(&session_id).join("model.json")).unwrap();
         assert!(model.contains("\"marker\":\"newer\""));
+        let window = fs::read_to_string(dir.join(&session_id).join("window.json")).unwrap();
+        assert!(window.contains("\"window\": \"main\"") || window.contains("\"window\":\"main\""));
 
         std::env::remove_var("NBCAD_SESSION_DIR");
         let _ = fs::remove_dir_all(&dir);

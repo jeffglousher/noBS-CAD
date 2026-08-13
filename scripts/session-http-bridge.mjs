@@ -18,7 +18,7 @@ import path from 'node:path';
 import { Domain, isValidSessionId, mint } from './nbcad-id.mjs';
 
 export const PREFIX = '/__nbcad_session';
-const SESSION_FILES = ['model.json', 'focus.json', 'heartbeat.json', 'writer.json'];
+const SESSION_FILES = ['model.json', 'focus.json', 'heartbeat.json', 'writer.json', 'window.json'];
 
 export function sessionRoot() {
   const custom = process.env.NBCAD_SESSION_DIR?.trim();
@@ -210,6 +210,18 @@ export async function dispatchSessionRequest(req, res, next, ctx = {}) {
     );
     atomicWrite(path.join(dir, 'model.json'), modelJson);
     writeWriter(dir, 'ui', generation);
+    atomicWrite(
+      path.join(dir, 'window.json'),
+      JSON.stringify(
+        {
+          window: String(body.window ?? 'browser'),
+          session_id: publisher.sessionId,
+          session_mode: 'live',
+        },
+        null,
+        2,
+      ),
+    );
     publisher.lastApplied = generation;
     sendJson(res, 200, {
       skipped: false,

@@ -31,6 +31,7 @@ Proposals: [proposed architecture](../../docs/proposed-architecture.md).
 | Session / correlation IDs | BLAKE3 UUID v8 (nbcad layout 1); legacy v4 dirs still attach |
 | `nbcad-mcp-bus` + `InMemoryBus` | CI-required request/reply pattern; `NBCAD_MCP_TRANSPORT=bus-jsonl` bridge |
 | Recommended MCP | `server/discover` + `_meta` (`2026-07-28`); success manual in first legacy reply |
+| Resources / prompts | `nbcad://document|project|scene|drawing|focus|sessions`; recipes for box/hole/attach/3MF/drawing |
 | `initialize` pathway | Compatibility only — not recommended; handshake stays `2025-06-18` |
 
 ## Still proposed

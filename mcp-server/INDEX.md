@@ -7,7 +7,7 @@
 | [Cargo.toml](Cargo.toml) | Crate deps |
 | [src/main.rs](src/main.rs) | Tool registry, RPC, goldens |
 | [src/disclosure.rs](src/disclosure.rs) | Soft focus packs + tags |
-| [src/session.rs](src/session.rs) | UUID snapshot dirs + heartbeat list metadata |
+| [src/surfaces.rs](src/surfaces.rs) | MCP resources (`nbcad://…`) and prompts |
 | [src/ffi.rs](src/ffi.rs) | OCCT FFI glue |
 | [build.rs](build.rs) | Link / OCCT discovery |
 

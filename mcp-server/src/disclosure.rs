@@ -18,10 +18,11 @@ pub enum FocusPack {
     History,
     Inspect,
     Print,
+    Drawing,
 }
 
 impl FocusPack {
-    pub const ALL: [FocusPack; 9] = [
+    pub const ALL: [FocusPack; 10] = [
         FocusPack::Document,
         FocusPack::Sketch,
         FocusPack::Solid,
@@ -31,6 +32,7 @@ impl FocusPack {
         FocusPack::History,
         FocusPack::Inspect,
         FocusPack::Print,
+        FocusPack::Drawing,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -44,6 +46,7 @@ impl FocusPack {
             FocusPack::History => "history",
             FocusPack::Inspect => "inspect",
             FocusPack::Print => "print",
+            FocusPack::Drawing => "drawing",
         }
     }
 
@@ -58,6 +61,7 @@ impl FocusPack {
             "history" => Some(FocusPack::History),
             "inspect" => Some(FocusPack::Inspect),
             "print" => Some(FocusPack::Print),
+            "drawing" => Some(FocusPack::Drawing),
             _ => None,
         }
     }
@@ -76,6 +80,9 @@ impl FocusPack {
             FocusPack::Inspect => "Read-only solid and sketch definition catalogs.",
             FocusPack::Print => {
                 "Manufacturing export: 3MF/STL/STEP, materials, appearance, and print demos."
+            }
+            FocusPack::Drawing => {
+                "Technical drawings: sheet/view document in the project model. DXF/print stay in the UI."
             }
         }
     }
@@ -498,7 +505,9 @@ pub fn tags_for_tool(name: &str) -> (FocusPack, bool) {
         "cad_set_document_name"
         | "cad_project_model"
         | "cad_load_project_model"
-        | "cad_new_project" => FocusPack::Document,
+        | "cad_new_project"
+        | "cad_project_visibility"
+        | "cad_set_project_visibility" => FocusPack::Document,
         "sketch_begin"
         | "sketch_finish"
         | "sketch_edit"
@@ -594,6 +603,7 @@ pub fn tags_for_tool(name: &str) -> (FocusPack, bool) {
         | "body_appearances"
         | "set_body_appearance"
         | "demo_export_pip_3mf" => FocusPack::Print,
+        "cad_drawing_document" | "cad_set_drawing_document" => FocusPack::Drawing,
         _ => FocusPack::Document,
     };
     (pack, false)
@@ -673,8 +683,13 @@ pub fn auto_focus_for_tool(name: &str) -> Option<FocusPack> {
             | "cad_project_model"
             | "cad_load_project_model"
             | "cad_new_project"
+            | "cad_project_visibility"
+            | "cad_set_project_visibility"
     ) {
         return Some(FocusPack::Document);
+    }
+    if matches!(name, "cad_drawing_document" | "cad_set_drawing_document") {
+        return Some(FocusPack::Drawing);
     }
     None
 }
@@ -719,6 +734,7 @@ pub fn focus_from_ui(
         "history" => FocusPack::History,
         "inspect" => FocusPack::Inspect,
         "print" | "export" => FocusPack::Print,
+        "drawing" => FocusPack::Drawing,
         _ => FocusPack::Document,
     }
 }
@@ -738,6 +754,7 @@ mod tests {
             FocusPack::Modify
         );
         assert_eq!(focus_from_ui("sketch", None, None), FocusPack::Sketch);
+        assert_eq!(focus_from_ui("drawing", None, None), FocusPack::Drawing);
     }
 
     #[test]
@@ -788,6 +805,10 @@ mod tests {
             "cad_project_model",
             "cad_load_project_model",
             "cad_new_project",
+            "cad_project_visibility",
+            "cad_set_project_visibility",
+            "cad_drawing_document",
+            "cad_set_drawing_document",
             "sketch_begin",
             "sketch_finish",
             "sketch_edit",
@@ -890,7 +911,7 @@ mod tests {
             "solid_scene",
             "solid_recompute",
         ];
-        assert_eq!(modeling.len(), 105);
+        assert_eq!(modeling.len(), 109);
         for name in modeling {
             let (pack, spine) = tags_for_tool(name);
             assert!(
@@ -910,6 +931,9 @@ mod tests {
             "demo_export_pip_3mf",
         ] {
             assert_eq!(tags_for_tool(name).0, FocusPack::Print, "{name}");
+        }
+        for name in ["cad_drawing_document", "cad_set_drawing_document"] {
+            assert_eq!(tags_for_tool(name).0, FocusPack::Drawing, "{name}");
         }
     }
 }

@@ -13,8 +13,10 @@ The older `initialize` handshake (`2025-06-18` and earlier) remains a
 handshake never returns `2026-07-28`. The first reply to it includes the
 runtime-upgrade recipe so agents that can switch on this process can do so.
 
-It covers most sketch and solid-modeling tools with **soft focus-scoped
-disclosure** (`tools.listChanged: true`). Out-of-focus tools stay callable.
+It covers sketch, solid, print, drawing-document, and browser-visibility tools
+with **soft focus-scoped disclosure** (`tools.listChanged: true`). Out-of-focus
+tools stay callable. Product state is also readable as MCP **resources**
+(`nbcad://document`, `nbcad://drawing`, …) and recipes as **prompts**.
 
 For message-queued systems (Kafka / MQTT / NATS), set
 `NBCAD_MCP_TRANSPORT=bus-jsonl` and bridge `BusMessage` frames — see
@@ -33,6 +35,10 @@ default editor path.
 `solid_export_stl`, `solid_export_step` (CAD), `material_catalog`,
 `body_appearances` / `set_body_appearance`, `solid_export_preflight`, and
 `demo_export_pip_3mf`.
+
+**Drawings / Browser:** `cad_drawing_document` / `cad_set_drawing_document`
+(project-model DTO; DXF/print stay in the UI). `cad_project_visibility` /
+`cad_set_project_visibility` for hidden bodies/datums/sketches.
 
 ## Build and verify
 
