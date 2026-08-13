@@ -4013,7 +4013,15 @@ mod tests {
                 .any(|id| id.as_str() == Some(unique.as_str())),
             "listed sessions should include the published id"
         );
-        assert_eq!(listed["session_details"][0]["heartbeat"]["stale"], false);
+        // `missing` is also a UUID dir (no heartbeat). Details are sorted by id,
+        // so [0] is not necessarily `unique`.
+        let unique_detail = listed["session_details"]
+            .as_array()
+            .expect("session_details")
+            .iter()
+            .find(|detail| detail["session_id"].as_str() == Some(unique.as_str()))
+            .expect("unique session in details");
+        assert_eq!(unique_detail["heartbeat"]["stale"], false);
 
         let attached = server
             .call_tool("cad_attach", json!({"session_id": unique}))

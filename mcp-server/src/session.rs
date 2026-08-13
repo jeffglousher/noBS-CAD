@@ -436,4 +436,41 @@ mod tests {
         std::env::remove_var("NBCAD_SESSION_DIR");
         let _ = fs::remove_dir_all(&dir);
     }
+
+    #[test]
+    fn session_details_must_be_looked_up_by_id_not_index() {
+        let _guard = lock_env();
+        let unique = test_session_uuid();
+        let missing = test_session_uuid();
+        let dir = std::env::temp_dir().join(format!("nbcad-sessions-list-order-{unique}"));
+        std::env::set_var("NBCAD_SESSION_DIR", &dir);
+
+        write_session(&unique, "model.json", "{\"version\":1}").unwrap();
+        write_session(
+            &unique,
+            "heartbeat.json",
+            &format!(r#"{{"updated_ms":{},"generation":1}}"#, now_ms()),
+        )
+        .unwrap();
+        fs::create_dir_all(dir.join(&missing)).unwrap();
+
+        let list = sessions_list_json();
+        let details = list["session_details"].as_array().expect("session_details");
+        assert_eq!(details.len(), 2);
+        let unique_detail = details
+            .iter()
+            .find(|detail| detail["session_id"].as_str() == Some(unique.as_str()))
+            .expect("unique session in details");
+        let missing_detail = details
+            .iter()
+            .find(|detail| detail["session_id"].as_str() == Some(missing.as_str()))
+            .expect("empty uuid dir in details");
+        assert_eq!(unique_detail["has_model"], true);
+        assert_eq!(unique_detail["heartbeat"]["stale"], false);
+        assert_eq!(missing_detail["has_model"], false);
+        assert_eq!(missing_detail["heartbeat"]["stale"], true);
+
+        std::env::remove_var("NBCAD_SESSION_DIR");
+        let _ = fs::remove_dir_all(&dir);
+    }
 }
