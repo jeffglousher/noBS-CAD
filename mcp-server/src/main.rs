@@ -730,8 +730,8 @@ impl CadServer {
                 .map_err(|error| format!("invalid drawing projection request: {error}"))?;
             return self.project_drawing_request(&scene, &request);
         }
-        let sheet_id = arguments.get("sheet_id").and_then(Value::as_u64);
-        let view_id = arguments.get("view_id").and_then(Value::as_u64);
+        let sheet_id = optional_u64(&arguments, "sheet_id")?;
+        let view_id = optional_u64(&arguments, "view_id")?;
         let drawing = self.manager.drawing_document();
         let mut intents = projection_intents_for_sheet(&drawing, &scene, sheet_id)?;
         if let Some(view_id) = view_id {
@@ -920,6 +920,17 @@ fn parse_engine_envelope(raw: String) -> Result<Value, String> {
             .and_then(Value::as_str)
             .unwrap_or("unknown noBS CAD engine error")
             .to_string())
+    }
+}
+
+fn optional_u64(arguments: &Value, key: &str) -> Result<Option<u64>, String> {
+    match arguments.get(key) {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::Number(number)) => number
+            .as_u64()
+            .ok_or_else(|| format!("{key} must be a positive integer"))
+            .map(Some),
+        Some(_) => Err(format!("{key} must be a positive integer")),
     }
 }
 

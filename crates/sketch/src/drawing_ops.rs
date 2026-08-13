@@ -26,7 +26,7 @@ use crate::drawing::{
 const STANDARD_SCALES: [f64; 10] = [10.0, 5.0, 2.0, 1.0, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "op", rename_all = "snake_case")]
+#[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum DrawingCommand {
     CreateSheet {
         #[serde(default)]
@@ -60,7 +60,7 @@ pub enum DrawingCommand {
         #[serde(default)]
         patch: Value,
     },
-    AutoLayout,
+    AutoLayout {},
     AddView {
         kind: DrawingViewKind,
         #[serde(default)]
@@ -390,11 +390,11 @@ pub fn apply_drawing_command(
             drawing_number.unwrap_or_default(),
             revision.unwrap_or_else(|| "A".to_string()),
             author.unwrap_or_default(),
-        ),
+        )?,
         DrawingCommand::SetActiveSheet { sheet_id } => set_active_sheet(drawing, sheet_id)?,
-        DrawingCommand::DeleteSheet { sheet_id } => delete_sheet(drawing, sheet_id),
+        DrawingCommand::DeleteSheet { sheet_id } => delete_sheet(drawing, sheet_id)?,
         DrawingCommand::UpdateSheet { sheet_id, patch } => update_sheet(drawing, sheet_id, patch)?,
-        DrawingCommand::AutoLayout => auto_layout(drawing, scene)?,
+        DrawingCommand::AutoLayout {} => auto_layout(drawing, scene)?,
         DrawingCommand::AddView {
             kind,
             position,
@@ -402,7 +402,7 @@ pub fn apply_drawing_command(
             scale,
         } => add_view(drawing, scene, kind, position, parent_view_id, scale)?,
         DrawingCommand::UpdateView { view_id, patch } => update_view(drawing, view_id, patch)?,
-        DrawingCommand::DeleteView { view_id } => delete_view(drawing, view_id),
+        DrawingCommand::DeleteView { view_id } => delete_view(drawing, view_id)?,
         DrawingCommand::AddDerivedView {
             kind,
             parent_view_id,
@@ -882,11 +882,11 @@ pub fn apply_drawing_command(
             patch,
         } => update_annotation(drawing, annotation_id, patch)?,
         DrawingCommand::DeleteAnnotation { annotation_id } => {
-            delete_annotation(drawing, annotation_id)
+            delete_annotation(drawing, annotation_id)?
         }
         DrawingCommand::SaveTemplate { name } => save_template(drawing, name)?,
         DrawingCommand::ApplyTemplate { template_id } => apply_template(drawing, template_id)?,
-        DrawingCommand::DeleteTemplate { template_id } => delete_template(drawing, template_id),
+        DrawingCommand::DeleteTemplate { template_id } => delete_template(drawing, template_id)?,
         DrawingCommand::AddRevision { revision } => add_revision(drawing, revision)?,
         DrawingCommand::UpdateRevision { revision_id, patch } => {
             update_revision(drawing, revision_id, patch)?
@@ -896,7 +896,7 @@ pub fn apply_drawing_command(
         DrawingCommand::UpdateBomItem { item_id, patch } => {
             update_bom_item(drawing, item_id, patch)?
         }
-        DrawingCommand::DeleteBomItem { item_id } => delete_bom_item(drawing, item_id),
+        DrawingCommand::DeleteBomItem { item_id } => delete_bom_item(drawing, item_id)?,
     };
     if !preserve_release {
         return_released_sheets_to_draft(&before, &mut next);
@@ -915,16 +915,16 @@ pub fn projection_intents_for_sheet(
             .sheets
             .iter()
             .find(|sheet| sheet.id == id)
-            .ok_or_else(|| format!("drawing sheet {id} does not exist"))?,
+            .ok_or_else(|| missing("sheet", id))?,
         None => active_sheet(drawing).ok_or_else(|| "Create a drawing sheet first.".to_string())?,
     };
-    sheet
+    Ok(sheet
         .views
         .iter()
         .map(|view| {
             projection_intent_for_view(view, &sheet.views, scene, std::collections::HashSet::new())
         })
-        .collect()
+        .collect())
 }
 
 pub fn projection_intent_for_view(
@@ -932,7 +932,7 @@ pub fn projection_intent_for_view(
     views: &[DrawingViewDto],
     scene: &SolidSceneDto,
     visited: std::collections::HashSet<u64>,
-) -> Result<DrawingViewProjectionIntent, String> {
+) -> DrawingViewProjectionIntent {
     let basis = current_view_basis(view, views, scene, visited);
     let section_plane = match &view.derivation {
         Some(DrawingViewDerivationDto::Section { first, depth, .. }) => {
@@ -951,7 +951,7 @@ pub fn projection_intent_for_view(
         }
         _ => None,
     };
-    Ok(DrawingViewProjectionIntent {
+    DrawingViewProjectionIntent {
         view_id: view.id,
         body_ids: view.body_ids.clone(),
         direction: basis.0,
@@ -960,7 +960,7 @@ pub fn projection_intent_for_view(
         include_tangent_edges: view.show_tangent_edges,
         deflection: (0.08 / view.scale).max(0.01),
         section_plane,
-    })
+    }
 }
 
 fn create_sheet(
@@ -974,7 +974,7 @@ fn create_sheet(
     drawing_number: String,
     revision: String,
     author: String,
-) -> DrawingDocumentDto {
+) -> Result<DrawingDocumentDto, String> {
     let mut next = drawing.clone();
     let format = format.unwrap_or_else(|| DrawingSheetFormat::default_for_standard(standard));
     let projection_method = projection_method.unwrap_or(match standard {
@@ -1016,7 +1016,7 @@ fn create_sheet(
     next.active_sheet_id = Some(sheet.id);
     next.next_sheet_id += 1;
     next.sheets.push(sheet);
-    next
+    Ok(next)
 }
 
 fn set_active_sheet(
@@ -1024,20 +1024,27 @@ fn set_active_sheet(
     sheet_id: u64,
 ) -> Result<DrawingDocumentDto, String> {
     if !drawing.sheets.iter().any(|sheet| sheet.id == sheet_id) {
-        return Err(format!("drawing sheet {sheet_id} does not exist"));
+        return Err(missing("sheet", sheet_id));
     }
     let mut next = drawing.clone();
     next.active_sheet_id = Some(sheet_id);
     Ok(next)
 }
 
-fn delete_sheet(drawing: &DrawingDocumentDto, sheet_id: u64) -> DrawingDocumentDto {
+fn missing(kind: &str, id: u64) -> String {
+    format!("drawing {kind} {id} does not exist")
+}
+
+fn delete_sheet(drawing: &DrawingDocumentDto, sheet_id: u64) -> Result<DrawingDocumentDto, String> {
+    if !drawing.sheets.iter().any(|sheet| sheet.id == sheet_id) {
+        return Err(missing("sheet", sheet_id));
+    }
     let mut next = drawing.clone();
     next.sheets.retain(|sheet| sheet.id != sheet_id);
     if next.active_sheet_id == Some(sheet_id) {
         next.active_sheet_id = next.sheets.first().map(|sheet| sheet.id);
     }
-    next
+    Ok(next)
 }
 
 fn update_sheet(
@@ -1053,7 +1060,7 @@ fn update_sheet(
         .sheets
         .iter_mut()
         .find(|sheet| sheet.id == id)
-        .ok_or_else(|| format!("drawing sheet {id} does not exist"))?;
+        .ok_or_else(|| missing("sheet", id))?;
     merge_json(sheet, patch)?;
     Ok(next)
 }
@@ -1203,13 +1210,13 @@ fn update_view(
         .iter()
         .find(|view| view.id == view_id)
         .map(|view| view.position)
-        .unwrap_or([0.0, 0.0]);
+        .ok_or_else(|| missing("view", view_id))?;
     {
         let view = sheet
             .views
             .iter_mut()
             .find(|view| view.id == view_id)
-            .expect("view exists");
+            .ok_or_else(|| missing("view", view_id))?;
         merge_json(view, patch.clone())?;
     }
     let scale_update = patch.get("scale").and_then(Value::as_f64);
@@ -1228,10 +1235,12 @@ fn update_view(
             }
         }
     }
-    let (parent_id, alignment, new_position) = {
-        let view = sheet.views.iter().find(|view| view.id == view_id).unwrap();
-        (view.parent_view_id, view.alignment, view.position)
-    };
+    let (parent_id, alignment, new_position) = sheet
+        .views
+        .iter()
+        .find(|view| view.id == view_id)
+        .map(|view| (view.parent_view_id, view.alignment, view.position))
+        .ok_or_else(|| missing("view", view_id))?;
     if let Some(parent_id) = parent_id {
         if patch.get("position").is_some() {
             if let Some(parent) = sheet.views.iter().find(|view| view.id == parent_id) {
@@ -1268,10 +1277,15 @@ fn update_view(
     Ok(next)
 }
 
-fn delete_view(drawing: &DrawingDocumentDto, view_id: u64) -> DrawingDocumentDto {
+fn delete_view(drawing: &DrawingDocumentDto, view_id: u64) -> Result<DrawingDocumentDto, String> {
     let mut next = drawing.clone();
+    let mut found = false;
     for sheet in &mut next.sheets {
+        let before = sheet.views.len();
         sheet.views.retain(|view| view.id != view_id);
+        if sheet.views.len() != before {
+            found = true;
+        }
         for child in &mut sheet.views {
             if child.parent_view_id == Some(view_id) {
                 child.parent_view_id = None;
@@ -1282,7 +1296,10 @@ fn delete_view(drawing: &DrawingDocumentDto, view_id: u64) -> DrawingDocumentDto
             .annotations
             .retain(|annotation| annotation_view_id(annotation).map_or(true, |id| id != view_id));
     }
-    next
+    if !found {
+        return Err(missing("view", view_id));
+    }
+    Ok(next)
 }
 
 fn add_derived_view(
@@ -1417,14 +1434,25 @@ fn update_annotation(
     Ok(next)
 }
 
-fn delete_annotation(drawing: &DrawingDocumentDto, annotation_id: u64) -> DrawingDocumentDto {
+fn delete_annotation(
+    drawing: &DrawingDocumentDto,
+    annotation_id: u64,
+) -> Result<DrawingDocumentDto, String> {
     let mut next = drawing.clone();
+    let mut found = false;
     for sheet in &mut next.sheets {
+        let before = sheet.annotations.len();
         sheet
             .annotations
             .retain(|annotation| annotation.id() != annotation_id);
+        if sheet.annotations.len() != before {
+            found = true;
+        }
     }
-    next
+    if !found {
+        return Err(missing("annotation", annotation_id));
+    }
+    Ok(next)
 }
 
 fn save_template(drawing: &DrawingDocumentDto, name: String) -> Result<DrawingDocumentDto, String> {
@@ -1494,10 +1522,17 @@ fn apply_template(
     Ok(next)
 }
 
-fn delete_template(drawing: &DrawingDocumentDto, template_id: u64) -> DrawingDocumentDto {
+fn delete_template(
+    drawing: &DrawingDocumentDto,
+    template_id: u64,
+) -> Result<DrawingDocumentDto, String> {
     let mut next = drawing.clone();
+    let before = next.templates.len();
     next.templates.retain(|template| template.id != template_id);
-    next
+    if next.templates.len() == before {
+        return Err(missing("template", template_id));
+    }
+    Ok(next)
 }
 
 fn add_revision(
@@ -1567,21 +1602,18 @@ fn delete_revision(
 ) -> Result<DrawingDocumentDto, String> {
     let mut next = drawing.clone();
     let sheet = active_sheet_mut(&mut next)?;
-    if let Some(revision) = sheet
+    let index = sheet
         .revisions
         .iter()
-        .find(|revision| revision.id == revision_id)
-    {
-        if revision.status == DrawingReleaseStatus::Released {
-            return Err(format!(
-                "Released revision {} cannot be deleted.",
-                revision.revision
-            ));
-        }
+        .position(|revision| revision.id == revision_id)
+        .ok_or_else(|| missing("revision", revision_id))?;
+    if sheet.revisions[index].status == DrawingReleaseStatus::Released {
+        return Err(format!(
+            "Released revision {} cannot be deleted.",
+            sheet.revisions[index].revision
+        ));
     }
-    sheet
-        .revisions
-        .retain(|revision| revision.id != revision_id);
+    sheet.revisions.remove(index);
     Ok(next)
 }
 
@@ -1635,16 +1667,22 @@ fn update_bom_item(
     Ok(next)
 }
 
-fn delete_bom_item(drawing: &DrawingDocumentDto, item_id: u64) -> DrawingDocumentDto {
+fn delete_bom_item(
+    drawing: &DrawingDocumentDto,
+    item_id: u64,
+) -> Result<DrawingDocumentDto, String> {
     let mut next = drawing.clone();
-    if let Ok(sheet) = active_sheet_mut(&mut next) {
-        sheet.bom.retain(|item| item.id != item_id);
-        sheet.annotations.retain(|annotation| match annotation {
-            DrawingAnnotationDto::ItemBalloon { bom_item_id, .. } => *bom_item_id != item_id,
-            _ => true,
-        });
+    let sheet = active_sheet_mut(&mut next)?;
+    let before = sheet.bom.len();
+    sheet.bom.retain(|item| item.id != item_id);
+    if sheet.bom.len() == before {
+        return Err(missing("BOM item", item_id));
     }
-    next
+    sheet.annotations.retain(|annotation| match annotation {
+        DrawingAnnotationDto::ItemBalloon { bom_item_id, .. } => *bom_item_id != item_id,
+        _ => true,
+    });
+    Ok(next)
 }
 
 fn add_hole_note(
@@ -2408,7 +2446,7 @@ mod tests {
             &empty_scene(),
             &[],
             "Bracket",
-            DrawingCommand::AutoLayout,
+            DrawingCommand::AutoLayout {},
         )
         .unwrap();
         assert_eq!(drawing.sheets[0].views.len(), 4);
@@ -2468,7 +2506,7 @@ mod tests {
             &empty_scene(),
             &[],
             "Part",
-            DrawingCommand::AutoLayout,
+            DrawingCommand::AutoLayout {},
         )
         .unwrap();
         let front = drawing.sheets[0]
@@ -2509,7 +2547,7 @@ mod tests {
             &empty_scene(),
             &[],
             "Part",
-            DrawingCommand::AutoLayout,
+            DrawingCommand::AutoLayout {},
         )
         .unwrap();
         let error = apply_drawing_command(
@@ -2517,7 +2555,7 @@ mod tests {
             &empty_scene(),
             &[],
             "Part",
-            DrawingCommand::AutoLayout,
+            DrawingCommand::AutoLayout {},
         )
         .unwrap_err();
         assert!(error.contains("empty sheet"));
@@ -2582,7 +2620,7 @@ mod tests {
             &empty_scene(),
             &[],
             "Part",
-            DrawingCommand::AutoLayout,
+            DrawingCommand::AutoLayout {},
         )
         .unwrap();
         let view_id = drawing.sheets[0].views[0].id;
@@ -2610,5 +2648,83 @@ mod tests {
         )
         .unwrap();
         assert!(drawing.sheets[0].annotations.is_empty());
+    }
+
+    #[test]
+    fn missing_ids_return_err() {
+        let drawing = apply_drawing_command(
+            &DrawingDocumentDto::default(),
+            &empty_scene(),
+            &[],
+            "Part",
+            DrawingCommand::CreateSheet {
+                standard: DrawingStandard::Iso,
+                format: None,
+                orientation: None,
+                projection_method: None,
+                tolerance_note: None,
+                title: None,
+                drawing_number: None,
+                revision: None,
+                author: None,
+            },
+        )
+        .unwrap();
+        let missing_sheet = apply_drawing_command(
+            &drawing,
+            &empty_scene(),
+            &[],
+            "Part",
+            DrawingCommand::DeleteSheet { sheet_id: 99 },
+        );
+        assert!(missing_sheet.is_err(), "{missing_sheet:?}");
+        let missing_view = apply_drawing_command(
+            &drawing,
+            &empty_scene(),
+            &[],
+            "Part",
+            DrawingCommand::DeleteView { view_id: 99 },
+        );
+        assert!(missing_view.is_err(), "{missing_view:?}");
+        let missing_note = apply_drawing_command(
+            &drawing,
+            &empty_scene(),
+            &[],
+            "Part",
+            DrawingCommand::DeleteAnnotation { annotation_id: 99 },
+        );
+        assert!(missing_note.is_err(), "{missing_note:?}");
+        let missing_template = apply_drawing_command(
+            &drawing,
+            &empty_scene(),
+            &[],
+            "Part",
+            DrawingCommand::DeleteTemplate { template_id: 99 },
+        );
+        assert!(missing_template.is_err(), "{missing_template:?}");
+        let missing_bom = apply_drawing_command(
+            &drawing,
+            &empty_scene(),
+            &[],
+            "Part",
+            DrawingCommand::DeleteBomItem { item_id: 99 },
+        );
+        assert!(missing_bom.is_err(), "{missing_bom:?}");
+        let missing_revision = apply_drawing_command(
+            &drawing,
+            &empty_scene(),
+            &[],
+            "Part",
+            DrawingCommand::DeleteRevision { revision_id: 99 },
+        );
+        assert!(missing_revision.is_err(), "{missing_revision:?}");
+    }
+
+    #[test]
+    fn unknown_command_fields_are_rejected() {
+        let error = serde_json::from_str::<DrawingCommand>(
+            r#"{"op":"auto_layout","comment":"not a drawing command"}"#,
+        );
+        assert!(error.is_err(), "{error:?}");
     }
 }

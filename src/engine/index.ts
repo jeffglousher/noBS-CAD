@@ -215,13 +215,33 @@ export class EngineError extends Error {
   }
 }
 
-/** Parse a host envelope string, throwing `EngineError` on failure. */
-export function unwrapEnvelope<T>(json: string): T {
-  const env = JSON.parse(json) as { ok: boolean; value?: T; error?: string; data?: unknown };
-  if (env.ok !== true) {
-    throw new EngineError(env.error ?? 'unknown engine error', env.data);
+export type EngineResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: string; data?: unknown };
+
+export function readEnvelope<T>(json: string): EngineResult<T> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    return { ok: false, error: 'invalid engine envelope' };
   }
-  return env.value as T;
+  if (typeof parsed !== 'object' || parsed === null) {
+    return { ok: false, error: 'invalid engine envelope' };
+  }
+  const env = parsed as { ok?: boolean; value?: T; error?: string; data?: unknown };
+  if (env.ok !== true) {
+    return { ok: false, error: env.error ?? 'unknown engine error', data: env.data };
+  }
+  return { ok: true, value: env.value as T };
+}
+
+export function unwrapEnvelope<T>(json: string): T {
+  const result = readEnvelope<T>(json);
+  if (!result.ok) {
+    throw new EngineError(result.error, result.data);
+  }
+  return result.value;
 }
 
 export function isTauriRuntime(): boolean {

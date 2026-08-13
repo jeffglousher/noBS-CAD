@@ -30,7 +30,7 @@ fn open_object(description: &str) -> Value {
     })
 }
 
-fn view_id() -> Value {
+fn entity_id() -> Value {
     json!({ "type": "integer", "minimum": 1 })
 }
 
@@ -70,14 +70,14 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             title: "Set active drawing sheet",
             description: "Select which sheet later drawing commands mutate.",
             op: "set_active_sheet",
-            schema: object(json!({ "sheet_id": view_id() }), &["sheet_id"]),
+            schema: object(json!({ "sheet_id": entity_id() }), &["sheet_id"]),
         },
         DrawingTool {
             name: "cad_drawing_delete_sheet",
             title: "Delete drawing sheet",
             description: "Remove a sheet and its views/annotations.",
             op: "delete_sheet",
-            schema: object(json!({ "sheet_id": view_id() }), &["sheet_id"]),
+            schema: object(json!({ "sheet_id": entity_id() }), &["sheet_id"]),
         },
         DrawingTool {
             name: "cad_drawing_update_sheet",
@@ -86,7 +86,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "update_sheet",
             schema: object(
                 json!({
-                    "sheet_id": view_id(),
+                    "sheet_id": entity_id(),
                     "patch": open_object("Partial DrawingSheetDto")
                 }),
                 &["patch"],
@@ -108,7 +108,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
                 json!({
                     "kind": { "type": "string", "enum": ["front", "rear", "left", "right", "top", "bottom", "isometric", "custom"] },
                     "position": position(),
-                    "parent_view_id": view_id(),
+                    "parent_view_id": entity_id(),
                     "scale": { "type": "number", "exclusiveMinimum": 0 }
                 }),
                 &["kind"],
@@ -121,7 +121,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "update_view",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "patch": open_object("Partial DrawingViewDto")
                 }),
                 &["view_id", "patch"],
@@ -132,7 +132,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             title: "Delete drawing view",
             description: "Remove a view and annotations attached to it. Children become free.",
             op: "delete_view",
-            schema: object(json!({ "view_id": view_id() }), &["view_id"]),
+            schema: object(json!({ "view_id": entity_id() }), &["view_id"]),
         },
         DrawingTool {
             name: "cad_drawing_add_derived_view",
@@ -142,7 +142,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             schema: object(
                 json!({
                     "kind": { "type": "string", "enum": ["section", "detail", "auxiliary", "broken", "removed_section"] },
-                    "parent_view_id": view_id(),
+                    "parent_view_id": entity_id(),
                     "position": position(),
                     "derivation": open_object("DrawingViewDerivationDto")
                 }),
@@ -169,7 +169,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_linear_dimension",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "first": open_object("DrawingTopologyAnchorRefDto"),
                     "second": open_object("DrawingTopologyAnchorRefDto"),
                     "mode": { "type": "string", "enum": ["aligned", "horizontal", "vertical"] },
@@ -185,7 +185,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_line_dimension",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "first": open_object("DrawingLineRefDto"),
                     "second": open_object("DrawingLineRefDto"),
                     "mode": { "type": "string", "enum": ["length", "distance", "angle"] },
@@ -201,7 +201,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_point_line_dimension",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "point": open_object("DrawingTopologyAnchorRefDto"),
                     "line": open_object("DrawingLineRefDto"),
                     "position": position()
@@ -216,7 +216,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_radial_dimension",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "feature": open_object("DrawingCircularRefDto"),
                     "mode": { "type": "string", "enum": ["diameter", "radius"] }
                 }),
@@ -230,7 +230,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_angular_dimension",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "vertex": open_object("DrawingTopologyAnchorRefDto"),
                     "first": open_object("DrawingTopologyAnchorRefDto"),
                     "second": open_object("DrawingTopologyAnchorRefDto")
@@ -245,7 +245,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_hole_note",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "feature": open_object("DrawingCircularRefDto"),
                     "position": position()
                 }),
@@ -259,7 +259,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_chamfer_note",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "first": open_object("DrawingTopologyAnchorRefDto"),
                     "second": open_object("DrawingTopologyAnchorRefDto"),
                     "position": position(),
@@ -276,7 +276,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_center_mark",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "feature": open_object("DrawingCircularRefDto"),
                     "extension": { "type": "number" }
                 }),
@@ -290,7 +290,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_center_line",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "first": open_object("DrawingCircularRefDto"),
                     "second": open_object("DrawingCircularRefDto"),
                     "extension": { "type": "number" }
@@ -305,7 +305,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_center_line_between_edges",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "first": open_object("DrawingLineRefDto"),
                     "second": open_object("DrawingLineRefDto"),
                     "extension": { "type": "number" }
@@ -320,7 +320,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_symmetry_axis",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "axis": { "type": "string", "enum": ["x", "y", "both"] },
                     "extension": { "type": "number" }
                 }),
@@ -334,7 +334,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_bolt_circle",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "features": { "type": "array", "items": open_object("DrawingCircularRefDto"), "minItems": 3 },
                     "extension": { "type": "number" }
                 }),
@@ -348,7 +348,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_chain_dimension",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "anchors": { "type": "array", "items": open_object("DrawingTopologyAnchorRefDto"), "minItems": 2 },
                     "layout": { "type": "string", "enum": ["chain", "baseline", "continued"] },
                     "mode": { "type": "string", "enum": ["aligned", "horizontal", "vertical"] }
@@ -363,7 +363,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_ordinate_dimension",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "origin": open_object("DrawingTopologyAnchorRefDto"),
                     "target": open_object("DrawingTopologyAnchorRefDto"),
                     "axis": { "type": "string", "enum": ["x", "y", "both"] }
@@ -378,7 +378,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_arc_length_dimension",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "feature": open_object("DrawingCircularRefDto"),
                     "first": open_object("DrawingTopologyAnchorRefDto"),
                     "second": open_object("DrawingTopologyAnchorRefDto")
@@ -393,7 +393,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_jogged_radius",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "feature": open_object("DrawingCircularRefDto"),
                     "position": position()
                 }),
@@ -407,7 +407,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_datum",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "attachment": open_object("DrawingAttachmentRefDto"),
                     "position": position(),
                     "label": { "type": "string" }
@@ -422,7 +422,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_gdt",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "attachment": open_object("DrawingAttachmentRefDto"),
                     "position": position(),
                     "characteristic": { "type": "string" },
@@ -438,7 +438,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_surface_texture",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "attachment": open_object("DrawingAttachmentRefDto"),
                     "position": position(),
                     "roughness_ra": { "type": "number" }
@@ -453,7 +453,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_edge_requirement",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "attachment": open_object("DrawingLineRefDto"),
                     "position": position(),
                     "upper_deviation": { "type": "number" },
@@ -469,7 +469,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_weld",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "attachment": open_object("DrawingLineRefDto"),
                     "position": position(),
                     "weld_type": { "type": "string" },
@@ -486,10 +486,10 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "add_balloon",
             schema: object(
                 json!({
-                    "view_id": view_id(),
+                    "view_id": entity_id(),
                     "attachment": open_object("DrawingAttachmentRefDto"),
                     "position": position(),
-                    "bom_item_id": view_id()
+                    "bom_item_id": entity_id()
                 }),
                 &["view_id", "attachment", "position", "bom_item_id"],
             ),
@@ -524,7 +524,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "update_annotation",
             schema: object(
                 json!({
-                    "annotation_id": view_id(),
+                    "annotation_id": entity_id(),
                     "patch": open_object("Partial annotation fields")
                 }),
                 &["annotation_id", "patch"],
@@ -535,7 +535,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             title: "Delete drawing annotation",
             description: "Remove an annotation by id.",
             op: "delete_annotation",
-            schema: object(json!({ "annotation_id": view_id() }), &["annotation_id"]),
+            schema: object(json!({ "annotation_id": entity_id() }), &["annotation_id"]),
         },
         DrawingTool {
             name: "cad_drawing_save_template",
@@ -549,14 +549,14 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             title: "Apply drawing template",
             description: "Apply a project template to the active sheet without changing drawing number/revision identity.",
             op: "apply_template",
-            schema: object(json!({ "template_id": view_id() }), &["template_id"]),
+            schema: object(json!({ "template_id": entity_id() }), &["template_id"]),
         },
         DrawingTool {
             name: "cad_drawing_delete_template",
             title: "Delete drawing template",
             description: "Remove a project-local drawing template.",
             op: "delete_template",
-            schema: object(json!({ "template_id": view_id() }), &["template_id"]),
+            schema: object(json!({ "template_id": entity_id() }), &["template_id"]),
         },
         DrawingTool {
             name: "cad_drawing_add_revision",
@@ -577,7 +577,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "update_revision",
             schema: object(
                 json!({
-                    "revision_id": view_id(),
+                    "revision_id": entity_id(),
                     "patch": open_object("Partial revision fields")
                 }),
                 &["revision_id", "patch"],
@@ -588,7 +588,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             title: "Delete drawing revision",
             description: "Delete a draft revision. Released revisions cannot be deleted.",
             op: "delete_revision",
-            schema: object(json!({ "revision_id": view_id() }), &["revision_id"]),
+            schema: object(json!({ "revision_id": entity_id() }), &["revision_id"]),
         },
         DrawingTool {
             name: "cad_drawing_add_bom_item",
@@ -607,7 +607,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             op: "update_bom_item",
             schema: object(
                 json!({
-                    "item_id": view_id(),
+                    "item_id": entity_id(),
                     "patch": open_object("Partial BOM fields")
                 }),
                 &["item_id", "patch"],
@@ -618,7 +618,7 @@ pub fn drawing_command_tools() -> Vec<DrawingTool> {
             title: "Delete BOM item",
             description: "Remove a BOM row and any balloons pointing at it.",
             op: "delete_bom_item",
-            schema: object(json!({ "item_id": view_id() }), &["item_id"]),
+            schema: object(json!({ "item_id": entity_id() }), &["item_id"]),
         },
     ]
 }
