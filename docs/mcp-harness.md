@@ -16,6 +16,7 @@ machine (or CI runner).
 | Topic | Current state |
 |-------|----------------|
 | Transport | **stdio** JSON-RPC (`nbcad-mcp`) — logs on **stderr**; optional **`bus-jsonl`** envelope for Kafka/MQTT/NATS connectors ([mcp-message-bus.md](mcp-message-bus.md)) |
+| Protocol | **Dual-era:** `server/discover` + per-request `_meta` (`2026-07-28`); Cursor/VS Code still `initialize` (`2025-06-18`). Unsupported versions return JSON-RPC `-32022`. |
 | Tools | **105** modeling tools + control/export helpers |
 | Disclosure | Soft focus-scoped; `tools.listChanged: true`; ~300 ms throttle |
 | Notify worker | Stdin reader thread + timed wake — `list_changed` / soft-TTL flush **without** a later client ping |
@@ -60,6 +61,11 @@ Day-to-day playbook: [agent-mcp.md](agent-mcp.md).
 ### Stdio (current supported path)
 Agents and CI spawn `nbcad-mcp` as an MCP stdio server. One process owns one
 document. Prefer `solid_export_3mf` for slicer handoff; STEP for CAD interchange.
+
+Modern clients **SHOULD** probe with `server/discover` (no session handshake).
+Cursor and VS Code still send `initialize`; that path stays on `2025-06-18` so
+those editors keep working. Do not treat `initialize` returning `2026-07-28` as
+success — the spec retired that handshake.
 
 ### Disclosure notify behavior
 Focus / mode / soft-TTL changes schedule `notifications/tools/list_changed`.

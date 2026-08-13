@@ -1,6 +1,15 @@
 # noBS CAD MCP server
 
-`nbcad-mcp` is a native **stdio** JSON-RPC MCP server (protocol `2025-06-18`).
+`nbcad-mcp` is a native **stdio** JSON-RPC MCP server. It is **dual-era**:
+
+- **Modern (`2026-07-28`):** `server/discover` plus per-request
+  `params._meta` (`io.modelcontextprotocol/protocolVersion`,
+  `clientCapabilities`; `clientInfo` is recommended). `initialize` is not
+  required.
+- **Legacy (`2025-06-18` and earlier):** Cursor / VS Code still use
+  `initialize`. That handshake never returns `2026-07-28`; unknown versions
+  negotiate to `2025-06-18`.
+
 It covers most sketch and solid-modeling tools with **soft focus-scoped
 disclosure** (`tools.listChanged: true`). Out-of-focus tools stay callable.
 

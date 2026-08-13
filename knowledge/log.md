@@ -1,5 +1,10 @@
 # noBS CAD knowledge update log
 
+## 2026-08-13
+
+- **Update**: MCP harness concept now records dual-era protocol
+  (`server/discover` / `2026-07-28` plus Cursor `initialize` / `2025-06-18`).
+
 ## 2026-07-29
 
 - **Update**: Aligned the bundle with OKF v0.2 and current `main`.

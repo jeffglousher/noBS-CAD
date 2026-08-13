@@ -47,8 +47,9 @@ Default transport remains `stdio` when `NBCAD_MCP_TRANSPORT` is unset.
 
 ## Honest limits
 
-- **Transport, not a scale-out kernel.** `nbcad-mcp` still owns **one in-process document**. The bus lets you *address* that worker with `document_id` / `window_id` and run it behind Kafka/MQTT/NATS. Horizontal scale means **one worker process per document**, not one shared stateless replica.
-- **MCP protocol remains `2025-06-18`** (initialize handshake on stdio). The bus envelope is request/reply; it is not the `2026-07-28` spec.
+- **Transport, not a scale-out kernel.** `nbcad-mcp` still owns **one in-process document**. The bus lets you *address* that worker with `document_id` / `window_id` and run it behind Kafka/MQTT/NATS. Horizontal scale means **one worker process per document**, not one shared stateless replica. MCP `2026-07-28` is dual-era on the JSON-RPC payload (`server/discover` + per-request `_meta`); it does **not** make this process a stateless replica.
+- **MCP protocol is dual-era.** Modern clients use `server/discover` and `_meta.io.modelcontextprotocol/protocolVersion` (`2026-07-28`). Cursor/VS Code still use `initialize` (`2025-06-18`). The bus envelope (`nbcad.mcp-bus.v1`) is request/reply around that JSON-RPC; it is not a substitute for MCP discovery.
+- **Not implemented in this slice:** `subscriptions/listen`, multi-round-trip requests, HTTP `Mcp-Method` / `MCP-Protocol-Version` headers. Stdio still pushes `notifications/tools/list_changed` (Jack §2).
 - **Broker registry** (`broker/list|register|unregister`) is the control-plane contract for #12. The desktop UI does not register windows yet.
 
 ## Local proof without a broker
@@ -64,5 +65,6 @@ NBCAD_MCP_BIN=./mcp-server/target/release/nbcad-mcp node scripts/mcp-bus-jsonl-d
 ## Non-goals (this slice)
 
 - Embedding `rdkafka` / `paho-mqtt` / `async-nats` inside `nbcad-mcp`
-- Replacing MCP protocol `2025-06-18` with the `2026-07-28` stateless core
+- Dropping the Cursor/VS Code `initialize` handshake (dual-era is required until those clients speak `2026-07-28`)
+- HTTP Streamable transport, `subscriptions/listen`, or MRTR
 - Full multi-window product broker UI (control-plane registry + subjects are ready; UI attach comes next)

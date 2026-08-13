@@ -19,7 +19,14 @@ use disclosure::{
     FocusPack,
 };
 
-const LATEST_PROTOCOL: &str = "2025-06-18";
+const LATEST_PROTOCOL: &str = "2026-07-28";
+const LEGACY_PROTOCOL: &str = "2025-06-18";
+const SUPPORTED_PROTOCOLS: &[&str] = &["2026-07-28", "2025-06-18", "2025-03-26", "2024-11-05"];
+const META_PROTOCOL_VERSION: &str = "io.modelcontextprotocol/protocolVersion";
+const META_CLIENT_INFO: &str = "io.modelcontextprotocol/clientInfo";
+const META_CLIENT_CAPABILITIES: &str = "io.modelcontextprotocol/clientCapabilities";
+const META_SERVER_INFO: &str = "io.modelcontextprotocol/serverInfo";
+const UNSUPPORTED_PROTOCOL_VERSION: i64 = -32022;
 const MODELING_TOOL_COUNT: usize = 105;
 
 #[derive(Clone, Copy)]
@@ -2795,43 +2802,187 @@ fn error_response(id: Value, code: i64, message: impl Into<String>) -> Value {
     })
 }
 
+fn error_response_data(id: Value, code: i64, message: impl Into<String>, data: Value) -> Value {
+    json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "error": { "code": code, "message": message.into(), "data": data }
+    })
+}
+
+fn server_info() -> Value {
+    json!({
+        "name": "nbcad",
+        "title": "noBS CAD",
+        "version": env!("CARGO_PKG_VERSION")
+    })
+}
+
+fn server_instructions() -> &'static str {
+    "This is one persistent headless CAD document. Begin and finish sketches before creating solid features. Use returned stable entity/body/face/edge ids in later calls. Dynamic tool disclosure is enabled; out-of-focus tools remain callable. Modern clients should call server/discover (MCP 2026-07-28); Cursor/VS Code may still use initialize (2025-06-18)."
+}
+
+fn server_capabilities() -> Value {
+    json!({ "tools": { "listChanged": true } })
+}
+
+fn request_meta(message: &Value) -> Option<&Value> {
+    message.pointer("/params/_meta")
+}
+
+fn requested_modern_protocol(message: &Value) -> Option<&str> {
+    request_meta(message)?
+        .get(META_PROTOCOL_VERSION)
+        .and_then(Value::as_str)
+}
+
+fn is_supported_protocol(version: &str) -> bool {
+    SUPPORTED_PROTOCOLS.contains(&version)
+}
+
+fn unsupported_protocol_error(id: Value, requested: &str) -> Value {
+    error_response_data(
+        id,
+        UNSUPPORTED_PROTOCOL_VERSION,
+        "Unsupported protocol version",
+        json!({
+            "supported": SUPPORTED_PROTOCOLS,
+            "requested": requested
+        }),
+    )
+}
+
+fn require_modern_meta(message: &Value, id: &Value) -> Result<(), Value> {
+    let meta = request_meta(message).ok_or_else(|| {
+        error_response(
+            id.clone(),
+            -32602,
+            "modern MCP requests require params._meta",
+        )
+    })?;
+    let version = meta
+        .get(META_PROTOCOL_VERSION)
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            error_response(
+                id.clone(),
+                -32602,
+                format!("params._meta.{META_PROTOCOL_VERSION} is required"),
+            )
+        })?;
+    if !is_supported_protocol(version) {
+        return Err(unsupported_protocol_error(id.clone(), version));
+    }
+    if version == LATEST_PROTOCOL {
+        if let Some(info) = meta.get(META_CLIENT_INFO) {
+            if !info.is_object() {
+                return Err(error_response(
+                    id.clone(),
+                    -32602,
+                    format!("params._meta.{META_CLIENT_INFO} must be an object"),
+                ));
+            }
+        }
+        if meta
+            .get(META_CLIENT_CAPABILITIES)
+            .and_then(Value::as_object)
+            .is_none()
+        {
+            return Err(error_response(
+                id.clone(),
+                -32602,
+                format!("params._meta.{META_CLIENT_CAPABILITIES} is required"),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn discover_result() -> Value {
+    json!({
+        "resultType": "complete",
+        "supportedVersions": SUPPORTED_PROTOCOLS,
+        "capabilities": server_capabilities(),
+        "instructions": server_instructions(),
+        "ttlMs": 3_600_000,
+        "cacheScope": "public",
+        "_meta": {
+            "io.modelcontextprotocol/serverInfo": server_info()
+        }
+    })
+}
+
+fn handle_legacy_initialize(message: &Value, id: Value) -> Value {
+    let requested = message
+        .pointer("/params/protocolVersion")
+        .and_then(Value::as_str)
+        .unwrap_or(LEGACY_PROTOCOL);
+    let protocol = match requested {
+        "2024-11-05" | "2025-03-26" | "2025-06-18" => requested,
+        // initialize is the legacy handshake; modern clients use server/discover.
+        _ => LEGACY_PROTOCOL,
+    };
+    response(
+        id,
+        json!({
+            "protocolVersion": protocol,
+            "capabilities": server_capabilities(),
+            "serverInfo": server_info(),
+            "instructions": server_instructions()
+        }),
+    )
+}
+
 fn handle_message(server: &mut CadServer, message: Value) -> Vec<Value> {
     let Some(method) = message.get("method").and_then(Value::as_str) else {
         return Vec::new();
     };
     let id = message.get("id").cloned();
     let mut responses = match method {
-        "initialize" => {
-            let requested = message
-                .pointer("/params/protocolVersion")
-                .and_then(Value::as_str)
-                .unwrap_or(LATEST_PROTOCOL);
-            let protocol = match requested {
-                "2024-11-05" | "2025-03-26" | "2025-06-18" => requested,
-                _ => LATEST_PROTOCOL,
-            };
-            vec![response(
-                id.unwrap_or(Value::Null),
-                json!({
-                    "protocolVersion": protocol,
-                    "capabilities": { "tools": { "listChanged": true } },
-                    "serverInfo": {
-                        "name": "nbcad",
-                        "title": "noBS CAD",
-                        "version": env!("CARGO_PKG_VERSION")
-                    },
-                    "instructions": "This is one persistent headless CAD document. Begin and finish sketches before creating solid features. Use returned stable entity/body/face/edge ids in later calls. Dynamic tool disclosure is enabled; out-of-focus tools remain callable."
-                }),
-            )]
+        "initialize" => vec![handle_legacy_initialize(
+            &message,
+            id.unwrap_or(Value::Null),
+        )],
+        "server/discover" => {
+            let id = id.unwrap_or(Value::Null);
+            // Dual-era stdio probe: DiscoverResult with no `_meta` still means
+            // "this server is modern." Incomplete modern `_meta` is validated.
+            if requested_modern_protocol(&message).is_some() {
+                if let Err(error) = require_modern_meta(&message, &id) {
+                    return vec![error];
+                }
+            }
+            vec![response(id, discover_result())]
         }
         "notifications/initialized" | "notifications/cancelled" => Vec::new(),
-        "ping" => id.map(|id| response(id, json!({}))).into_iter().collect(),
-        "tools/list" => vec![response(
-            id.unwrap_or(Value::Null),
-            tool_list_result(&mut server.disclosure),
-        )],
+        "ping" => {
+            let id = match id {
+                Some(id) => id,
+                None => return Vec::new(),
+            };
+            if requested_modern_protocol(&message).is_some() {
+                if let Err(error) = require_modern_meta(&message, &id) {
+                    return vec![error];
+                }
+            }
+            vec![response(id, json!({}))]
+        }
+        "tools/list" => {
+            let id = id.unwrap_or(Value::Null);
+            if requested_modern_protocol(&message).is_some() {
+                if let Err(error) = require_modern_meta(&message, &id) {
+                    return vec![error];
+                }
+            }
+            vec![response(id, tool_list_result(&mut server.disclosure))]
+        }
         "tools/call" => {
             let id = id.unwrap_or(Value::Null);
+            if requested_modern_protocol(&message).is_some() {
+                if let Err(error) = require_modern_meta(&message, &id) {
+                    return vec![error];
+                }
+            }
             let Some(name) = message.pointer("/params/name").and_then(Value::as_str) else {
                 return vec![error_response(
                     id,
@@ -3217,11 +3368,155 @@ mod tests {
         )
         .pop()
         .unwrap();
-        assert_eq!(initialized["result"]["protocolVersion"], LATEST_PROTOCOL);
+        assert_eq!(initialized["result"]["protocolVersion"], LEGACY_PROTOCOL);
         assert_eq!(
             initialized["result"]["capabilities"]["tools"]["listChanged"],
             true
         );
+    }
+
+    fn modern_meta() -> Value {
+        json!({
+            "io.modelcontextprotocol/protocolVersion": LATEST_PROTOCOL,
+            "io.modelcontextprotocol/clientInfo": { "name": "test", "version": "0" },
+            "io.modelcontextprotocol/clientCapabilities": {}
+        })
+    }
+
+    #[test]
+    fn initialize_never_returns_2026_07_28() {
+        let mut server = CadServer::new().unwrap();
+        let initialized = handle_message(
+            &mut server,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": LATEST_PROTOCOL,
+                    "capabilities": {},
+                    "clientInfo": { "name": "test", "version": "0" }
+                }
+            }),
+        )
+        .pop()
+        .unwrap();
+        assert_eq!(initialized["result"]["protocolVersion"], LEGACY_PROTOCOL);
+        assert_eq!(initialized["result"]["serverInfo"]["name"], "nbcad");
+    }
+
+    #[test]
+    fn server_discover_works_without_initialize_or_meta() {
+        let mut server = CadServer::new().unwrap();
+        let discovered = handle_message(
+            &mut server,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "server/discover",
+                "params": {}
+            }),
+        )
+        .pop()
+        .unwrap();
+        assert_eq!(discovered["result"]["resultType"], "complete");
+        assert_eq!(
+            discovered["result"]["supportedVersions"][0],
+            LATEST_PROTOCOL
+        );
+        assert_eq!(
+            discovered["result"]["capabilities"]["tools"]["listChanged"],
+            true
+        );
+        assert_eq!(
+            discovered["result"]["_meta"][META_SERVER_INFO]["name"],
+            "nbcad"
+        );
+        assert!(discovered["result"]["instructions"]
+            .as_str()
+            .unwrap()
+            .contains("cad_attach"));
+    }
+
+    #[test]
+    fn tools_call_works_with_modern_meta_and_no_initialize() {
+        let mut server = CadServer::new().unwrap();
+        let resp = handle_message(
+            &mut server,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {
+                    "_meta": modern_meta(),
+                    "name": "cad_document",
+                    "arguments": {}
+                }
+            }),
+        )
+        .pop()
+        .unwrap();
+        assert!(resp.get("error").is_none(), "{resp}");
+        assert_eq!(resp["result"]["isError"], false);
+    }
+
+    #[test]
+    fn tools_call_rejects_unsupported_protocol_version() {
+        let mut server = CadServer::new().unwrap();
+        let resp = handle_message(
+            &mut server,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/protocolVersion": "1999-01-01",
+                        "io.modelcontextprotocol/clientInfo": { "name": "test", "version": "0" },
+                        "io.modelcontextprotocol/clientCapabilities": {}
+                    },
+                    "name": "cad_document",
+                    "arguments": {}
+                }
+            }),
+        )
+        .pop()
+        .unwrap();
+        assert_eq!(resp["error"]["code"], UNSUPPORTED_PROTOCOL_VERSION);
+        assert_eq!(resp["error"]["data"]["requested"], "1999-01-01");
+        assert!(resp["error"]["data"]["supported"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|v| v == LATEST_PROTOCOL));
+    }
+
+    #[test]
+    fn tools_call_requires_client_capabilities_on_2026_07_28() {
+        let mut server = CadServer::new().unwrap();
+        let resp = handle_message(
+            &mut server,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/protocolVersion": LATEST_PROTOCOL,
+                        "io.modelcontextprotocol/clientInfo": { "name": "test", "version": "0" }
+                    },
+                    "name": "cad_document",
+                    "arguments": {}
+                }
+            }),
+        )
+        .pop()
+        .unwrap();
+        assert_eq!(resp["error"]["code"], -32602);
+        assert!(resp["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains(META_CLIENT_CAPABILITIES));
     }
 
     #[test]
@@ -3577,7 +3872,7 @@ mod tests {
                 &mut server,
                 Duration::from_secs(5),
             )
-            .expect("initialize via bus");
+            .expect("server/discover via bus");
             process_one(
                 &worker_bus,
                 &worker_subject,
@@ -3587,8 +3882,8 @@ mod tests {
             .expect("tools/call via bus");
         });
 
-        let init = {
-            let correlation = "bus-init";
+        let discover = {
+            let correlation = "bus-discover";
             let mut message = BusMessage::request(
                 req_subject.clone(),
                 response_subject(&route, correlation),
@@ -3598,21 +3893,25 @@ mod tests {
                 serde_json::to_vec(&json!({
                     "jsonrpc": "2.0",
                     "id": 1,
-                    "method": "initialize",
-                    "params": { "protocolVersion": LATEST_PROTOCOL }
+                    "method": "server/discover",
+                    "params": { "_meta": modern_meta() }
                 }))
                 .unwrap(),
             );
             message.correlation_id = correlation.into();
             message
         };
-        let init_reply = bus
-            .request(init, Duration::from_secs(5))
-            .expect("initialize reply on bus");
-        let init_body: Value = init_reply.payload_json().unwrap();
-        assert_eq!(init_body["result"]["protocolVersion"], LATEST_PROTOCOL);
+        let discover_reply = bus
+            .request(discover, Duration::from_secs(5))
+            .expect("server/discover reply on bus");
+        let discover_body: Value = discover_reply.payload_json().unwrap();
+        assert_eq!(discover_body["result"]["resultType"], "complete");
         assert_eq!(
-            init_body["result"]["capabilities"]["tools"]["listChanged"],
+            discover_body["result"]["supportedVersions"][0],
+            LATEST_PROTOCOL
+        );
+        assert_eq!(
+            discover_body["result"]["capabilities"]["tools"]["listChanged"],
             true
         );
 
@@ -3621,12 +3920,15 @@ mod tests {
             let mut message = BusMessage::request(
                 req_subject,
                 response_subject(&route, correlation),
-                BusHeaders::new().with_document(route.document_id.clone()),
+                BusHeaders::new()
+                    .with_document(route.document_id.clone())
+                    .with_protocol(LATEST_PROTOCOL),
                 serde_json::to_vec(&json!({
                     "jsonrpc": "2.0",
                     "id": 2,
                     "method": "tools/call",
                     "params": {
+                        "_meta": modern_meta(),
                         "name": "cad_set_document_name",
                         "arguments": { "name": "BusRoutedDoc" }
                     }

@@ -83,7 +83,7 @@ fn request_reply_requires_in_memory_bus_pattern() {
         reply_to.clone(),
         BusHeaders::new()
             .with_document(route.document_id.clone())
-            .with_protocol("2025-06-18"),
+            .with_protocol("2026-07-28"),
         payload,
     );
     message.correlation_id = correlation.to_string();

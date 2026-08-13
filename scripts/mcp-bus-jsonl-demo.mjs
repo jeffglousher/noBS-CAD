@@ -47,9 +47,25 @@ rl.on('line', (line) => {
   }
 });
 
+function modernMeta() {
+  return {
+    'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+    'io.modelcontextprotocol/clientInfo': {
+      name: 'mcp-bus-jsonl-demo',
+      version: '0',
+    },
+    'io.modelcontextprotocol/clientCapabilities': {},
+  };
+}
+
 function request(method, params = {}, id = 1) {
   const correlation = mint(Domain.Correlation);
-  const payload = JSON.stringify({ jsonrpc: '2.0', id, method, params });
+  const payload = JSON.stringify({
+    jsonrpc: '2.0',
+    id,
+    method,
+    params: { _meta: modernMeta(), ...params },
+  });
   const frame = {
     subject: `nbcad.mcp.${documentId}.req`,
     correlation_id: correlation,
@@ -57,7 +73,7 @@ function request(method, params = {}, id = 1) {
     headers: {
       schema: 'nbcad.mcp-bus.v1',
       document_id: documentId,
-      protocol_version: '2025-06-18',
+      protocol_version: '2026-07-28',
     },
     payload,
   };
@@ -85,8 +101,11 @@ function payloadJson(message) {
   return JSON.parse(Buffer.from(Uint8Array.from(raw)).toString('utf8'));
 }
 
-const init = await request('initialize', { protocolVersion: '2025-06-18' }, 1);
-console.log('initialize =>', payloadJson(init).result?.protocolVersion);
+const discover = await request('server/discover', {}, 1);
+console.log(
+  'server/discover =>',
+  payloadJson(discover).result?.supportedVersions,
+);
 
 const listed = await request(
   'tools/call',
