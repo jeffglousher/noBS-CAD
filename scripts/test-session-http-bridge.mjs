@@ -196,6 +196,38 @@ async function main() {
 
     const unknown = await jsonRequest(port, 'POST', '/nope', {});
     assert.equal(unknown.status, 404);
+
+    const windowA = await jsonRequest(port, 'POST', '/reserve', { window: 'window-a' });
+    const windowB = await jsonRequest(port, 'POST', '/reserve', { window: 'window-b' });
+    assert.notEqual(windowA.payload.session_id, windowB.payload.session_id);
+    assert.equal(
+      (await jsonRequest(port, 'POST', '/write', {
+        window: 'window-a',
+        generation: windowA.payload.generation,
+        focus: 'solid',
+        model_json: { document: { name: 'WindowA' } },
+      })).status,
+      200,
+    );
+    assert.equal(
+      (await jsonRequest(port, 'POST', '/write', {
+        window: 'window-b',
+        generation: windowB.payload.generation,
+        focus: 'solid',
+        model_json: { document: { name: 'WindowB' } },
+      })).status,
+      200,
+    );
+    assert.equal(
+      (await jsonRequest(port, 'GET', `/${windowA.payload.session_id}/model.json`)).payload.document
+        .name,
+      'WindowA',
+    );
+    assert.equal(
+      (await jsonRequest(port, 'GET', `/${windowB.payload.session_id}/model.json`)).payload.document
+        .name,
+      'WindowB',
+    );
   } finally {
     await close(server);
     fs.rmSync(ROOT, { recursive: true, force: true });

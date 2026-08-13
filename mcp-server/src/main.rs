@@ -380,11 +380,31 @@ impl CadServer {
             .and_then(Value::as_str)
             .unwrap_or("read_only");
         match mode {
+            "read_only" | "live" => {}
+            other => {
+                return Err(format!(
+                    "mode must be 'read_only' or 'live' (got '{other}')"
+                ))
+            }
+        }
+        // Validate the target before dropping a live lock we still hold.
+        session::require_model_json(session_id)?;
+        if mode == "live" {
+            let heartbeat = session::heartbeat_meta(session_id);
+            if heartbeat.get("stale").and_then(Value::as_bool) != Some(false) {
+                return Err(format!(
+                    "session '{session_id}' heartbeat is stale or missing; live attach requires a fresh heartbeat (age <= {} ms)",
+                    session::HEARTBEAT_STALE_MS
+                ));
+            }
+        }
+        if self.attached_session_mode != SessionAttachMode::None {
+            self.detach_session()?;
+        }
+        match mode {
             "read_only" => self.attach_read_only_snapshot(session_id),
             "live" => self.attach_live_session(session_id),
-            other => Err(format!(
-                "mode must be 'read_only' or 'live' (got '{other}')"
-            )),
+            _ => unreachable!("mode already validated"),
         }
     }
 
@@ -4271,6 +4291,91 @@ mod tests {
         assert_eq!(attached["attached"], true);
         assert_eq!(attached["session_mode"], "live");
         assert_eq!(session::read_writer(&unique)["writer"], "mcp");
+
+        std::env::remove_var("NBCAD_SESSION_DIR");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn live_attach_to_second_session_releases_first_writer() {
+        let _guard = session::lock_env();
+        let first = session::test_session_uuid();
+        let second = session::test_session_uuid();
+        let dir = std::env::temp_dir().join(format!("nbcad-sessions-switch-{first}"));
+        std::env::set_var("NBCAD_SESSION_DIR", &dir);
+        let (mut donor, _) = mcp_box();
+        let model = donor.call_tool("cad_project_model", json!({})).unwrap();
+        let model_json = model
+            .as_str()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| serde_json::to_string(&model).unwrap());
+        write_ui_session(&first, &model_json, 1, "ui");
+        write_ui_session(&second, &model_json, 1, "ui");
+
+        let mut server = CadServer::new().unwrap();
+        server
+            .call_tool("cad_attach", json!({"session_id": first, "mode": "live"}))
+            .unwrap();
+        assert_eq!(session::read_writer(&first)["writer"], "mcp");
+
+        server
+            .call_tool("cad_attach", json!({"session_id": second, "mode": "live"}))
+            .expect("live attach to a second session must succeed");
+        assert_eq!(
+            session::read_writer(&first)["writer"],
+            "none",
+            "previous live session must release writer=mcp"
+        );
+        assert_eq!(session::read_writer(&second)["writer"], "mcp");
+        assert_eq!(
+            server.attached_document_id.as_deref(),
+            Some(second.as_str())
+        );
+
+        std::env::remove_var("NBCAD_SESSION_DIR");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn failed_live_attach_does_not_drop_current_writer() {
+        let _guard = session::lock_env();
+        let first = session::test_session_uuid();
+        let stale = session::test_session_uuid();
+        let dir = std::env::temp_dir().join(format!("nbcad-sessions-keep-{first}"));
+        std::env::set_var("NBCAD_SESSION_DIR", &dir);
+        let (mut donor, _) = mcp_box();
+        let model = donor.call_tool("cad_project_model", json!({})).unwrap();
+        let model_json = model
+            .as_str()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| serde_json::to_string(&model).unwrap());
+        write_ui_session(&first, &model_json, 1, "ui");
+        session::write_session(&stale, "model.json", &model_json).unwrap();
+        session::write_session(
+            &stale,
+            "heartbeat.json",
+            &format!(
+                r#"{{"updated_ms":{},"generation":1,"session_id":"{stale}"}}"#,
+                session::now_ms().saturating_sub(session::HEARTBEAT_STALE_MS + 5_000)
+            ),
+        )
+        .unwrap();
+        session::claim_writer(&stale, "ui", 1).unwrap();
+
+        let mut server = CadServer::new().unwrap();
+        server
+            .call_tool("cad_attach", json!({"session_id": first, "mode": "live"}))
+            .unwrap();
+        assert!(server
+            .call_tool("cad_attach", json!({"session_id": stale, "mode": "live"}))
+            .is_err());
+        assert_eq!(
+            server.attached_document_id.as_deref(),
+            Some(first.as_str()),
+            "failed switch must keep the current attach"
+        );
+        assert_eq!(session::read_writer(&first)["writer"], "mcp");
+        assert_eq!(session::read_writer(&stale)["writer"], "ui");
 
         std::env::remove_var("NBCAD_SESSION_DIR");
         let _ = std::fs::remove_dir_all(&dir);

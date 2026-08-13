@@ -126,6 +126,8 @@ Body through the same replayable history as the interactive application.
 `mode=read_only` loads a snapshot. `mode=live` takes the writer lock from a
 UI-published session and writebacks `model.json` after mutating tools. UI
 polls `source: "mcp"` revisions; UI heartbeat must not clobber them.
+`cad_attach` to another session detaches first so `writer=mcp` is not stranded;
+a failed switch keeps the current attach.
 Each MCP process still owns one headless document unless attached.
 Revisioned MCP→UI sync and installer/UI launch remain follow-ups.
 

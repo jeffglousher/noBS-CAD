@@ -45,6 +45,7 @@ Keep `disclosure::tags_for_tool` aligned when adding dialogs or export tools.
 - `mode: "live"` — fresh heartbeat required; MCP **takes** the lock from `ui`/`none` and writebacks
   `model.json` after mutating tools; UI polls `source: "mcp"` generations and must not clobber them;
 - writer conflict errors when UI holds the lock after attach; `cad_refresh` loads the UI model without stealing;
+- `cad_attach` to another session detaches first (releases a live writer lock); a failed switch keeps the current attach;
 - headless goldens still work without attach.
 
 Installer / UI launch: [#32](https://github.com/jackControls/noBS-CAD/pull/32).

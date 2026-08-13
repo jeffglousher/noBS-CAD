@@ -51,7 +51,7 @@ Attach modes:
 2. `cad_attach` with `mode: "read_only"` (default) — load snapshot; **no** writeback; does not claim `writer.json`.
 3. `cad_attach` with `mode: "live"` — requires a **fresh** heartbeat; **takes** the writer lock from `ui` or `none` (`writer=mcp`). After mutating tools, MCP writebacks `model.json` and bumps generation (`source: "mcp"`). UI polls and applies. While MCP holds the lock, UI publish/heartbeat must not clobber that revision.
 4. Writer conflict: if `writer.json` is `ui` *after* live attach, MCP mutates fail until `cad_refresh` (loads the UI model) / the lock returns to MCP. `cad_refresh` does not steal the lock.
-5. `cad_refresh` / `cad_detach` — re-read or clear attach; live detach releases the writer lock.
+5. `cad_refresh` / `cad_detach` — re-read or clear attach; live detach releases the writer lock. `cad_attach` to another session detaches first (so `writer=mcp` is not stranded); a failed switch keeps the current attach.
 
 Tests: `npm run test:session-bridge` (HTTP both directions, no WASM). Smoke: `npm run smoke:colink` (browser publish → MCP revision → heartbeat must preserve MCP → UI apply).
 Installer / UI launch: [#32](https://github.com/jackControls/noBS-CAD/pull/32).

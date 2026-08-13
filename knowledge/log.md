@@ -6,7 +6,8 @@
   `2026-07-28` (`server/discover` + `_meta`). `initialize` is a compatibility
   pathway only; the first legacy reply includes the runtime-upgrade manual.
   Live co-link takes a UI-published writer lock; UI heartbeat must not clobber
-  MCP revisions (`npm run test:session-bridge`).
+  MCP revisions (`npm run test:session-bridge`). Switching `cad_attach` to
+  another session releases the previous live writer; a failed switch keeps it.
 
 ## 2026-07-29
 
