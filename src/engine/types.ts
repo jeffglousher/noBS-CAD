@@ -1521,6 +1521,9 @@ export interface DrawingDocumentDto {
   next_template_id: number;
 }
 
+/** Tagged drawing command. Mirrors `nbcad_sketch::drawing_ops::DrawingCommand`. */
+export type DrawingCommand = { op: string } & Record<string, unknown>;
+
 export interface DrawingProjectionRequest {
   body_ids: number[];
   direction: [number, number, number];

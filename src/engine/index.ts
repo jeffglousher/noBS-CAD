@@ -29,6 +29,7 @@ import type {
   DatumPlaneUpdateDto,
   DocumentDto,
   DrawingDocumentDto,
+  DrawingCommand,
   DrawingProjectionDto,
   DrawingProjectionRequest,
   EditDimensionRequest,
@@ -105,6 +106,7 @@ export interface Engine {
   setProjectVisibility(visibility: ProjectVisibilityDto): Promise<ProjectVisibilityDto>;
   drawingDocument(): Promise<DrawingDocumentDto>;
   setDrawingDocument(document: DrawingDocumentDto): Promise<DrawingDocumentDto>;
+  drawingCommand(command: DrawingCommand): Promise<DrawingDocumentDto>;
   drawingProjection(request: DrawingProjectionRequest): Promise<DrawingProjectionDto>;
   setBodyAppearance(appearance: BodyAppearance): Promise<BodyAppearance[]>;
   extrudeDefinitions(): Promise<ExtrudeDefinitionDto[]>;

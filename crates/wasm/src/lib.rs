@@ -99,6 +99,10 @@ impl WasmEngine {
         host::handle(&mut self.manager, "drawing_set_document", payload)
     }
 
+    pub fn drawing_command(&mut self, payload: &str) -> String {
+        host::handle(&mut self.manager, "drawing_command", payload)
+    }
+
     pub fn set_body_appearance(&mut self, payload: &str) -> String {
         host::handle(&mut self.manager, "set_body_appearance", payload)
     }

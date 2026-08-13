@@ -21,6 +21,7 @@ type WasmEngineMethods = WasmEngineInner & {
   project_set_visibility(payload: string): string;
   drawing_document(): string;
   drawing_set_document(payload: string): string;
+  drawing_command(payload: string): string;
 };
 import type {
   AddConstraintResult,
@@ -43,6 +44,7 @@ import type {
   DatumPlaneUpdateDto,
   DocumentDto,
   DrawingDocumentDto,
+  DrawingCommand,
   DrawingProjectionDto,
   DrawingProjectionRequest,
   FaceSketchOrigin,
@@ -186,6 +188,12 @@ export class WasmEngine implements Engine {
   async setDrawingDocument(document: DrawingDocumentDto): Promise<DrawingDocumentDto> {
     return unwrapEnvelope(
       (this.inner as WasmEngineMethods).drawing_set_document(JSON.stringify(document)),
+    );
+  }
+
+  async drawingCommand(command: DrawingCommand): Promise<DrawingDocumentDto> {
+    return unwrapEnvelope(
+      (this.inner as WasmEngineMethods).drawing_command(JSON.stringify(command)),
     );
   }
 

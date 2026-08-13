@@ -29,6 +29,7 @@ import type {
   DatumPlaneUpdateDto,
   DocumentDto,
   DrawingDocumentDto,
+  DrawingCommand,
   DrawingProjectionDto,
   DrawingProjectionRequest,
   FaceSketchOrigin,
@@ -152,6 +153,10 @@ export class TauriEngine implements Engine {
 
   async setDrawingDocument(document: DrawingDocumentDto): Promise<DrawingDocumentDto> {
     return this.call('engine_drawing_set_document', document);
+  }
+
+  async drawingCommand(command: DrawingCommand): Promise<DrawingDocumentDto> {
+    return this.call('engine_drawing_command', command);
   }
 
   async drawingProjection(request: DrawingProjectionRequest): Promise<DrawingProjectionDto> {

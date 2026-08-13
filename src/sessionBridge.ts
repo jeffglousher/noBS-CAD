@@ -289,6 +289,8 @@ export function startSessionBridge(): void {
     if (
       state.document !== prev.document ||
       state.solidScene !== prev.solidScene ||
+      state.drawingDocument !== prev.drawingDocument ||
+      state.activeTab !== prev.activeTab ||
       state.mode !== prev.mode ||
       state.activeTool !== prev.activeTool ||
       activeSolidDialog(state) !== activeSolidDialog(prev)

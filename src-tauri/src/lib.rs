@@ -185,6 +185,7 @@ engine_command!(engine_project_visibility, "project_visibility", no_payload);
 engine_command!(engine_project_set_visibility, "project_set_visibility");
 engine_command!(engine_drawing_document, "drawing_document", no_payload);
 engine_command!(engine_drawing_set_document, "drawing_set_document");
+engine_command!(engine_drawing_command, "drawing_command");
 engine_command!(engine_set_body_appearance, "set_body_appearance");
 
 #[tauri::command]
@@ -584,6 +585,7 @@ pub fn run() {
             engine_project_set_visibility,
             engine_drawing_document,
             engine_drawing_set_document,
+            engine_drawing_command,
             engine_drawing_projection,
             engine_set_body_appearance,
             engine_extrude_definitions,
