@@ -23,6 +23,7 @@
 |-----|----------|----------------|
 | [agentic/INDEX.md](agentic/INDEX.md) | Agents + maintainers | Structure changes |
 | [agentic/STEERABLE_MCP.md](agentic/STEERABLE_MCP.md) | Agents | Disclosure invariants |
+| [agentic/MCP_2026.md](agentic/MCP_2026.md) | Agents | Recommended MCP 2026-07-28 success manual |
 | [agentic/MAINTENANCE.md](agentic/MAINTENANCE.md) | Agents + CI | Toolchain / test commands |
 | [agentic/UI_OVERLAYS.md](agentic/UI_OVERLAYS.md) | UI agents + maintainers | Overlay or shell-layout changes |
 

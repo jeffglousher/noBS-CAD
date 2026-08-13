@@ -2,6 +2,14 @@
 
 Practical notes for driving the **as-built** headless MCP server.
 
+**Recommended protocol:** MCP **2026-07-28**. Start with `server/discover`,
+then put `io.modelcontextprotocol/protocolVersion` on every request. Full
+recipe: [agentic/MCP_2026.md](agentic/MCP_2026.md). Spec:
+https://modelcontextprotocol.io/specification/2026-07-28/
+
+`initialize` (`2025-06-18`) is a compatibility pathway only. If you already
+used it, keep modeling — and switch at runtime when you can.
+
 Design / proposals: [mcp-harness.md](mcp-harness.md),
 [proposed-architecture.md](proposed-architecture.md).
 

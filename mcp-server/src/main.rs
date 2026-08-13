@@ -141,6 +141,8 @@ struct CadServer {
     attached_session_mode: SessionAttachMode,
     attached_generation: u64,
     pending_recompute_transaction: Option<u64>,
+    /// First legacy-era reply already carried the 2026-07-28 success manual.
+    legacy_protocol_nudge_sent: bool,
 }
 
 impl CadServer {
@@ -153,6 +155,7 @@ impl CadServer {
             attached_session_mode: SessionAttachMode::None,
             attached_generation: 0,
             pending_recompute_transaction: None,
+            legacy_protocol_nudge_sent: false,
         })
     }
 
@@ -2818,8 +2821,57 @@ fn server_info() -> Value {
     })
 }
 
-fn server_instructions() -> &'static str {
-    "This is one persistent headless CAD document. Begin and finish sketches before creating solid features. Use returned stable entity/body/face/edge ids in later calls. Dynamic tool disclosure is enabled; out-of-focus tools remain callable. Modern clients should call server/discover (MCP 2026-07-28); Cursor/VS Code may still use initialize (2025-06-18)."
+fn modeling_manual() -> &'static str {
+    "Modeling: one persistent headless CAD document. Begin and finish sketches before solid features. Use returned entity/body/face/edge ids. Soft disclosure is on; out-of-focus tools stay callable. Typical loop: sketch_begin → sketch_add_* / constraints → sketch_finish → sketch_profiles → solid_extrude (or revolve/sweep/loft/rib) → solid_scene / cad_document. Optional UI co-link: cad_list_sessions → cad_attach."
+}
+
+fn modern_protocol_manual() -> &'static str {
+    "Recommended protocol is MCP 2026-07-28. Call server/discover (initialize is not required). On every request set params._meta.io.modelcontextprotocol/protocolVersion to \"2026-07-28\" and params._meta.io.modelcontextprotocol/clientCapabilities to {}. Include io.modelcontextprotocol/clientInfo when you can. Spec: https://modelcontextprotocol.io/specification/2026-07-28/ — research that revision at runtime if your client can."
+}
+
+fn server_instructions() -> String {
+    format!("{}\n\n{}", modern_protocol_manual(), modeling_manual())
+}
+
+fn legacy_first_reply_instructions() -> String {
+    format!(
+        "This server's recommended protocol is MCP 2026-07-28. You used the compatibility initialize handshake; it still works and this session will keep serving tools. If you can switch at runtime, do it now on this same process: call server/discover, then put io.modelcontextprotocol/protocolVersion=\"2026-07-28\" and io.modelcontextprotocol/clientCapabilities={{}} on every later request. Spec to research: https://modelcontextprotocol.io/specification/2026-07-28/\n\n{}",
+        modeling_manual()
+    )
+}
+
+fn protocol_nudge_object() -> Value {
+    json!({
+        "recommended": LATEST_PROTOCOL,
+        "runtime_upgrade": "Call server/discover, then set params._meta.io.modelcontextprotocol/protocolVersion to \"2026-07-28\" and params._meta.io.modelcontextprotocol/clientCapabilities to {} on every request. This call succeeded; keep going.",
+        "compatibility": "The initialize handshake remains a supported pathway. It is not recommended.",
+        "spec": "https://modelcontextprotocol.io/specification/2026-07-28/"
+    })
+}
+
+fn take_legacy_protocol_nudge(server: &mut CadServer, message: &Value) -> Option<Value> {
+    if requested_modern_protocol(message).is_some() {
+        return None;
+    }
+    if server.legacy_protocol_nudge_sent {
+        return None;
+    }
+    server.legacy_protocol_nudge_sent = true;
+    Some(protocol_nudge_object())
+}
+
+fn apply_protocol_nudge(value: &mut Value, nudge: Option<Value>) {
+    let Some(nudge) = nudge else {
+        return;
+    };
+    match value.as_object_mut() {
+        Some(object) => {
+            object.insert("_protocol".to_string(), nudge);
+        }
+        None => {
+            *value = json!({ "value": value.clone(), "_protocol": nudge });
+        }
+    }
 }
 
 fn server_capabilities() -> Value {
@@ -2912,14 +2964,15 @@ fn discover_result() -> Value {
     })
 }
 
-fn handle_legacy_initialize(message: &Value, id: Value) -> Value {
+fn handle_legacy_initialize(server: &mut CadServer, message: &Value, id: Value) -> Value {
+    server.legacy_protocol_nudge_sent = true;
     let requested = message
         .pointer("/params/protocolVersion")
         .and_then(Value::as_str)
         .unwrap_or(LEGACY_PROTOCOL);
     let protocol = match requested {
         "2024-11-05" | "2025-03-26" | "2025-06-18" => requested,
-        // initialize is the legacy handshake; modern clients use server/discover.
+        // initialize is the compatibility handshake; it never speaks 2026-07-28.
         _ => LEGACY_PROTOCOL,
     };
     response(
@@ -2928,7 +2981,12 @@ fn handle_legacy_initialize(message: &Value, id: Value) -> Value {
             "protocolVersion": protocol,
             "capabilities": server_capabilities(),
             "serverInfo": server_info(),
-            "instructions": server_instructions()
+            "instructions": legacy_first_reply_instructions(),
+            "_meta": {
+                "dev.nbcad/recommendedProtocol": LATEST_PROTOCOL,
+                "dev.nbcad/runtimeUpgrade": modern_protocol_manual(),
+                "dev.nbcad/compatibility": "initialize remains a supported pathway. It is not recommended."
+            }
         }),
     )
 }
@@ -2940,6 +2998,7 @@ fn handle_message(server: &mut CadServer, message: Value) -> Vec<Value> {
     let id = message.get("id").cloned();
     let mut responses = match method {
         "initialize" => vec![handle_legacy_initialize(
+            server,
             &message,
             id.unwrap_or(Value::Null),
         )],
@@ -2974,7 +3033,10 @@ fn handle_message(server: &mut CadServer, message: Value) -> Vec<Value> {
                     return vec![error];
                 }
             }
-            vec![response(id, tool_list_result(&mut server.disclosure))]
+            let nudge = take_legacy_protocol_nudge(server, &message);
+            let mut listed = tool_list_result(&mut server.disclosure);
+            apply_protocol_nudge(&mut listed, nudge);
+            vec![response(id, listed)]
         }
         "tools/call" => {
             let id = id.unwrap_or(Value::Null);
@@ -2997,8 +3059,12 @@ fn handle_message(server: &mut CadServer, message: Value) -> Vec<Value> {
             if !tool_specs().iter().any(|tool| tool.name == name) {
                 return vec![error_response(id, -32602, format!("unknown tool: {name}"))];
             }
+            let nudge = take_legacy_protocol_nudge(server, &message);
             let result = match server.call_tool(name, arguments) {
-                Ok(value) => success_result(value),
+                Ok(mut value) => {
+                    apply_protocol_nudge(&mut value, nudge);
+                    success_result(value)
+                }
                 Err(error) => tool_error(error),
             };
             vec![response(id, result)]
@@ -3373,6 +3439,14 @@ mod tests {
             initialized["result"]["capabilities"]["tools"]["listChanged"],
             true
         );
+        let instructions = initialized["result"]["instructions"].as_str().unwrap();
+        assert!(instructions.contains("2026-07-28"));
+        assert!(instructions.contains("server/discover"));
+        assert!(instructions.contains("sketch_begin"));
+        assert!(
+            !instructions.contains("may still use initialize"),
+            "initialize must not be recommended: {instructions}"
+        );
     }
 
     fn modern_meta() -> Value {
@@ -3403,6 +3477,14 @@ mod tests {
         .unwrap();
         assert_eq!(initialized["result"]["protocolVersion"], LEGACY_PROTOCOL);
         assert_eq!(initialized["result"]["serverInfo"]["name"], "nbcad");
+        let instructions = initialized["result"]["instructions"].as_str().unwrap();
+        assert!(instructions.contains("recommended protocol is MCP 2026-07-28"));
+        assert!(instructions.contains("If you can switch at runtime"));
+        assert!(instructions.contains("https://modelcontextprotocol.io/specification/2026-07-28/"));
+        assert_eq!(
+            initialized["result"]["_meta"]["dev.nbcad/recommendedProtocol"],
+            LATEST_PROTOCOL
+        );
     }
 
     #[test]
@@ -3436,6 +3518,13 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("cad_attach"));
+        let instructions = discovered["result"]["instructions"].as_str().unwrap();
+        assert!(instructions.contains("Recommended protocol is MCP 2026-07-28"));
+        assert!(instructions.contains("server/discover"));
+        assert!(
+            !instructions.contains("may still use initialize"),
+            "discover must not recommend initialize: {instructions}"
+        );
     }
 
     #[test]
@@ -3517,6 +3606,108 @@ mod tests {
             .as_str()
             .unwrap()
             .contains(META_CLIENT_CAPABILITIES));
+    }
+
+    #[test]
+    fn first_legacy_tools_call_includes_success_manual_and_still_runs() {
+        let mut server = CadServer::new().unwrap();
+        let first = handle_message(
+            &mut server,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": { "name": "cad_document", "arguments": {} }
+            }),
+        )
+        .pop()
+        .unwrap();
+        assert!(first.get("error").is_none(), "{first}");
+        assert_eq!(first["result"]["isError"], false);
+        assert_eq!(
+            first["result"]["structuredContent"]["_protocol"]["recommended"],
+            LATEST_PROTOCOL
+        );
+        assert!(
+            first["result"]["structuredContent"]["_protocol"]["runtime_upgrade"]
+                .as_str()
+                .unwrap()
+                .contains("server/discover")
+        );
+        assert!(
+            first["result"]["structuredContent"]["_protocol"]["runtime_upgrade"]
+                .as_str()
+                .unwrap()
+                .contains("This call succeeded")
+        );
+
+        let second = handle_message(
+            &mut server,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "tools/call",
+                "params": { "name": "cad_document", "arguments": {} }
+            }),
+        )
+        .pop()
+        .unwrap();
+        assert!(second["result"]["structuredContent"]
+            .get("_protocol")
+            .is_none());
+    }
+
+    #[test]
+    fn initialize_then_tools_call_does_not_repeat_protocol_nudge() {
+        let mut server = CadServer::new().unwrap();
+        handle_message(
+            &mut server,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": { "protocolVersion": "2025-06-18" }
+            }),
+        );
+        let call = handle_message(
+            &mut server,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": { "name": "cad_document", "arguments": {} }
+            }),
+        )
+        .pop()
+        .unwrap();
+        assert_eq!(call["result"]["isError"], false);
+        assert!(call["result"]["structuredContent"]
+            .get("_protocol")
+            .is_none());
+    }
+
+    #[test]
+    fn modern_tools_call_does_not_include_legacy_protocol_nudge() {
+        let mut server = CadServer::new().unwrap();
+        let resp = handle_message(
+            &mut server,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {
+                    "_meta": modern_meta(),
+                    "name": "cad_document",
+                    "arguments": {}
+                }
+            }),
+        )
+        .pop()
+        .unwrap();
+        assert_eq!(resp["result"]["isError"], false);
+        assert!(resp["result"]["structuredContent"]
+            .get("_protocol")
+            .is_none());
     }
 
     #[test]

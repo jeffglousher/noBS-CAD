@@ -50,10 +50,10 @@ Parent directions: [../docs/goals.md](../docs/goals.md) · As-built:
 | M6.3 | MCP tools/call round-trip test **through** the bus (OCCT) | Shipped |
 | M6.4 | First-party NATS/Kafka connector binary (optional) | Next |
 
-## M7 — MCP protocol dual-era
+## M7 — MCP protocol 2026-07-28
 
 | KR | Target | Status |
 |----|--------|--------|
-| M7.1 | `server/discover` + per-request `_meta` (`2026-07-28`) | This PR |
-| M7.2 | Cursor/VS Code `initialize` remains `2025-06-18` | This PR |
+| M7.1 | `server/discover` + per-request `_meta` (`2026-07-28`) is the recommended path | This PR |
+| M7.2 | `initialize` remains a compatibility pathway (not recommended); first reply includes the 2026 success manual | This PR |
 | M7.3 | Unsupported version → JSON-RPC `-32022` | This PR |

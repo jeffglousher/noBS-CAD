@@ -1,14 +1,17 @@
 # noBS CAD MCP server
 
-`nbcad-mcp` is a native **stdio** JSON-RPC MCP server. It is **dual-era**:
+`nbcad-mcp` is a native **stdio** JSON-RPC MCP server.
 
-- **Modern (`2026-07-28`):** `server/discover` plus per-request
-  `params._meta` (`io.modelcontextprotocol/protocolVersion`,
-  `clientCapabilities`; `clientInfo` is recommended). `initialize` is not
-  required.
-- **Legacy (`2025-06-18` and earlier):** Cursor / VS Code still use
-  `initialize`. That handshake never returns `2026-07-28`; unknown versions
-  negotiate to `2025-06-18`.
+**Recommended protocol: MCP `2026-07-28`.** Call `server/discover`, then send
+`params._meta.io.modelcontextprotocol/protocolVersion` (`2026-07-28`) and
+`clientCapabilities` on every request. `initialize` is not required. Success
+manual: [docs/agentic/MCP_2026.md](../docs/agentic/MCP_2026.md). Spec:
+https://modelcontextprotocol.io/specification/2026-07-28/
+
+The older `initialize` handshake (`2025-06-18` and earlier) remains a
+**compatibility pathway**. It still works; it is not recommended. That
+handshake never returns `2026-07-28`. The first reply to it includes the
+runtime-upgrade recipe so agents that can switch on this process can do so.
 
 It covers most sketch and solid-modeling tools with **soft focus-scoped
 disclosure** (`tools.listChanged: true`). Out-of-focus tools stay callable.

@@ -2,8 +2,9 @@
 
 ## 2026-08-13
 
-- **Update**: MCP harness concept now records dual-era protocol
-  (`server/discover` / `2026-07-28` plus Cursor `initialize` / `2025-06-18`).
+- **Update**: MCP harness concept now records recommended protocol
+  `2026-07-28` (`server/discover` + `_meta`). `initialize` is a compatibility
+  pathway only; the first legacy reply includes the runtime-upgrade manual.
 
 ## 2026-07-29
 

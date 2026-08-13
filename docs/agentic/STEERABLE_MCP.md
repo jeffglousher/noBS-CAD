@@ -12,9 +12,12 @@
 8. **MQ pattern:** system-integration / multi-window transport tests must go through
    `nbcad-mcp-bus` (`InMemoryBus` or `bus-jsonl`). Do not “prove” broker routing with
    direct mutex calls. See [mcp-message-bus.md](../mcp-message-bus.md).
-9. **Protocol dual-era:** modern clients use `server/discover` + `_meta`
-   (`2026-07-28`). Cursor/VS Code still use `initialize` (`2025-06-18`). Do not
-   drop the legacy handshake, and do not return `2026-07-28` from `initialize`.
+9. **Protocol: recommend 2026-07-28 only.** `server/discover` + per-request
+   `_meta`. The `initialize` handshake remains a compatibility pathway — never
+   a recommendation. The first reply to a legacy handshake (or the first
+   legacy `tools/call`) must include the runtime-upgrade success manual. Do
+   not reject legacy calls. Do not return `2026-07-28` from `initialize`.
+   Manual: [MCP_2026.md](MCP_2026.md).
 
 ## Modes
 
@@ -56,5 +59,5 @@ are compatible hints — not a full pre-sliced project. STL is geometry-only.
 
 - [mcp-harness.md](../mcp-harness.md)
 - Issues [#10](https://github.com/jackControls/noBS-CAD/issues/10), [#11](https://github.com/jackControls/noBS-CAD/issues/11)
+- MCP 2026-07-28 success manual: [MCP_2026.md](MCP_2026.md)
 - MCP tools / listChanged: https://modelcontextprotocol.io/specification/2026-07-28/server/tools
-  (legacy handshake docs: https://modelcontextprotocol.io/specification/2025-06-18/server/tools)
