@@ -529,6 +529,21 @@ impl SketchManager {
         Ok(self.drawings.clone())
     }
 
+    pub fn apply_drawing_command(
+        &mut self,
+        command: crate::drawing_ops::DrawingCommand,
+    ) -> Result<DrawingDocumentDto, SessionError> {
+        let next = crate::drawing_ops::apply_drawing_command(
+            &self.drawings,
+            &self.solid_scene(),
+            &self.hole_definitions(),
+            &self.document_dto().name,
+            command,
+        )
+        .map_err(SessionError::Solid)?;
+        self.set_drawing_document(next)
+    }
+
     pub fn set_body_appearance(
         &mut self,
         appearance: BodyAppearance,

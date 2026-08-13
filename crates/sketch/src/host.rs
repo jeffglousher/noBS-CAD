@@ -72,6 +72,11 @@ pub fn handle(manager: &mut SketchManager, method: &str, payload: &str) -> Strin
         "drawing_set_document" => {
             with_payload(payload, |drawing| manager.set_drawing_document(drawing))
         }
+        "drawing_command" => {
+            with_payload(payload, |command: crate::drawing_ops::DrawingCommand| {
+                manager.apply_drawing_command(command)
+            })
+        }
         "set_body_appearance" => with_payload(payload, |appearance: nbcad_core::BodyAppearance| {
             manager.set_body_appearance(appearance)
         }),

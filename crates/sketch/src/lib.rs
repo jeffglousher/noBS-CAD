@@ -16,6 +16,7 @@
 
 mod constraint;
 mod drawing;
+mod drawing_ops;
 mod dto;
 mod entity;
 mod expr;
@@ -39,6 +40,10 @@ pub use drawing::{
     DrawingStandard, DrawingTemplateDto, DrawingTitleBlockDto, DrawingToleranceNoteDto,
     DrawingTolerancePreset, DrawingTopologyAnchorRefDto, DrawingViewAlignment, DrawingViewDto,
     DrawingViewKind,
+};
+pub use drawing_ops::{
+    apply_drawing_command, projection_intent_for_view, projection_intents_for_sheet,
+    DrawingCommand, DrawingViewProjectionIntent,
 };
 pub use dto::{
     err_json, ok_json, AddConstraintResult, AddLineResult, Arc3PointRequest, ArcCenterRequest,

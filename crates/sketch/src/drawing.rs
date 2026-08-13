@@ -119,6 +119,43 @@ pub enum DrawingSheetFormat {
     AnsiE,
 }
 
+impl DrawingSheetFormat {
+    /// Portrait millimetres: short edge, long edge. Matches the UI paper table.
+    pub fn portrait_mm(self) -> [f64; 2] {
+        match self {
+            Self::A0 => [841.0, 1189.0],
+            Self::A1 => [594.0, 841.0],
+            Self::A2 => [420.0, 594.0],
+            Self::A3 => [297.0, 420.0],
+            Self::A4 => [210.0, 297.0],
+            Self::Letter => [215.9, 279.4],
+            Self::AnsiB => [279.4, 431.8],
+            Self::AnsiC => [431.8, 558.8],
+            Self::AnsiD => [558.8, 863.6],
+            Self::AnsiE => [863.6, 1117.6],
+        }
+    }
+
+    pub fn default_for_standard(standard: DrawingStandard) -> Self {
+        match standard {
+            DrawingStandard::Ansi => Self::Letter,
+            DrawingStandard::Iso => Self::A4,
+        }
+    }
+}
+
+/// Paper width, height in millimetres for the chosen orientation.
+pub fn drawing_sheet_size(
+    format: DrawingSheetFormat,
+    orientation: DrawingSheetOrientation,
+) -> [f64; 2] {
+    let [short_edge, long_edge] = format.portrait_mm();
+    match orientation {
+        DrawingSheetOrientation::Landscape => [long_edge, short_edge],
+        DrawingSheetOrientation::Portrait => [short_edge, long_edge],
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DrawingSheetOrientation {
