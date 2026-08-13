@@ -6,12 +6,17 @@ use std::time::Duration;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use nbcad_core::BodyId;
 use nbcad_export::MeshExportRequest;
-use nbcad_occt::OcctKernel;
+use nbcad_occt::{
+    drawing_projection_anchors, drawing_projection_circles, DrawingProjectionRequest,
+    DrawingSectionPlaneDto, OcctKernel,
+};
+use nbcad_sketch::projection_intents_for_sheet;
 use nbcad_sketch::{host, SketchManager};
-use nbcad_solid::{CommitKernelRequest, RecomputePlanDto, StepExportRequest};
+use nbcad_solid::{CommitKernelRequest, RecomputePlanDto, SolidSceneDto, StepExportRequest};
 use serde_json::{json, Map, Value};
 
 mod disclosure;
+mod drawing_tools;
 mod session;
 mod surfaces;
 
@@ -28,7 +33,7 @@ const META_CLIENT_INFO: &str = "io.modelcontextprotocol/clientInfo";
 const META_CLIENT_CAPABILITIES: &str = "io.modelcontextprotocol/clientCapabilities";
 const META_SERVER_INFO: &str = "io.modelcontextprotocol/serverInfo";
 const UNSUPPORTED_PROTOCOL_VERSION: i64 = -32022;
-const MODELING_TOOL_COUNT: usize = 109;
+const MODELING_TOOL_COUNT: usize = 156;
 
 #[derive(Clone, Copy)]
 enum Payload {
@@ -39,6 +44,7 @@ enum Payload {
     EditDatumSource(&'static str),
     BodyFeature(&'static str),
     EditBodyFeature(&'static str),
+    DrawingOp(&'static str),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -236,6 +242,16 @@ impl CadServer {
                 }))
                 .map_err(|error| format!("could not encode body feature edit: {error}"))?
             }
+            Payload::DrawingOp(op) => {
+                let mut object = match &arguments {
+                    Value::Null => Map::new(),
+                    Value::Object(map) => map.clone(),
+                    _ => return Err("tool arguments must be an object".to_string()),
+                };
+                object.insert("op".to_string(), Value::String(op.to_string()));
+                serde_json::to_string(&Value::Object(object))
+                    .map_err(|error| format!("could not encode drawing command: {error}"))?
+            }
         };
 
         let mut value = if execution == Execution::Direct {
@@ -271,6 +287,8 @@ impl CadServer {
                     .map_err(|error| format!("encode appearances: {error}"))?
             } else if name == "set_body_appearance" {
                 self.set_body_appearance_tool(arguments)?
+            } else if name == "cad_drawing_projection" || name == "cad_drawing_project_sheet" {
+                self.drawing_projection_tool(name, arguments)?
             } else {
                 parse_engine_envelope(host::handle(&mut self.manager, engine_method, &payload))?
             }
@@ -702,6 +720,68 @@ impl CadServer {
         Ok(json!({ "body_appearances": appearances }))
     }
 
+    fn drawing_projection_tool(&mut self, name: &str, arguments: Value) -> Result<Value, String> {
+        let scene = self.manager.solid_scene();
+        if !scene.errors.is_empty() {
+            return Err("Resolve timeline errors before generating a drawing view.".to_string());
+        }
+        if name == "cad_drawing_projection" {
+            let request: DrawingProjectionRequest = serde_json::from_value(arguments)
+                .map_err(|error| format!("invalid drawing projection request: {error}"))?;
+            return self.project_drawing_request(&scene, &request);
+        }
+        let sheet_id = arguments.get("sheet_id").and_then(Value::as_u64);
+        let view_id = arguments.get("view_id").and_then(Value::as_u64);
+        let drawing = self.manager.drawing_document();
+        let mut intents = projection_intents_for_sheet(&drawing, &scene, sheet_id)?;
+        if let Some(view_id) = view_id {
+            intents.retain(|intent| intent.view_id == view_id);
+            if intents.is_empty() {
+                return Err(format!(
+                    "drawing view {view_id} was not found on the selected sheet"
+                ));
+            }
+        }
+        let mut views = Vec::new();
+        for intent in intents {
+            let request = DrawingProjectionRequest {
+                body_ids: intent.body_ids,
+                direction: intent.direction,
+                up: intent.up,
+                include_hidden: intent.include_hidden,
+                include_tangent_edges: intent.include_tangent_edges,
+                deflection: intent.deflection,
+                section_plane: intent.section_plane.map(|plane| DrawingSectionPlaneDto {
+                    point: plane.point,
+                    normal: plane.normal,
+                    depth: plane.depth,
+                }),
+            };
+            let projection = self.project_drawing_request(&scene, &request)?;
+            views.push(json!({
+                "view_id": intent.view_id,
+                "projection": projection,
+            }));
+        }
+        Ok(json!({ "views": views }))
+    }
+
+    fn project_drawing_request(
+        &self,
+        scene: &SolidSceneDto,
+        request: &DrawingProjectionRequest,
+    ) -> Result<Value, String> {
+        let mut projection = self
+            .kernel
+            .drawing_projection(request)
+            .map_err(|error| error.to_string())?;
+        projection.anchors = drawing_projection_anchors(scene, request, &projection)
+            .map_err(|error| error.to_string())?;
+        projection.circles = drawing_projection_circles(scene, request, &projection)
+            .map_err(|error| error.to_string())?;
+        serde_json::to_value(projection).map_err(|error| error.to_string())
+    }
+
     fn tessellate_tool(&mut self, arguments: Value) -> Result<Value, String> {
         if !self.manager.solid_scene().errors.is_empty() {
             return Err("Resolve timeline errors before tessellating.".to_string());
@@ -852,6 +932,8 @@ fn is_session_read_only_tool(name: &str) -> bool {
             | "cad_project_model"
             | "cad_project_visibility"
             | "cad_drawing_document"
+            | "cad_drawing_projection"
+            | "cad_drawing_project_sheet"
             | "solid_export_step"
             | "solid_export_stl"
             | "solid_export_3mf"
@@ -1456,7 +1538,7 @@ fn tool_specs() -> Vec<ToolSpec> {
         ToolSpec::direct(
             "cad_drawing_document",
             "Get drawing document",
-            "Return the technical drawing DTO stored in the project (sheets and view intent; not generated HLR curves). DXF/print remain UI commands.",
+            "Return the technical drawing DTO stored in the project (sheets and view intent; not generated HLR curves). Prefer cad_drawing_* command tools for one sheet/view/annotation change. Native HLR is cad_drawing_project_sheet; DXF/print remain UI.",
             "drawing_document",
             Payload::Empty,
             empty_schema(),
@@ -1464,7 +1546,7 @@ fn tool_specs() -> Vec<ToolSpec> {
         ToolSpec::direct(
             "cad_set_drawing_document",
             "Set drawing document",
-            "Replace the drawing DTO after engine validation. Same path the UI uses; does not run OCCT projection or write DXF.",
+            "Replace the entire drawing DTO after engine validation. Prefer cad_drawing_* command tools for one change. Does not run OCCT projection or write DXF.",
             "drawing_set_document",
             Payload::Field("drawing"),
             object_schema(
@@ -1478,6 +1560,60 @@ fn tool_specs() -> Vec<ToolSpec> {
                 &["drawing"],
             ),
         ),
+    ];
+    for tool in drawing_tools::drawing_command_tools() {
+        tools.push(ToolSpec::direct(
+            tool.name,
+            tool.title,
+            tool.description,
+            "drawing_command",
+            Payload::DrawingOp(tool.op),
+            tool.schema,
+        ));
+    }
+    tools.push(ToolSpec::direct(
+        "cad_drawing_projection",
+        "Project 3D bodies to 2D (HLR)",
+        "Hidden-line projection of selected bodies. Returns curves, anchors, and detected circles. Same kernel path as the drawing workspace. Use cad_drawing_project_sheet to project from a saved view.",
+        "drawing_projection",
+        Payload::Object,
+        json!({
+            "type": "object",
+            "properties": {
+                "direction": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+                "up": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+                "body_ids": { "type": "array", "items": { "type": "integer", "minimum": 1 } },
+                "include_hidden": { "type": "boolean" },
+                "include_tangent_edges": { "type": "boolean" },
+                "deflection": { "type": "number" },
+                "section_plane": {
+                    "type": "object",
+                    "properties": {
+                        "point": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+                        "normal": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+                        "depth": { "type": "number" }
+                    },
+                    "required": ["point", "normal"]
+                }
+            },
+            "required": ["direction", "up"]
+        }),
+    ));
+    tools.push(ToolSpec::direct(
+        "cad_drawing_project_sheet",
+        "Project drawing views (HLR)",
+        "Run hidden-line projection for every view on a sheet (or one view_id). Uses the saved view camera, section plane, and current 3D scene. Returns per-view curves/anchors/circles for the UI or DXF export.",
+        "drawing_project_sheet",
+        Payload::Object,
+        json!({
+            "type": "object",
+            "properties": {
+                "sheet_id": { "type": "integer", "minimum": 1 },
+                "view_id": { "type": "integer", "minimum": 1 }
+            }
+        }),
+    ));
+    tools.extend([
         ToolSpec::direct(
             "sketch_begin",
             "Begin sketch",
@@ -2820,7 +2956,7 @@ fn tool_specs() -> Vec<ToolSpec> {
             "Clear the attached session id. In live mode, releases the writer lock. Leaves the in-memory document as last loaded; does not delete session files.",
             empty_schema(),
         ),
-    ];
+    ]);
     for tool in &mut tools {
         let (pack, spine) = tags_for_tool(tool.name);
         tool.pack = pack;
@@ -2895,7 +3031,7 @@ fn server_info() -> Value {
 }
 
 fn modeling_manual() -> &'static str {
-    "Modeling: one persistent headless CAD document. Begin and finish sketches before solid features. Use returned entity/body/face/edge ids. Soft disclosure is on; out-of-focus tools stay callable. Typical loop: sketch_begin → sketch_add_* / constraints → sketch_finish → sketch_profiles → solid_extrude (or revolve/sweep/loft/rib) → solid_scene / cad_document. Optional UI co-link: cad_list_sessions → cad_attach. Drawings: cad_drawing_document / nbcad://drawing. Print: solid_export_3mf."
+    "Modeling: one persistent headless CAD document. Begin and finish sketches before solid features. Use returned entity/body/face/edge ids. Soft disclosure is on; out-of-focus tools stay callable. Typical loop: sketch_begin → sketch_add_* / constraints → sketch_finish → sketch_profiles → solid_extrude (or revolve/sweep/loft/rib) → solid_scene / cad_document. Optional UI co-link: cad_list_sessions → cad_attach. Drawings: cad_drawing_create_sheet → cad_drawing_auto_layout / cad_drawing_add_* → cad_drawing_project_sheet; DTO get/set remain. DXF/print stay UI. Print: solid_export_3mf."
 }
 
 fn modern_protocol_manual() -> &'static str {
@@ -3551,7 +3687,7 @@ mod tests {
         assert_eq!(
             all_tools.len(),
             MODELING_TOOL_COUNT + 19,
-            "109 modeling tools plus 8 print helpers and 11 control tools"
+            "156 modeling tools plus 8 print helpers and 11 control tools"
         );
         let modeling_count = all_tools
             .iter()
@@ -3796,6 +3932,7 @@ mod tests {
         assert!(names.contains(&"model_box"));
         assert!(names.contains(&"print_3mf"));
         assert!(names.contains(&"drawing_read"));
+        assert!(names.contains(&"drawing_sheet"));
 
         let box_prompt = handle_message(
             &mut server,
@@ -3824,6 +3961,25 @@ mod tests {
             .unwrap();
         assert_eq!(written["sheets"], drawing["sheets"]);
 
+        let created = server
+            .call_tool(
+                "cad_drawing_create_sheet",
+                json!({ "format": "a3", "title": "MCP Sheet" }),
+            )
+            .unwrap();
+        assert_eq!(created["sheets"].as_array().unwrap().len(), 1);
+        assert_eq!(created["sheets"][0]["format"], json!("a3"));
+        let noted = server
+            .call_tool(
+                "cad_drawing_add_note",
+                json!({ "position": [20.0, 20.0], "text": "MCP" }),
+            )
+            .unwrap();
+        assert_eq!(
+            noted["sheets"][0]["annotations"].as_array().unwrap().len(),
+            1
+        );
+
         let visibility = server
             .call_tool("cad_project_visibility", json!({}))
             .unwrap();
@@ -3841,6 +3997,22 @@ mod tests {
             )
             .unwrap();
         assert_eq!(updated["hidden_body_ids"], json!([]));
+    }
+
+    #[test]
+    fn drawing_auto_layout_after_box() {
+        let (mut server, _) = mcp_box();
+        server
+            .call_tool("cad_drawing_create_sheet", json!({}))
+            .unwrap();
+        let laid = server
+            .call_tool("cad_drawing_auto_layout", json!({}))
+            .unwrap();
+        let views = laid["sheets"][0]["views"].as_array().unwrap();
+        assert!(
+            views.len() >= 3,
+            "auto_layout should place the standard view set, got {views:?}"
+        );
     }
 
     #[test]
@@ -4067,7 +4239,7 @@ mod tests {
         assert!(packs["datums"] >= 6);
         assert!(packs["history"] >= 3);
         assert_eq!(packs["inspect"], 12);
-        assert_eq!(packs["drawing"], 2);
+        assert_eq!(packs["drawing"], drawing_tools::DRAWING_PACK_TOOL_COUNT);
         assert!(!packs.contains_key("print"));
     }
 

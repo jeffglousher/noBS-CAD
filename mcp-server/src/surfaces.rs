@@ -78,7 +78,13 @@ pub fn list_prompts() -> Value {
             prompt_desc(
                 "drawing_read",
                 "Inspect drawings",
-                "Read the drawing document resource and explain sheets/views. DXF/print stay in the UI.",
+                "Read the drawing document, command tools, and optional HLR projection. DXF/print stay in the UI.",
+                &[]
+            ),
+            prompt_desc(
+                "drawing_sheet",
+                "Create a drawing sheet",
+                "Create a sheet and auto-layout standard views from the current 3D model.",
                 &[]
             ),
         ],
@@ -188,8 +194,18 @@ pub fn get_prompt(name: &str, arguments: &Value) -> Result<Value, String> {
              1. cad_set_focus focus=drawing.\n\
              2. Read nbcad://drawing or call cad_drawing_document.\n\
              3. Sheets store view intent (direction, scale, placement), not HLR curves.\n\
-             4. cad_set_drawing_document writes a validated drawing DTO (same engine path as the UI).\n\
+             4. Prefer cad_drawing_* command tools (create_sheet, auto_layout, add_note, dimensions) over cad_set_drawing_document.\n\
+             5. cad_drawing_project_sheet runs native HLR for saved views; cad_drawing_projection is the raw kernel request.\n\
              DXF export and paper print remain UI commands; MCP does not duplicate the JS DXF writer."
+                .to_string()
+        }
+        "drawing_sheet" => {
+            "Create a drawing sheet and place standard views.\n\
+             1. cad_set_focus focus=drawing.\n\
+             2. cad_drawing_create_sheet (ISO/ANSI, format, projection method).\n\
+             3. cad_drawing_auto_layout to place front/top/side/iso from the current 3D scene.\n\
+             4. Optional cad_drawing_add_note / dimension tools.\n\
+             5. cad_drawing_project_sheet for HLR curves. DXF/print stay in the UI."
                 .to_string()
         }
         other => return Err(format!("unknown prompt '{other}'")),
@@ -245,6 +261,7 @@ fn prompt_title(name: &str) -> &'static str {
         "attach_ui" => "Attach to the UI session",
         "print_3mf" => "Export 3MF",
         "drawing_read" => "Inspect drawings",
+        "drawing_sheet" => "Create a drawing sheet",
         _ => name,
     }
 }
@@ -293,6 +310,7 @@ mod tests {
         assert!(prompts.contains(&"model_box"));
         assert!(prompts.contains(&"print_3mf"));
         assert!(prompts.contains(&"drawing_read"));
+        assert!(prompts.contains(&"drawing_sheet"));
         assert!(
             get_prompt("model_box", &json!({})).unwrap()["messages"][0]["content"]["text"]
                 .as_str()

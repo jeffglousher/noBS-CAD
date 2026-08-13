@@ -82,7 +82,7 @@ impl FocusPack {
                 "Manufacturing export: 3MF/STL/STEP, materials, appearance, and print demos."
             }
             FocusPack::Drawing => {
-                "Technical drawings: sheet/view document in the project model. DXF/print stay in the UI."
+                "Technical drawings: sheet/view/annotation commands, DTO get/set, and HLR projection. DXF/print stay in the UI."
             }
         }
     }
@@ -604,6 +604,7 @@ pub fn tags_for_tool(name: &str) -> (FocusPack, bool) {
         | "set_body_appearance"
         | "demo_export_pip_3mf" => FocusPack::Print,
         "cad_drawing_document" | "cad_set_drawing_document" => FocusPack::Drawing,
+        name if name.starts_with("cad_drawing_") => FocusPack::Drawing,
         _ => FocusPack::Document,
     };
     (pack, false)
@@ -688,7 +689,7 @@ pub fn auto_focus_for_tool(name: &str) -> Option<FocusPack> {
     ) {
         return Some(FocusPack::Document);
     }
-    if matches!(name, "cad_drawing_document" | "cad_set_drawing_document") {
+    if name.starts_with("cad_drawing_") {
         return Some(FocusPack::Drawing);
     }
     None
@@ -932,7 +933,15 @@ mod tests {
         ] {
             assert_eq!(tags_for_tool(name).0, FocusPack::Print, "{name}");
         }
-        for name in ["cad_drawing_document", "cad_set_drawing_document"] {
+        for name in [
+            "cad_drawing_document",
+            "cad_set_drawing_document",
+            "cad_drawing_create_sheet",
+            "cad_drawing_auto_layout",
+            "cad_drawing_add_note",
+            "cad_drawing_projection",
+            "cad_drawing_project_sheet",
+        ] {
             assert_eq!(tags_for_tool(name).0, FocusPack::Drawing, "{name}");
         }
     }

@@ -17,7 +17,7 @@ machine (or CI runner).
 |-------|----------------|
 | Transport | **stdio** JSON-RPC (`nbcad-mcp`) — logs on **stderr**; optional **`bus-jsonl`** envelope for Kafka/MQTT/NATS connectors ([mcp-message-bus.md](mcp-message-bus.md)) |
 | Protocol | **Recommended `2026-07-28`:** `server/discover` + per-request `_meta`. `initialize` (`2025-06-18`) is a compatibility pathway only — first reply includes the runtime-upgrade manual. Unsupported versions return JSON-RPC `-32022`. Resources (`nbcad://…`) and prompts are advertised. |
-| Tools | **109** modeling tools + control/export helpers (includes drawing DTO + Browser visibility) |
+| Tools | **156** modeling tools + control/export helpers (includes 49 drawing-pack tools: commands, DTO get/set, HLR projection) |
 | Disclosure | Soft focus-scoped; `tools.listChanged: true`; ~300 ms throttle |
 | Notify worker | Stdin reader thread + timed wake — `list_changed` / soft-TTL flush **without** a later client ping |
 | Document | One persistent feature history **per MCP process** |

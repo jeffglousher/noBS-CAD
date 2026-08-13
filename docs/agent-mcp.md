@@ -58,8 +58,7 @@ Soft disclosure: out-of-focus tools stay **callable**; results may include
 
 Print-ready **3MF** with materials/colors: `solid_export_preflight` then
 `solid_export_3mf` (slicer Metadata hints, not a sliced G-code project).
-**STEP:** `solid_export_step` (AP242 base64). **Drawings:** `cad_drawing_document`
-/ `nbcad://drawing` for sheet/view intent; DXF/print remain UI commands.
+**STEP:** `solid_export_step` (AP242 base64). **Drawings:** `cad_drawing_create_sheet` / `cad_drawing_auto_layout` / `cad_drawing_add_*` for commands; `cad_drawing_document` / `nbcad://drawing` for the DTO; `cad_drawing_project_sheet` for native HLR. DXF/print remain UI commands.
 
 ## Failures
 

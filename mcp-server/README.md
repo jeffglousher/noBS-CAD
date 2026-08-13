@@ -13,7 +13,7 @@ The older `initialize` handshake (`2025-06-18` and earlier) remains a
 handshake never returns `2026-07-28`. The first reply to it includes the
 runtime-upgrade recipe so agents that can switch on this process can do so.
 
-It covers sketch, solid, print, drawing-document, and browser-visibility tools
+It covers sketch, solid, print, drawing-command, drawing-document, and browser-visibility tools
 with **soft focus-scoped disclosure** (`tools.listChanged: true`). Out-of-focus
 tools stay callable. Product state is also readable as MCP **resources**
 (`nbcad://document`, `nbcad://drawing`, …) and recipes as **prompts**.
@@ -36,9 +36,7 @@ default editor path.
 `body_appearances` / `set_body_appearance`, `solid_export_preflight`, and
 `demo_export_pip_3mf`.
 
-**Drawings / Browser:** `cad_drawing_document` / `cad_set_drawing_document`
-(project-model DTO; DXF/print stay in the UI). `cad_project_visibility` /
-`cad_set_project_visibility` for hidden bodies/datums/sketches.
+**Drawings / Browser:** first-class `cad_drawing_*` command tools (create sheet, auto layout, views, annotations, templates, revisions, BOM) plus `cad_drawing_document` / `cad_set_drawing_document` for the DTO. Native HLR: `cad_drawing_project_sheet` / `cad_drawing_projection`. DXF/print stay in the UI. `cad_project_visibility` / `cad_set_project_visibility` for hidden bodies/datums/sketches.
 
 ## Build and verify
 
