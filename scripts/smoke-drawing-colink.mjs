@@ -6,8 +6,9 @@
  * 3. Auto-layout through the same UI helper (shared Rust Result path)
  * 4. Assert a missing-id delete is Err, not a silent no-op
  * 5. Run the MCP-native `drawingCommand` add_note path in the same WASM engine
- * 6. Publish the UI session and assert model.json contains the sheet/note
- * 7. Simulate MCP writeback of a drawing title and assert the UI applies it
+ * 6. Exercise discrete UI helpers (rename sheet, revision, BOM, delete view)
+ * 7. Publish the UI session and assert model.json contains the sheet/note
+ * 8. Simulate MCP writeback of a drawing title and assert the UI applies it
  */
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -172,6 +173,51 @@ async function main() {
     }
     await page.getByTestId('drawing-workspace').waitFor();
     await screenshot(page, 'drawing_workspace_after_mcp_note.png');
+
+    console.log('[drawing-colink] discrete UI command battery');
+    const battery = await page.evaluate(async () => {
+      const {
+        updateActiveDrawingSheet,
+        addDrawingRevision,
+        addDrawingBomItem,
+        deleteDrawingView,
+      } = await import('/src/drawing/document.ts');
+      await updateActiveDrawingSheet({ name: 'Command Sheet' });
+      await addDrawingRevision({
+        revision: 'B',
+        description: 'Command path',
+        date: '2026-08-14',
+        author: 'colink',
+        checked_by: '',
+        approved_by: '',
+        change_order: '',
+        status: 'draft',
+      });
+      await addDrawingBomItem({ item_number: '1', description: 'Body', quantity: 1 });
+      const drawing = window.__appStore.getState().drawingDocument;
+      const isometric = drawing.sheets[0]?.views.find((view) => view.kind === 'isometric');
+      if (!isometric) throw new Error('auto_layout did not create an isometric view');
+      await deleteDrawingView(isometric.id);
+      const next = window.__appStore.getState().drawingDocument;
+      return {
+        name: next.sheets[0]?.name ?? null,
+        revision: next.sheets[0]?.title_block.revision ?? null,
+        revisions: next.sheets[0]?.revisions.length ?? 0,
+        bom: next.sheets[0]?.bom.length ?? 0,
+        views: next.sheets[0]?.views.map((view) => view.kind) ?? [],
+      };
+    });
+    if (
+      battery.name !== 'Command Sheet'
+      || battery.revision !== 'B'
+      || battery.revisions !== 1
+      || battery.bom !== 1
+      || battery.views.length !== 3
+      || battery.views.includes('isometric')
+    ) {
+      throw new Error(`discrete UI command battery failed: ${JSON.stringify(battery)}`);
+    }
+    await screenshot(page, 'drawing_workspace_after_ui_commands.png');
 
     console.log('[drawing-colink] publishing UI session');
     let sessionId = null;
