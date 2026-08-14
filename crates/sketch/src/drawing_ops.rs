@@ -359,15 +359,18 @@ pub fn apply_drawing_command(
     command: DrawingCommand,
 ) -> Result<DrawingDocumentDto, String> {
     let before = drawing.clone();
-    let preserve_release = matches!(
-        command,
+    let preserve_release = match &command {
         DrawingCommand::AddRevision {
             revision: DrawingRevisionDraft {
                 status: DrawingReleaseStatus::Released,
                 ..
-            }
-        } | DrawingCommand::UpdateRevision { .. }
-    );
+            },
+        } => true,
+        DrawingCommand::UpdateRevision { patch, .. } => {
+            patch.get("status").and_then(Value::as_str) == Some("released")
+        }
+        _ => false,
+    };
     let mut next = match command {
         DrawingCommand::CreateSheet {
             standard,
@@ -2726,5 +2729,73 @@ mod tests {
             r#"{"op":"auto_layout","comment":"not a drawing command"}"#,
         );
         assert!(error.is_err(), "{error:?}");
+    }
+
+    #[test]
+    fn editing_a_released_sheet_returns_it_to_draft() {
+        let mut drawing = apply_drawing_command(
+            &DrawingDocumentDto::default(),
+            &empty_scene(),
+            &[],
+            "Part",
+            DrawingCommand::CreateSheet {
+                standard: DrawingStandard::Iso,
+                format: None,
+                orientation: None,
+                projection_method: None,
+                tolerance_note: None,
+                title: None,
+                drawing_number: None,
+                revision: None,
+                author: None,
+            },
+        )
+        .unwrap();
+        drawing.sheets[0].revisions = vec![
+            DrawingRevisionDto {
+                id: 1,
+                revision: "A".to_string(),
+                description: String::new(),
+                date: "2026-08-13".to_string(),
+                author: String::new(),
+                checked_by: String::new(),
+                approved_by: String::new(),
+                change_order: String::new(),
+                status: DrawingReleaseStatus::Released,
+            },
+            DrawingRevisionDto {
+                id: 2,
+                revision: "B".to_string(),
+                description: "Next".to_string(),
+                date: String::new(),
+                author: String::new(),
+                checked_by: String::new(),
+                approved_by: String::new(),
+                change_order: String::new(),
+                status: DrawingReleaseStatus::Draft,
+            },
+        ];
+        drawing.sheets[0].release = DrawingReleaseDto {
+            status: DrawingReleaseStatus::Released,
+            released_revision: "A".to_string(),
+            released_at: "2026-08-13".to_string(),
+        };
+        drawing.next_revision_id = 3;
+        let drawing = apply_drawing_command(
+            &drawing,
+            &empty_scene(),
+            &[],
+            "Part",
+            DrawingCommand::UpdateRevision {
+                revision_id: 2,
+                patch: serde_json::json!({ "description": "Edited after release" }),
+            },
+        )
+        .unwrap();
+        assert_eq!(drawing.sheets[0].release.status, DrawingReleaseStatus::Draft);
+        assert_eq!(
+            drawing.sheets[0].revisions[1].description,
+            "Edited after release"
+        );
     }
 }

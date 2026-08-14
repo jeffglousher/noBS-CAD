@@ -2,10 +2,12 @@
  * Drawing co-link smoke (browser path, no native OCCT required).
  *
  * 1. Start Vite with session HTTP bridge
- * 2. Create a sheet through the Drawing workspace UI
- * 3. Run the MCP-native `drawingCommand` path in the same WASM engine
- * 4. Publish the UI session and assert model.json contains the sheet/note
- * 5. Simulate MCP writeback of a drawing title and assert the UI applies it
+ * 2. Create a sheet through the Drawing workspace UI (`drawing_command`)
+ * 3. Auto-layout through the same UI helper (shared Rust Result path)
+ * 4. Assert a missing-id delete is Err, not a silent no-op
+ * 5. Run the MCP-native `drawingCommand` add_note path in the same WASM engine
+ * 6. Publish the UI session and assert model.json contains the sheet/note
+ * 7. Simulate MCP writeback of a drawing title and assert the UI applies it
  */
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -117,6 +119,34 @@ async function main() {
       throw new Error(`UI sheet setup failed: ${JSON.stringify(afterUiSheet)}`);
     }
     await screenshot(page, 'drawing_workspace_after_ui_sheet.png');
+
+    console.log('[drawing-colink] UI auto_layout via shared drawingCommand');
+    const afterLayout = await page.evaluate(async () => {
+      const { autoLayoutDrawingViews } = await import('/src/drawing/document.ts');
+      await autoLayoutDrawingViews();
+      const drawing = window.__appStore.getState().drawingDocument;
+      return {
+        views: drawing.sheets[0]?.views.map((view) => view.kind) ?? [],
+      };
+    });
+    if (afterLayout.views.length !== 4) {
+      throw new Error(`UI auto_layout failed: ${JSON.stringify(afterLayout)}`);
+    }
+    await screenshot(page, 'drawing_workspace_after_ui_autolayout.png');
+
+    console.log('[drawing-colink] missing-id drawingCommand is Err');
+    const missing = await page.evaluate(async () => {
+      const { deleteDrawingSheet } = await import('/src/drawing/document.ts');
+      try {
+        await deleteDrawingSheet(999);
+        return { ok: true, message: null };
+      } catch (error) {
+        return { ok: false, message: error instanceof Error ? error.message : String(error) };
+      }
+    });
+    if (missing.ok || !/does not exist/i.test(missing.message ?? '')) {
+      throw new Error(`expected missing sheet Result, got ${JSON.stringify(missing)}`);
+    }
 
     console.log('[drawing-colink] engine.drawingCommand add_note');
     const afterNote = await page.evaluate(async () => {

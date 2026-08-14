@@ -9,7 +9,7 @@ owns document UI, and Bevy remains the native interactive 3D viewport.
 
 | Layer | Responsibility |
 | --- | --- |
-| `nbcad-sketch` | Persists standards-aware sheets, title blocks, aligned view relationships, semantic annotations, body filters, scale, and display options inside `model.json`. Headless MCP uses the same `drawing_command` ops (`create_sheet`, `auto_layout`, annotations) rather than inventing a DTO. |
+| `nbcad-sketch` | Persists standards-aware sheets, title blocks, aligned view relationships, semantic annotations, body filters, scale, and display options inside `model.json`. Discrete UI mutations (create/delete sheet, auto layout, notes, templates, revisions, BOM) and headless MCP both call the same `drawing_command` ops. Pointer-driven view placement and view drags stay in the React document helpers. |
 | `nbcad-occt` | Produces visible/hidden vector curves from exact B-reps with OCCT HLR and exposes stable endpoints and fitted circular topology for annotations. |
 | Tauri host | Serializes drawing commands and exact projection requests with the live kernel. |
 | React/SVG | Lays out sheets, edits properties, and moves views. SVG remains an internal browser/debug surface. |

@@ -16,7 +16,6 @@ import type {
   DrawingSheetFormat,
   DrawingSheetOrientation,
   DrawingStandard,
-  DrawingTemplateDto,
   DrawingRevisionDto,
   DrawingGdtCharacteristic,
   DrawingMaterialCondition,
@@ -29,6 +28,7 @@ import type {
   DrawingViewDto,
   DrawingViewDerivationDto,
   DrawingViewKind,
+  DrawingCommand,
   HoleDefinitionDto,
   SolidSceneDto,
 } from '../engine/types';
@@ -42,7 +42,7 @@ import {
   recordDrawingHistory,
 } from '../engine/applicationHistory';
 import { useAppStore } from '../store/appStore';
-import { defaultDrawingFormat, defaultDrawingSheetStyle, drawingSheetSize } from './sheet';
+import { defaultDrawingFormat, drawingSheetSize } from './sheet';
 
 let writeQueue: Promise<void> = Promise.resolve();
 
@@ -123,41 +123,17 @@ export function beginDrawingSheetSetup(): void {
 
 /** Creates a framed but intentionally empty sheet. */
 export function createDrawingSheet(setup: DrawingSheetSetup): Promise<void> {
-  return enqueueDrawingUpdate((drawing) => {
-    const next = cloneDrawing(drawing);
-    const sheet: DrawingSheetDto = {
-      id: next.next_sheet_id,
-      name: `Sheet ${next.sheets.length + 1}`,
-      format: setup.format,
-      orientation: setup.orientation,
-      standard: setup.standard,
-      projection_method: setup.projection_method,
-      tolerance_note: structuredClone(setup.tolerance_note),
-      title_block: {
-        title: setup.title,
-        drawing_number: setup.drawing_number,
-        revision: setup.revision,
-        author: setup.author,
-        checked_by: '',
-        approved_by: '',
-        company: '',
-        material: '',
-        finish: '',
-      },
-      views: [],
-      annotations: [],
-      style: defaultDrawingSheetStyle(),
-      template_name: 'noBS CAD Default',
-      revisions: [],
-      bom: [],
-      release: { status: 'draft', released_revision: '', released_at: '' },
-      revision_table_position: null,
-      bom_table_position: null,
-    };
-    next.sheets.push(sheet);
-    next.active_sheet_id = sheet.id;
-    next.next_sheet_id += 1;
-    return next;
+  return enqueueDrawingCommand({
+    op: 'create_sheet',
+    standard: setup.standard,
+    format: setup.format,
+    orientation: setup.orientation,
+    projection_method: setup.projection_method,
+    tolerance_note: setup.tolerance_note,
+    title: setup.title,
+    drawing_number: setup.drawing_number,
+    revision: setup.revision,
+    author: setup.author,
   }).then(() => {
     // Close setup only after the validated Rust document has reached the
     // store. Closing it from inside the mutation races the still-empty sheet
@@ -168,75 +144,32 @@ export function createDrawingSheet(setup: DrawingSheetSetup): Promise<void> {
 }
 
 export function setActiveDrawingSheet(sheetId: number): Promise<void> {
-  return enqueueDrawingUpdate((drawing) => {
-    if (!drawing.sheets.some((sheet) => sheet.id === sheetId)) return drawing;
-    const next = cloneDrawing(drawing);
-    next.active_sheet_id = sheetId;
-    queueMicrotask(clearDrawingSelection);
-    return next;
-  }, false);
+  return enqueueDrawingCommand(
+    { op: 'set_active_sheet', sheet_id: sheetId },
+    { recordHistory: false, after: () => queueMicrotask(clearDrawingSelection) },
+  );
 }
 
 export function deleteDrawingSheet(sheetId: number): Promise<void> {
-  return enqueueDrawingUpdate((drawing) => {
-    const next = cloneDrawing(drawing);
-    next.sheets = next.sheets.filter((sheet) => sheet.id !== sheetId);
-    if (next.active_sheet_id === sheetId) next.active_sheet_id = next.sheets[0]?.id ?? null;
-    queueMicrotask(() => {
-      clearDrawingSelection();
-      if (next.sheets.length === 0) useAppStore.getState().setDrawingSheetSetupOpen(true);
-    });
-    return next;
-  });
+  return enqueueDrawingCommand(
+    { op: 'delete_sheet', sheet_id: sheetId },
+    {
+      after: (_before, next) => {
+        queueMicrotask(() => {
+          clearDrawingSelection();
+          if (next.sheets.length === 0) useAppStore.getState().setDrawingSheetSetupOpen(true);
+        });
+      },
+    },
+  );
 }
 
 /** Add the conventional front/top/right/isometric group to an empty sheet. */
 export function autoLayoutDrawingViews(): Promise<void> {
-  return enqueueDrawingUpdate((drawing, state) => {
-    const next = cloneDrawing(drawing);
-    const sheet = activeSheet(next);
-    if (!sheet) throw new Error('Create a drawing sheet first.');
-    if (sheet.views.length > 0) {
-      throw new Error('Automatic layout is available on an empty sheet. Delete existing views or place additional views manually.');
-    }
-    const [width, height] = drawingSheetSize(sheet.format, sheet.orientation);
-    const scale = suggestedViewScale(state.solidScene, width, height);
-    const frontId = next.next_view_id++;
-    const frontPosition: [number, number] = [width * 0.39, height * 0.47];
-    const verticalOffset = Math.min(height * 0.28, 70);
-    const horizontalOffset = Math.min(width * 0.24, 90);
-    const topAbove = sheet.projection_method === 'third_angle';
-    const rightOnRight = sheet.projection_method === 'third_angle';
-    sheet.views.push(
-      makeView(frontId, 'front', frontPosition, scale, null, 'free'),
-      makeView(
-        next.next_view_id++,
-        'top',
-        [frontPosition[0], frontPosition[1] + (topAbove ? -verticalOffset : verticalOffset)],
-        scale,
-        frontId,
-        'vertical',
-      ),
-      makeView(
-        next.next_view_id++,
-        'right',
-        [frontPosition[0] + (rightOnRight ? horizontalOffset : -horizontalOffset), frontPosition[1]],
-        scale,
-        frontId,
-        'horizontal',
-      ),
-      makeView(
-        next.next_view_id++,
-        'isometric',
-        [width * 0.74, height * 0.31],
-        scale,
-        frontId,
-        'free',
-      ),
-    );
-    queueMicrotask(clearDrawingSelection);
-    return next;
-  });
+  return enqueueDrawingCommand(
+    { op: 'auto_layout' },
+    { after: () => queueMicrotask(clearDrawingSelection) },
+  );
 }
 
 /** Place a view at a user-selected paper point and preserve projected alignment. */
@@ -320,23 +253,10 @@ export function updateDrawingView(viewId: number, update: Partial<DrawingViewDto
 }
 
 export function deleteDrawingView(viewId: number): Promise<void> {
-  return enqueueDrawingUpdate((drawing) => {
-    const next = cloneDrawing(drawing);
-    for (const sheet of next.sheets) {
-      sheet.views = sheet.views.filter((view) => view.id !== viewId);
-      for (const child of sheet.views) {
-        if (child.parent_view_id === viewId) {
-          child.parent_view_id = null;
-          child.alignment = 'free';
-        }
-      }
-      sheet.annotations = sheet.annotations.filter((annotation) =>
-        !('view_id' in annotation) || annotation.view_id !== viewId,
-      );
-    }
-    queueMicrotask(clearDrawingSelection);
-    return next;
-  });
+  return enqueueDrawingCommand(
+    { op: 'delete_view', view_id: viewId },
+    { after: () => queueMicrotask(clearDrawingSelection) },
+  );
 }
 
 export function addDrawingLinearDimension(
@@ -713,15 +633,14 @@ export function addDrawingChamferNote(
 }
 
 export function addDrawingNote(position: [number, number], text = 'NOTE'): Promise<void> {
-  return enqueueDrawingUpdate((drawing) => {
-    const next = cloneDrawing(drawing);
-    const sheet = activeSheet(next);
-    if (!sheet) throw new Error('Create a drawing sheet first.');
-    const id = next.next_annotation_id++;
-    sheet.annotations.push({ kind: 'note', id, text, position });
-    queueMicrotask(() => selectCreatedAnnotation(id));
-    return next;
-  });
+  return enqueueDrawingCommand(
+    { op: 'add_note', position, text },
+    {
+      after: (before) => {
+        queueMicrotask(() => selectCreatedAnnotation(before.next_annotation_id));
+      },
+    },
+  );
 }
 
 export type DrawingAnnotationUpdate = Partial<{
@@ -797,203 +716,78 @@ export type DrawingAnnotationUpdate = Partial<{
 }>;
 
 export function updateDrawingAnnotation(annotationId: number, update: DrawingAnnotationUpdate): Promise<void> {
-  return enqueueDrawingUpdate((drawing) => {
-    const next = cloneDrawing(drawing);
-    const annotation = next.sheets.flatMap((sheet) => sheet.annotations)
-      .find((candidate) => candidate.id === annotationId);
-    if (!annotation) return drawing;
-    applyAnnotationUpdate(annotation, update);
-    return next;
+  return enqueueDrawingCommand({
+    op: 'update_annotation',
+    annotation_id: annotationId,
+    patch: update,
   });
 }
 
 export function deleteDrawingAnnotation(annotationId: number): Promise<void> {
-  return enqueueDrawingUpdate((drawing) => {
-    const next = cloneDrawing(drawing);
-    for (const sheet of next.sheets) {
-      sheet.annotations = sheet.annotations.filter((annotation) => annotation.id !== annotationId);
-    }
-    queueMicrotask(() => useAppStore.getState().setSelectedDrawingAnnotationId(null));
-    return next;
-  });
+  return enqueueDrawingCommand(
+    { op: 'delete_annotation', annotation_id: annotationId },
+    { after: () => queueMicrotask(() => useAppStore.getState().setSelectedDrawingAnnotationId(null)) },
+  );
 }
 
 export function updateActiveDrawingSheet(update: Partial<DrawingSheetDto>): Promise<void> {
-  return enqueueDrawingUpdate((drawing) => {
-    const next = cloneDrawing(drawing);
-    const sheet = activeSheet(next);
-    if (!sheet) return drawing;
-    Object.assign(sheet, update);
-    return next;
-  });
+  return enqueueDrawingCommand({ op: 'update_sheet', patch: update });
 }
 
 /** Save the active sheet's standards, title defaults, and complete style as a
  * project-local company template. Existing sheets remain self-contained. */
 export function saveActiveDrawingTemplate(name: string): Promise<void> {
-  return enqueueDrawingUpdate((drawing) => {
-    const normalized = name.trim();
-    if (!normalized) throw new Error('Enter a template name first.');
-    const next = cloneDrawing(drawing);
-    const sheet = activeSheet(next);
-    if (!sheet) throw new Error('Create a drawing sheet first.');
-    const existing = next.templates.find((template) => template.name.toLocaleLowerCase() === normalized.toLocaleLowerCase());
-    const values: Omit<DrawingTemplateDto, 'id'> = {
-      name: normalized,
-      standard: sheet.standard,
-      projection_method: sheet.projection_method,
-      tolerance_note: structuredClone(sheet.tolerance_note),
-      title_defaults: structuredClone(sheet.title_block),
-      style: structuredClone(sheet.style),
-    };
-    if (existing) Object.assign(existing, values);
-    else next.templates.push({ id: next.next_template_id++, ...values });
-    sheet.template_name = normalized;
-    return next;
-  });
+  return enqueueDrawingCommand({ op: 'save_template', name });
 }
 
 export function applyDrawingTemplate(templateId: number): Promise<void> {
-  return enqueueDrawingUpdate((drawing) => {
-    const next = cloneDrawing(drawing);
-    const sheet = activeSheet(next);
-    const template = next.templates.find((candidate) => candidate.id === templateId);
-    if (!sheet || !template) throw new Error('The selected drawing template no longer exists.');
-    sheet.standard = template.standard;
-    sheet.projection_method = template.projection_method;
-    sheet.tolerance_note = structuredClone(template.tolerance_note);
-    sheet.style = structuredClone(template.style);
-    sheet.template_name = template.name;
-    // Keep sheet-identity fields unless the template supplies an intentional
-    // company default. This avoids changing a drawing number or revision when
-    // an existing drawing is restyled.
-    const identity = {
-      title: sheet.title_block.title,
-      drawing_number: sheet.title_block.drawing_number,
-      revision: sheet.title_block.revision,
-    };
-    sheet.title_block = { ...structuredClone(template.title_defaults), ...identity };
-    return next;
-  });
+  return enqueueDrawingCommand({ op: 'apply_template', template_id: templateId });
 }
 
 export function deleteDrawingTemplate(templateId: number): Promise<void> {
-  return enqueueDrawingUpdate((drawing) => {
-    const next = cloneDrawing(drawing);
-    next.templates = next.templates.filter((template) => template.id !== templateId);
-    return next;
-  });
+  return enqueueDrawingCommand({ op: 'delete_template', template_id: templateId });
 }
 
 export function addDrawingRevision(
   revision: Omit<DrawingRevisionDto, 'id'>,
 ): Promise<void> {
-  return enqueueDrawingUpdate((drawing) => {
-    const next = cloneDrawing(drawing);
-    const sheet = activeSheet(next);
-    if (!sheet) throw new Error('Create a drawing sheet first.');
-    const entry: DrawingRevisionDto = { ...structuredClone(revision), id: next.next_revision_id++ };
-    sheet.revisions.push(entry);
-    sheet.title_block.revision = entry.revision;
-    if (entry.status === 'released') {
-      sheet.release = {
-        status: 'released',
-        released_revision: entry.revision,
-        released_at: entry.date,
-      };
-    }
-    return next;
-  }, true, revision.status === 'released');
+  return enqueueDrawingCommand({ op: 'add_revision', revision });
 }
 
 export function updateDrawingRevision(
   revisionId: number,
   update: Partial<Omit<DrawingRevisionDto, 'id'>>,
 ): Promise<void> {
-  return enqueueDrawingUpdate((drawing) => {
-    const next = cloneDrawing(drawing);
-    const sheet = activeSheet(next);
-    const revision = sheet?.revisions.find((candidate) => candidate.id === revisionId);
-    if (!sheet || !revision) return drawing;
-    if (revision.status === 'released') {
-      throw new Error(`Revision ${revision.revision} is released and immutable. Add the next revision to make changes.`);
-    }
-    Object.assign(revision, structuredClone(update));
-    sheet.title_block.revision = revision.revision;
-    if (update.status === 'released') {
-      sheet.release = {
-        status: 'released',
-        released_revision: revision.revision,
-        released_at: revision.date,
-      };
-    }
-    return next;
-  }, true, update.status === 'released');
+  return enqueueDrawingCommand({
+    op: 'update_revision',
+    revision_id: revisionId,
+    patch: update,
+  });
 }
 
 export function deleteDrawingRevision(revisionId: number): Promise<void> {
-  return enqueueDrawingUpdate((drawing) => {
-    const next = cloneDrawing(drawing);
-    const sheet = activeSheet(next);
-    if (!sheet) return drawing;
-    const revision = sheet.revisions.find((candidate) => candidate.id === revisionId);
-    if (revision?.status === 'released') {
-      throw new Error(`Released revision ${revision.revision} cannot be deleted.`);
-    }
-    sheet.revisions = sheet.revisions.filter((revision) => revision.id !== revisionId);
-    return next;
-  });
+  return enqueueDrawingCommand({ op: 'delete_revision', revision_id: revisionId });
 }
 
 export function addDrawingBomItem(
   item: Partial<Omit<DrawingBomItemDto, 'id'>> = {},
 ): Promise<void> {
-  return enqueueDrawingUpdate((drawing, state) => {
-    const next = cloneDrawing(drawing);
-    const sheet = activeSheet(next);
-    if (!sheet) throw new Error('Create a drawing sheet first.');
-    const body = item.body_id != null
-      ? state.solidScene.bodies.find((candidate) => candidate.id === item.body_id)
-      : state.solidScene.bodies.find((candidate) => !sheet.bom.some((entry) => entry.body_id === candidate.id));
-    const id = next.next_bom_item_id++;
-    sheet.bom.push({
-      id,
-      item_number: item.item_number ?? String(sheet.bom.length + 1),
-      body_id: item.body_id ?? body?.id ?? null,
-      part_number: item.part_number ?? '',
-      description: item.description ?? body?.name ?? `Item ${sheet.bom.length + 1}`,
-      quantity: item.quantity ?? 1,
-      material: item.material ?? '',
-      finish: item.finish ?? '',
-    });
-    return next;
-  });
+  return enqueueDrawingCommand({ op: 'add_bom_item', item });
 }
 
 export function updateDrawingBomItem(
   itemId: number,
   update: Partial<Omit<DrawingBomItemDto, 'id'>>,
 ): Promise<void> {
-  return enqueueDrawingUpdate((drawing) => {
-    const next = cloneDrawing(drawing);
-    const item = activeSheet(next)?.bom.find((candidate) => candidate.id === itemId);
-    if (!item) return drawing;
-    Object.assign(item, structuredClone(update));
-    return next;
+  return enqueueDrawingCommand({
+    op: 'update_bom_item',
+    item_id: itemId,
+    patch: update,
   });
 }
 
 export function deleteDrawingBomItem(itemId: number): Promise<void> {
-  return enqueueDrawingUpdate((drawing) => {
-    const next = cloneDrawing(drawing);
-    const sheet = activeSheet(next);
-    if (!sheet) return drawing;
-    sheet.bom = sheet.bom.filter((item) => item.id !== itemId);
-    sheet.annotations = sheet.annotations.filter(
-      (annotation) => annotation.kind !== 'item_balloon' || annotation.bom_item_id !== itemId,
-    );
-    return next;
-  });
+  return enqueueDrawingCommand({ op: 'delete_bom_item', item_id: itemId });
 }
 
 export function activeDrawingSheet(drawing: DrawingDocumentDto): DrawingSheetDto | null {
@@ -1032,6 +826,34 @@ function selectCreatedAnnotation(id: number): void {
   store.setSelectedDrawingViewId(null);
   store.setSelectedDrawingAnnotationId(id);
   store.setDrawingTool(null);
+}
+
+/** Discrete sheet/template/BOM/note ops share the Rust `drawing_command` Result
+ * path with MCP. Pointer-driven placement and view drags stay on
+ * `enqueueDrawingUpdate` so cursor position remains a UI concern. */
+function enqueueDrawingCommand(
+  command: DrawingCommand,
+  options: {
+    recordHistory?: boolean;
+    after?: (before: DrawingDocumentDto, next: DrawingDocumentDto) => void;
+  } = {},
+): Promise<void> {
+  const recordHistory = options.recordHistory ?? true;
+  const operation = writeQueue.then(async () => {
+    const state = useAppStore.getState();
+    const projectKey = currentHistoryProjectKey();
+    const before = state.drawingDocument;
+    const engine = await getEngine();
+    const next = await engine.drawingCommand(command);
+    await state.setDrawingDocument(next);
+    const applied = useAppStore.getState().drawingDocument;
+    if (recordHistory) {
+      recordDrawingHistory(projectKey, before, applied);
+    }
+    options.after?.(before, applied);
+  });
+  writeQueue = operation.catch(() => undefined);
+  return operation;
 }
 
 function enqueueDrawingUpdate(
@@ -1312,16 +1134,6 @@ function activeSheet(drawing: DrawingDocumentDto): DrawingSheetDto | null {
 
 function cloneDrawing(drawing: DrawingDocumentDto): DrawingDocumentDto {
   return structuredClone(drawing);
-}
-
-function applyAnnotationUpdate(annotation: DrawingAnnotationDto, update: DrawingAnnotationUpdate): void {
-  const target = annotation as unknown as Record<string, unknown>;
-  for (const [key, value] of Object.entries(update)) {
-    if (value !== undefined && key in target) target[key] = structuredClone(value);
-  }
-  if ('extension' in target && typeof target.extension === 'number') {
-    target.extension = Math.max(0, target.extension);
-  }
 }
 
 function clearDrawingSelection(): void {
