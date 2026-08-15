@@ -763,11 +763,7 @@ impl CadServer {
         Ok(())
     }
 
-    fn maybe_session_writeback(
-        &mut self,
-        tool_name: &str,
-        mut value: Value,
-    ) -> Result<Value, String> {
+    fn maybe_session_writeback(&mut self, tool_name: &str, value: Value) -> Result<Value, String> {
         if self.attached_session_mode != SessionAttachMode::Live {
             return Ok(value);
         }
