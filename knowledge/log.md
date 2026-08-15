@@ -2,6 +2,10 @@
 
 ## 2026-08-15
 
+- **Update**: Added `model_print_kit` — a reusable CAD synthesis exam
+  (journal + 608 bushing + housing + helical loft) that grades 0.4 mm Bambu
+  nozzle tolerancing. Spec `scripts/fixtures/print-kit-tutor.spec.json`;
+  rerun `npm run test:mcp-print-kit` or `cargo test print_kit_tutor`.
 - **Update**: Added `model_print_tool` — an assistant walkthrough recipe for
   sketching a useful small 3D-printed part (desk cable clip), then fillet /
   chamfer / hole and `print_3mf`.

@@ -21,6 +21,8 @@ use serde_json::{json, Map, Value};
 mod disclosure;
 mod drawing_tools;
 mod full_control;
+#[cfg(test)]
+mod print_kit_tutor;
 mod session;
 mod surfaces;
 
@@ -3613,7 +3615,7 @@ fn server_info() -> Value {
 }
 
 fn modeling_manual() -> &'static str {
-    "Modeling: one persistent headless CAD document. Begin and finish sketches before solid features. Use returned entity/body/face/edge ids. Soft disclosure is on; out-of-focus tools stay callable. Typical loop: sketch_begin → sketch_add_* / constraints → sketch_finish → sketch_profiles → solid_extrude (or revolve/sweep/loft/rib) → solid_scene / cad_document. Read state via nbcad://document|scene|sketch|profiles|features|drawing|workspace. Recipes: prompts/list (model_box, model_solid, model_print_tool, import_step, export_step, drawing_export, undo_history, invoke). Mechanical full control: cad_invoke (any host method) and cad_drawing_command (any drawing op). Application history: cad_undo / cad_redo. Optional UI co-link: cad_list_sessions → cad_attach. Live UI workspace: cad_set_workspace solid|drawing. Drawings: cad_drawing_create_sheet → cad_drawing_auto_layout / cad_drawing_add_* → cad_drawing_project_sheet / cad_drawing_export_dxf / cad_drawing_export_svg. File import: solid_import_step. Print: solid_export_3mf."
+    "Modeling: one persistent headless CAD document. Begin and finish sketches before solid features. Use returned entity/body/face/edge ids. Soft disclosure is on; out-of-focus tools stay callable. Typical loop: sketch_begin → sketch_add_* / constraints → sketch_finish → sketch_profiles → solid_extrude (or revolve/sweep/loft/rib) → solid_scene / cad_document. Read state via nbcad://document|scene|sketch|profiles|features|drawing|workspace. Recipes: prompts/list (model_box, model_solid, model_print_tool, model_print_kit, import_step, export_step, drawing_export, undo_history, invoke). Mechanical full control: cad_invoke (any host method) and cad_drawing_command (any drawing op). Application history: cad_undo / cad_redo. Optional UI co-link: cad_list_sessions → cad_attach. Live UI workspace: cad_set_workspace solid|drawing. Drawings: cad_drawing_create_sheet → cad_drawing_auto_layout / cad_drawing_add_* → cad_drawing_project_sheet / cad_drawing_export_dxf / cad_drawing_export_svg. File import: solid_import_step. Print: solid_export_3mf."
 }
 
 fn modern_protocol_manual() -> &'static str {
@@ -4297,6 +4299,26 @@ mod tests {
             )
             .unwrap();
         (server, update)
+    }
+
+    #[test]
+    fn print_kit_tutor_synthesizes_fdm_tolerant_kit() {
+        let mut server = CadServer::new().unwrap();
+        let report =
+            crate::print_kit_tutor::run(&mut |name, arguments| server.call_tool(name, arguments))
+                .expect("print-kit tutor should build");
+        assert!(
+            report.ok,
+            "print-kit lessons failed: {:?}",
+            report
+                .lessons
+                .iter()
+                .filter(|lesson| !lesson.pass)
+                .map(|lesson| format!("{}: {}", lesson.id, lesson.detail))
+                .collect::<Vec<_>>()
+        );
+        assert!(report.body_count >= 4);
+        assert!(report.byte_length > 32);
     }
 
     #[test]

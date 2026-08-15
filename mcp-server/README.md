@@ -19,7 +19,8 @@ tools stay callable. Product state is also readable as MCP **resources**
 (`nbcad://document`, `nbcad://scene`, `nbcad://sketch`, `nbcad://profiles`,
 `nbcad://features`, `nbcad://drawing`, `nbcad://workspace`, …) and recipes as
 **prompts** (`model_box`, `model_solid`, `print_3mf`, `model_print_tool`,
-`import_step`, `export_step`, `drawing_export`, `undo_history`, `invoke`, …).
+`model_print_kit`, `import_step`, `export_step`, `drawing_export`,
+`undo_history`, `invoke`, …).
 
 For message-queued systems (Kafka / MQTT / NATS), set
 `NBCAD_MCP_TRANSPORT=bus-jsonl` and bridge `BusMessage` frames — see
@@ -47,6 +48,7 @@ default editor path.
 ```sh
 cargo build --release --manifest-path mcp-server/Cargo.toml
 cargo test --manifest-path mcp-server/Cargo.toml
+npm run test:mcp-print-kit
 ```
 
 Windows:

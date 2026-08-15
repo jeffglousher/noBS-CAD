@@ -238,6 +238,7 @@ const REQUIRED_PROMPTS = [
   'attach_ui',
   'print_3mf',
   'model_print_tool',
+  'model_print_kit',
   'import_step',
   'export_step',
   'drawing_read',
@@ -289,6 +290,18 @@ function resourceKindName(uri) {
     .split(/[_-]/)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join('');
+}
+
+const specSrc = await read('scripts/fixtures/print-kit-tutor.spec.json');
+const spec = JSON.parse(specSrc);
+if (spec.nozzle_mm !== 0.4 || spec.clearance_mm !== 0.4) {
+  fail('print-kit tutor spec must keep a 0.4 mm nozzle clearance stack');
+}
+if (Math.abs(spec.bush_id - spec.journal_d - spec.clearance_mm) > 1e-9) {
+  fail('print-kit tutor spec bush_id must be journal + clearance');
+}
+if (!mainSrc.includes('mod print_kit_tutor')) {
+  fail('mcp-server must compile the print-kit tutor exam');
 }
 
 if (failures.length > 0) {

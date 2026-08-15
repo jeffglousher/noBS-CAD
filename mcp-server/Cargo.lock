@@ -352,6 +352,7 @@ dependencies = [
  "nbcad-occt",
  "nbcad-sketch",
  "nbcad-solid",
+ "serde",
  "serde_json",
  "zip",
 ]

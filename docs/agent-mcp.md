@@ -52,7 +52,7 @@ Soft disclosure: out-of-focus tools stay **callable**; results may include
 ## Small recipes
 
 Prefer `prompts/get` for the same loops (`model_box`, `model_hole`,
-`model_solid`, `print_3mf`, `model_print_tool`, `import_step`, `export_step`,
+`model_solid`, `print_3mf`, `model_print_tool`, `model_print_kit`, `import_step`, `export_step`,
 `drawing_sheet`, `drawing_export`, `undo_history`, `invoke`, `attach_ui`).
 
 | Name | Idea |
@@ -61,6 +61,7 @@ Prefer `prompts/get` for the same loops (`model_box`, `model_hole`,
 | Hole | box → hole on a face |
 | Solid | profiles → revolve / sweep / loft / rib |
 | Printable tool | locked sketches → face features → fillet/chamfer/hole → 3MF (`model_print_tool`) |
+| Print kit tutor | 0.4 mm FDM journal + 608 bushing + helical loft; `npm run test:mcp-print-kit` (`model_print_kit`) |
 | STEP | `solid_import_step` / `solid_export_step` |
 | Drawing | sheet → HLR → DXF / SVG |
 | History | `cad_undo` / `cad_redo` / timeline tools |

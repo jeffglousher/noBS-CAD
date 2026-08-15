@@ -42,8 +42,9 @@ Surfaces (MCP 2026 read + recipe path):
 - Resources: `nbcad://document|project|scene|drawing|focus|workspace|sessions|sketch|sketches|profiles|visibility|appearances|materials|features` plus template `nbcad://session/{session_id}`
 - `nbcad://focus` includes `workspace` (same as `cad_get_focus`)
 - New reads assemble from `SketchManager` / catalog JSON (not `call_tool`)
-- Prompts: `model_box`, `model_hole`, `model_solid`, `attach_ui`, `print_3mf`, `model_print_tool`, `import_step`, `export_step`, `drawing_read`, `drawing_sheet`, `drawing_export`, `undo_history`, `invoke`
-- Constants `MAIN_RESOURCE_URIS` (14) and `MAIN_PROMPT_NAMES` (13) in `mcp-server/src/surfaces.rs` are the catalog source of truth
+- Prompts: `model_box`, `model_hole`, `model_solid`, `attach_ui`, `print_3mf`, `model_print_tool`, `model_print_kit`, `import_step`, `export_step`, `drawing_read`, `drawing_sheet`, `drawing_export`, `undo_history`, `invoke`
+- Constants `MAIN_RESOURCE_URIS` (14) and `MAIN_PROMPT_NAMES` (14) in `mcp-server/src/surfaces.rs` are the catalog source of truth
+- Print-kit tutor: `scripts/fixtures/print-kit-tutor.spec.json`, `npm run test:mcp-print-kit`, `cargo test print_kit_tutor`
 
 **Intentionally not MCP:** theme/6DOF settings, pointer Select, project tab close, collaboration comments, `window.print()` (MCP returns SVG), Jack’s annotation-rich UI DXF writer, disabled ribbon placeholders, #11 in-process shared engine, #12 two UI windows.
 

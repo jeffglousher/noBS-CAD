@@ -17,6 +17,8 @@ on:
       - 'src/components/TopBar.tsx'
       - 'scripts/session-http-bridge.mjs'
       - 'scripts/check-mcp-full-control.mjs'
+      - 'scripts/mcp-print-kit-tutor.mjs'
+      - 'scripts/fixtures/print-kit-tutor.spec.json'
       - 'xtask/**'
       - 'vcpkg.json'
       - '.github/workflows/mcp-server.yml'
@@ -35,6 +37,8 @@ on:
       - 'src/components/TopBar.tsx'
       - 'scripts/session-http-bridge.mjs'
       - 'scripts/check-mcp-full-control.mjs'
+      - 'scripts/mcp-print-kit-tutor.mjs'
+      - 'scripts/fixtures/print-kit-tutor.spec.json'
       - 'xtask/**'
       - 'vcpkg.json'
       - '.github/workflows/mcp-server.yml'
@@ -124,6 +128,20 @@ jobs:
           $env:Path = "$env:OCCT_ROOT\bin;$env:Path"
           cargo test --manifest-path mcp-server/Cargo.toml
           if ($LASTEXITCODE -ne 0) { throw "mcp-server tests failed" }
+
+      - name: Print-kit tutor (MCP synthesis)
+        shell: pwsh
+        env:
+          OCCT_ROOT: ${{ github.workspace }}\vcpkg_installed\x64-windows
+        run: |
+          $env:Path = "$env:OCCT_ROOT\bin;$env:Path"
+          $env:NBCAD_MCP_BIN = "$env:GITHUB_WORKSPACE\mcp-server\target\debug\nbcad-mcp.exe"
+          if (-not (Test-Path $env:NBCAD_MCP_BIN)) {
+            cargo build --manifest-path mcp-server/Cargo.toml
+            if ($LASTEXITCODE -ne 0) { throw "mcp-server build failed" }
+          }
+          node scripts/mcp-print-kit-tutor.mjs
+          if ($LASTEXITCODE -ne 0) { throw "print-kit tutor failed" }
 
       - name: Export crate tests
         shell: pwsh

@@ -30,6 +30,7 @@ Example Cursor / VS Code config:
 
 ```powershell
 cargo test --manifest-path mcp-server/Cargo.toml
+npm run test:mcp-print-kit
 ```
 
 CI: `.github/workflows/mcp-server.yml` (Windows + vcpkg OCCT).

@@ -25,8 +25,9 @@
 //! Template: `nbcad://session/{session_id}` peeks a session `model.json`.
 //!
 //! Recipes (`prompts/get`): `model_box`, `model_hole`, `model_solid`,
-//! `attach_ui`, `print_3mf`, `model_print_tool`, `import_step`, `export_step`,
-//! `drawing_read`, `drawing_sheet`, `drawing_export`, `undo_history`, `invoke`.
+//! `attach_ui`, `print_3mf`, `model_print_tool`, `model_print_kit`,
+//! `import_step`, `export_step`, `drawing_read`, `drawing_sheet`,
+//! `drawing_export`, `undo_history`, `invoke`.
 //!
 //! # Remaining (not this slice)
 //!
@@ -69,6 +70,7 @@ pub const MAIN_PROMPT_NAMES: &[&str] = &[
     "attach_ui",
     "print_3mf",
     "model_print_tool",
+    "model_print_kit",
     "import_step",
     "export_step",
     "drawing_read",
@@ -172,6 +174,12 @@ pub fn list_prompts() -> Value {
                 "Walk through a printable tool",
                 "Sketch, build, and export a useful small 3D-printed part (desk cable clip).",
                 &[]
+            ),
+            prompt_desc(
+                "model_print_kit",
+                "Teach an FDM-tolerant print kit",
+                "Synthesis exam: journal + 608 bushing + housing + helical loft, modeled for a 0.4 mm Bambu nozzle.",
+                &[("nozzle_mm", "Nozzle diameter used as the diametral clearance (default 0.4)", false)]
             ),
             prompt_desc(
                 "import_step",
@@ -358,6 +366,26 @@ pub fn get_prompt(name: &str, arguments: &Value) -> Result<Value, String> {
              11. Confirm nbcad://document, nbcad://features, nbcad://appearances. Print flat; keep walls ≥ 2 mm."
                 .to_string()
         }
+        "model_print_kit" => {
+            let nozzle = arguments
+                .get("nozzle_mm")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.4);
+            format!(
+                "CAD synthesis tutor — build a real printable mechanical kit, then grade FDM tolerancing.\n\
+                 Spec: scripts/fixtures/print-kit-tutor.spec.json (id fdm-journal-kit). Rerun: npm run test:mcp-print-kit.\n\
+                 Exam (headless is enough; cad_attach is optional live UI):\n\
+                 1. prompts/get model_print_kit. cad_list_all_tools. cad_new_project. cad_set_document_name Print Kit Tutor.\n\
+                 2. Design input: nozzle={nozzle} mm. Every printed-to-printed running/slip fit is +{nozzle} mm diametral in CAD. Do not use FDM press fits. Leave slicer XY hole compensation at 0.\n\
+                 3. Journal shaft: revolve on XZ. Flange Ø16 × 1.6 on the bed with a 0.4 mm elephant-foot chamfer. Journal Ø8. 45° tip — no square barb, no horizontal holes.\n\
+                 4. 608 journal bearing (printed bushing): Ø8.4 ID × Ø22 OD × 7 H, standing ring so the bore is an XY circle. Housing seat Ø22.4 × 7.4 from the top face plus Ø10 through. Same seat accepts a metal 608ZZ.\n\
+                 5. Place every body on z=0 (print orientation, not the assembled stack). Functional holes only as complete XY circles.\n\
+                 6. Helical C loft (≥2 stations, 90° twist). This is not a 2D vane or a single origin-plane extrusion. Disable grid snap. Prefer locked circles for sized holes.\n\
+                 7. cad_set_focus print. set_body_appearance. solid_export_preflight. solid_export_3mf slicer_target=bambu_studio.\n\
+                 8. Grade: timeline ok, ≥4 bodies on the bed, 608 envelope, blade faces ≥6, 3MF is a PK zip. That is the manufacturing handoff.\n\
+                 Scale-up (same rules): helical Savonius rotor, double-D drive, thrust washers, C-clip, integrated bosses."
+            )
+        }
         "import_step" => {
             let file_name = arguments
                 .get("file_name")
@@ -489,6 +517,7 @@ fn prompt_title(name: &str) -> String {
         "attach_ui" => "Attach to the UI session".to_string(),
         "print_3mf" => "Export 3MF".to_string(),
         "model_print_tool" => "Walk through a printable tool".to_string(),
+        "model_print_kit" => "Teach an FDM-tolerant print kit".to_string(),
         "import_step" => "Import STEP".to_string(),
         "export_step" => "Export STEP".to_string(),
         "drawing_read" => "Inspect drawings".to_string(),
@@ -595,6 +624,12 @@ mod tests {
                 .as_str()
                 .unwrap()
                 .contains("sketch_add_rectangle_locked")
+        );
+        assert!(
+            get_prompt("model_print_kit", &json!({})).unwrap()["messages"][0]["content"]["text"]
+                .as_str()
+                .unwrap()
+                .contains("608")
         );
         assert!(
             get_prompt("import_step", &json!({})).unwrap()["messages"][0]["content"]["text"]
