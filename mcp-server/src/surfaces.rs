@@ -1,12 +1,81 @@
 //! MCP 2026-07-28 product surfaces: resources and prompts.
 //!
 //! Tools remain the mutation path. Resources are the read path for the same
-//! document / scene / drawing / session state. Prompts are the user-selectable
-//! recipes for those surfaces. `subscriptions/listen` is out of this slice.
+//! product state. Prompts are the user-selectable recipes. `subscriptions/listen`
+//! is out of this slice.
+//!
+//! # Main surface (shipped)
+//!
+//! Readable state (`resources/read`):
+//! - `nbcad://document` — browser tree, settings, and feature history
+//! - `nbcad://project` — versioned model.json
+//! - `nbcad://scene` — tessellated bodies, faces, and edges
+//! - `nbcad://drawing` — sheets and view intent (not generated HLR curves)
+//! - `nbcad://focus` — disclosure pack plus workspace
+//! - `nbcad://workspace` — solid vs drawing, plus focus
+//! - `nbcad://sessions` — attachable UI session directories
+//! - `nbcad://sketch` — active sketch snapshot
+//! - `nbcad://sketches` — finished sketch snapshots
+//! - `nbcad://profiles` — closed loops for extrude / revolve / sweep / loft / rib
+//! - `nbcad://visibility` — hidden bodies / datums / sketches
+//! - `nbcad://appearances` — per-body color / filament
+//! - `nbcad://materials` — filament catalog
+//! - `nbcad://features` — persisted solid / datum / body-op definitions
+//!
+//! Template: `nbcad://session/{session_id}` peeks a session `model.json`.
+//!
+//! Recipes (`prompts/get`): `model_box`, `model_hole`, `model_solid`,
+//! `attach_ui`, `print_3mf`, `import_step`, `export_step`, `drawing_read`,
+//! `drawing_sheet`, `drawing_export`, `undo_history`, `invoke`.
+//!
+//! # Remaining (not this slice)
+//!
+//! - `nbcad://projection` — native HLR is expensive; keep `cad_drawing_project_sheet`
+//! - `nbcad://tools` — use `cad_list_all_tools` / `tools/list`
+//! - `nbcad://session/{id}/focus` and `…/window` — `cad_attach` already loads `focus.json`
+//! - Dedicated construction-plane / body-ops / fillet prompts — tools exist;
+//!   `model_solid` + `invoke` cover the loop
+//! - `subscriptions/listen` — out of scope
+//! - Collaboration comments — not a shipped Drawing / Solid product surface
+//! - Jack's annotation-rich UI DXF writer — MCP has its own DXF / SVG export
 
 use serde_json::{json, Value};
 
 pub const RESOURCE_MIME: &str = "application/json";
+
+/// Every `resources/list` URI on the main product surface.
+pub const MAIN_RESOURCE_URIS: &[&str] = &[
+    "nbcad://document",
+    "nbcad://project",
+    "nbcad://scene",
+    "nbcad://drawing",
+    "nbcad://focus",
+    "nbcad://workspace",
+    "nbcad://sessions",
+    "nbcad://sketch",
+    "nbcad://sketches",
+    "nbcad://profiles",
+    "nbcad://visibility",
+    "nbcad://appearances",
+    "nbcad://materials",
+    "nbcad://features",
+];
+
+/// Every `prompts/list` recipe on the main product surface.
+pub const MAIN_PROMPT_NAMES: &[&str] = &[
+    "model_box",
+    "model_hole",
+    "model_solid",
+    "attach_ui",
+    "print_3mf",
+    "import_step",
+    "export_step",
+    "drawing_read",
+    "drawing_sheet",
+    "drawing_export",
+    "undo_history",
+    "invoke",
+];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResourceKind {
@@ -15,7 +84,15 @@ pub enum ResourceKind {
     Scene,
     Drawing,
     Focus,
+    Workspace,
     Sessions,
+    Sketch,
+    Sketches,
+    Profiles,
+    Visibility,
+    Appearances,
+    Materials,
+    Features,
     Session(String),
 }
 
@@ -27,8 +104,16 @@ pub fn list_resources() -> Value {
             resource("nbcad://project", "project", "Project model", "Versioned model.json (sketches, solids, drawings, visibility)."),
             resource("nbcad://scene", "scene", "Solid scene", "Tessellated bodies, faces, and edges from the last recompute."),
             resource("nbcad://drawing", "drawing", "Drawing document", "Technical drawing sheets and view intent (not generated HLR curves)."),
-            resource("nbcad://focus", "focus", "Disclosure focus", "Active focus pack and advertisement mode."),
+            resource("nbcad://focus", "focus", "Disclosure focus", "Active focus pack, advertisement mode, and workspace."),
+            resource("nbcad://workspace", "workspace", "Product workspace", "Solid (model/sketch) vs drawing workspace, plus current focus."),
             resource("nbcad://sessions", "sessions", "UI sessions", "Attachable session directories under NBCAD_SESSION_DIR."),
+            resource("nbcad://sketch", "sketch", "Active sketch", "In-progress sketch snapshot, or null when none is active."),
+            resource("nbcad://sketches", "sketches", "Finished sketches", "Retained snapshots of every finished sketch."),
+            resource("nbcad://profiles", "profiles", "Closed profiles", "Closed profile loops and path references for solid tools."),
+            resource("nbcad://visibility", "visibility", "Browser visibility", "Hidden body ids, datum ids, and sketch names."),
+            resource("nbcad://appearances", "appearances", "Body appearances", "Per-body color and filament assignments."),
+            resource("nbcad://materials", "materials", "Material catalog", "Built-in filament presets for 3MF appearance."),
+            resource("nbcad://features", "features", "Feature definitions", "Persisted extrude, revolve, sweep, loft, rib, fillet, chamfer, hole, datum, and body-op definitions."),
         ],
         "ttlMs": 5_000,
         "cacheScope": "private"
@@ -64,6 +149,12 @@ pub fn list_prompts() -> Value {
                 &[("face_id", "Stable face id from solid_scene / nbcad://scene", false)]
             ),
             prompt_desc(
+                "model_solid",
+                "Create a solid from profiles",
+                "Revolve, sweep, loft, or rib after reading closed profiles.",
+                &[("kind", "revolve, sweep, loft, or rib (default revolve)", false)]
+            ),
+            prompt_desc(
                 "attach_ui",
                 "Attach to the UI session",
                 "Discover NBCAD_SESSION_DIR sessions and live-attach with writer lock.",
@@ -76,6 +167,18 @@ pub fn list_prompts() -> Value {
                 &[("slicer_target", "bambu, orca, prusa, or cura", false)]
             ),
             prompt_desc(
+                "import_step",
+                "Import STEP",
+                "Import a STEP/STP exchange file as a persistent history feature.",
+                &[("file_name", "Original file name, e.g. part.step", false)]
+            ),
+            prompt_desc(
+                "export_step",
+                "Export STEP",
+                "Export active bodies as AP242 STEP (CAD interchange, not a slicer project).",
+                &[]
+            ),
+            prompt_desc(
                 "drawing_read",
                 "Inspect drawings",
                 "Read the drawing document, command tools, HLR projection, and MCP-native DXF/SVG export.",
@@ -86,6 +189,24 @@ pub fn list_prompts() -> Value {
                 "Create a drawing sheet",
                 "Create a sheet and auto-layout standard views from the current 3D model.",
                 &[]
+            ),
+            prompt_desc(
+                "drawing_export",
+                "Export a drawing",
+                "Project hidden-line views and write DXF, SVG, or a 1:1 profile DXF.",
+                &[("format", "dxf, svg, or profile_dxf (default dxf)", false)]
+            ),
+            prompt_desc(
+                "undo_history",
+                "Undo or edit history",
+                "Application undo/redo, plus timeline rollback, delete, and reorder.",
+                &[]
+            ),
+            prompt_desc(
+                "invoke",
+                "Invoke any engine method",
+                "Mechanical escape hatch: cad_invoke for host methods, cad_drawing_command for drawing ops.",
+                &[("method", "host.rs method name when using cad_invoke", false)]
             ),
         ],
         "ttlMs": 3_600_000,
@@ -101,7 +222,15 @@ pub fn parse_resource_uri(uri: &str) -> Result<ResourceKind, String> {
         "nbcad://scene" => Ok(ResourceKind::Scene),
         "nbcad://drawing" => Ok(ResourceKind::Drawing),
         "nbcad://focus" => Ok(ResourceKind::Focus),
+        "nbcad://workspace" => Ok(ResourceKind::Workspace),
         "nbcad://sessions" => Ok(ResourceKind::Sessions),
+        "nbcad://sketch" => Ok(ResourceKind::Sketch),
+        "nbcad://sketches" => Ok(ResourceKind::Sketches),
+        "nbcad://profiles" => Ok(ResourceKind::Profiles),
+        "nbcad://visibility" => Ok(ResourceKind::Visibility),
+        "nbcad://appearances" => Ok(ResourceKind::Appearances),
+        "nbcad://materials" => Ok(ResourceKind::Materials),
+        "nbcad://features" => Ok(ResourceKind::Features),
         other => {
             const PREFIX: &str = "nbcad://session/";
             if let Some(session_id) = other.strip_prefix(PREFIX) {
@@ -143,9 +272,9 @@ pub fn get_prompt(name: &str, arguments: &Value) -> Result<Value, String> {
              1. Read nbcad://document and nbcad://scene (or cad_document / solid_scene).\n\
              2. cad_set_focus focus=sketch.\n\
              3. sketch_begin on origin_plane xy.\n\
-             4. sketch_add_rectangle then sketch_finish → sketch_profiles.\n\
+             4. sketch_add_rectangle then sketch_finish → read nbcad://profiles (or sketch_profiles).\n\
              5. solid_extrude a new_body from profile 0.\n\
-             6. Confirm with nbcad://scene. Use returned ids in later calls."
+             6. Confirm with nbcad://scene and nbcad://features. Use returned ids in later calls."
                 .to_string()
         }
         "model_hole" => {
@@ -158,7 +287,23 @@ pub fn get_prompt(name: &str, arguments: &Value) -> Result<Value, String> {
                  1. Read nbcad://scene and pick a planar face if face_id was not given.\n\
                  2. cad_set_focus focus=modify.\n\
                  3. Call solid_hole with that face and a standard (ISO metric or Unified).\n\
-                 4. Confirm the body in nbcad://scene."
+                 4. Confirm the body in nbcad://scene and the definition in nbcad://features."
+            )
+        }
+        "model_solid" => {
+            let kind = arguments
+                .get("kind")
+                .and_then(Value::as_str)
+                .unwrap_or("revolve");
+            format!(
+                "Create a solid from closed profiles (kind={kind}).\n\
+                 1. Read nbcad://profiles (or sketch_profiles) after finishing one or more sketches.\n\
+                 2. cad_set_focus focus=solid.\n\
+                 3. revolve: solid_revolve around a sketch line or manual axis.\n\
+                 4. sweep: solid_sweep one profile along a connected line/arc/circle/spline path.\n\
+                 5. loft: solid_loft two or more ordered profiles; optional centerline/guide and G0/G1/G2.\n\
+                 6. rib: solid_rib from a line/arc/circle/spline with Distance, To Next, Up to Face, or Through All.\n\
+                 7. Confirm nbcad://scene and nbcad://features. Edit later with solid_edit_* / nbcad://features ids."
             )
         }
         "attach_ui" => {
@@ -173,6 +318,7 @@ pub fn get_prompt(name: &str, arguments: &Value) -> Result<Value, String> {
                  3. cad_attach session_id=<uuid> mode={mode}.\n\
                  4. Live mode takes writer=mcp from ui/none and writebacks model.json.\n\
                  5. If the UI later holds the lock, cad_refresh loads it without stealing.\n\
+                 6. cad_set_workspace solid|drawing (or read nbcad://workspace) to follow the live UI.\n\
                  Headless goldens do not need attach."
             )
         }
@@ -184,14 +330,36 @@ pub fn get_prompt(name: &str, arguments: &Value) -> Result<Value, String> {
             format!(
                 "Export a print-ready 3MF (materials/colors are in the file; this is not a sliced project).\n\
                  1. cad_set_focus focus=print.\n\
-                 2. solid_export_preflight, then optional set_body_appearance.\n\
-                 3. solid_export_3mf with slicer_target={target} (bambu|orca|prusa|cura).\n\
-                 4. STL is geometry-only; STEP is CAD interchange."
+                 2. Read nbcad://materials and nbcad://appearances.\n\
+                 3. solid_export_preflight, then optional set_body_appearance.\n\
+                 4. solid_export_3mf with slicer_target={target} (bambu|orca|prusa|cura).\n\
+                 5. STL is geometry-only; STEP is CAD interchange (see export_step)."
             )
+        }
+        "import_step" => {
+            let file_name = arguments
+                .get("file_name")
+                .and_then(Value::as_str)
+                .unwrap_or("part.step");
+            format!(
+                "Import a STEP/STP file as a persistent history feature.\n\
+                 1. cad_set_focus focus=solid.\n\
+                 2. solid_import_step file_name={file_name} data_base64=<exchange bytes>.\n\
+                 3. Confirm bodies in nbcad://scene and the import in nbcad://features.\n\
+                 4. Optional set_body_appearance / cad_set_project_visibility after import."
+            )
+        }
+        "export_step" => {
+            "Export AP242 STEP for CAD interchange (not a slicer project).\n\
+             1. Read nbcad://scene for body ids (omit body_ids to export every active body).\n\
+             2. cad_set_focus focus=inspect.\n\
+             3. solid_export_step → format=step, encoding=base64, bytes_base64=…\n\
+             4. Prefer solid_export_3mf / print_3mf for slicers. STL is geometry-only."
+                .to_string()
         }
         "drawing_read" => {
             "Inspect technical drawings stored in the project model.\n\
-             1. cad_set_focus focus=drawing.\n\
+             1. cad_set_focus focus=drawing. Read nbcad://workspace if the live UI should follow.\n\
              2. Read nbcad://drawing or call cad_drawing_document.\n\
              3. Sheets store view intent (direction, scale, placement), not HLR curves.\n\
              4. Prefer cad_drawing_* command tools (create_sheet, auto_layout, add_note, dimensions) over cad_set_drawing_document.\n\
@@ -207,6 +375,43 @@ pub fn get_prompt(name: &str, arguments: &Value) -> Result<Value, String> {
              4. Optional cad_drawing_add_note / dimension tools.\n\
              5. cad_drawing_project_sheet for HLR curves, then cad_drawing_export_dxf or cad_drawing_export_svg."
                 .to_string()
+        }
+        "drawing_export" => {
+            let format = arguments
+                .get("format")
+                .and_then(Value::as_str)
+                .unwrap_or("dxf");
+            format!(
+                "Export a technical drawing (format={format}).\n\
+                 1. cad_set_focus focus=drawing. Optional cad_set_workspace drawing.\n\
+                 2. Read nbcad://drawing. Create/layout a sheet if none exists (drawing_sheet).\n\
+                 3. cad_drawing_project_sheet for native HLR curves from a saved view.\n\
+                 4. dxf: cad_drawing_export_dxf. svg: cad_drawing_export_svg (paper / print stand-in).\n\
+                 5. profile_dxf: cad_drawing_export_profile_dxf for a 1:1 sketch-plane profile.\n\
+                 MCP writes its own DXF/SVG; do not wait for the desktop File menu."
+            )
+        }
+        "undo_history" => {
+            "Undo, redo, or edit feature history.\n\
+             1. Read nbcad://document (feature list + rollback_index) and nbcad://workspace.\n\
+             2. cad_undo / cad_redo follow the UI: drawing workspace → drawing history; active sketch → sketch undo; else delete/restore the latest solid feature or step the rollback marker.\n\
+             3. Timeline edits: solid_set_rollback, solid_delete_feature, solid_reorder_feature.\n\
+             4. Confirm nbcad://document, nbcad://features, and nbcad://scene."
+                .to_string()
+        }
+        "invoke" => {
+            let method = arguments
+                .get("method")
+                .and_then(Value::as_str)
+                .unwrap_or("a host.rs method");
+            format!(
+                "Mechanical full control when a named tool is the wrong shape.\n\
+                 1. Prefer the named sketch_ / solid_ / cad_drawing_* tool when you know the feature.\n\
+                 2. cad_invoke method={method} arguments={{…}}. Omit arguments for empty host methods.\n\
+                 3. solid_prepare_* and project_prepare_* run OCCT replay. solid_commit is rejected.\n\
+                 4. drawing_command takes {{op, …fields}} — or call cad_drawing_command with the same shape.\n\
+                 5. Read nbcad://document / nbcad://scene / nbcad://drawing after mutating."
+            )
         }
         other => return Err(format!("unknown prompt '{other}'")),
     };
@@ -258,10 +463,16 @@ fn prompt_title(name: &str) -> String {
     match name {
         "model_box" => "Model a box".to_string(),
         "model_hole" => "Add a hole".to_string(),
+        "model_solid" => "Create a solid from profiles".to_string(),
         "attach_ui" => "Attach to the UI session".to_string(),
         "print_3mf" => "Export 3MF".to_string(),
+        "import_step" => "Import STEP".to_string(),
+        "export_step" => "Export STEP".to_string(),
         "drawing_read" => "Inspect drawings".to_string(),
         "drawing_sheet" => "Create a drawing sheet".to_string(),
+        "drawing_export" => "Export a drawing".to_string(),
+        "undo_history" => "Undo or edit history".to_string(),
+        "invoke" => "Invoke any engine method".to_string(),
         other => other.to_string(),
     }
 }
@@ -269,6 +480,24 @@ fn prompt_title(name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn catalog_uris(list: &Value) -> Vec<&str> {
+        list["resources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|item| item["uri"].as_str())
+            .collect()
+    }
+
+    fn catalog_prompt_names(list: &Value) -> Vec<&str> {
+        list["prompts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|item| item["name"].as_str())
+            .collect()
+    }
 
     #[test]
     fn resource_uris_parse_and_reject_traversal() {
@@ -279,6 +508,18 @@ mod tests {
         assert_eq!(
             parse_resource_uri("nbcad://drawing").unwrap(),
             ResourceKind::Drawing
+        );
+        assert_eq!(
+            parse_resource_uri("nbcad://workspace").unwrap(),
+            ResourceKind::Workspace
+        );
+        assert_eq!(
+            parse_resource_uri("nbcad://profiles").unwrap(),
+            ResourceKind::Profiles
+        );
+        assert_eq!(
+            parse_resource_uri("nbcad://features").unwrap(),
+            ResourceKind::Features
         );
         match parse_resource_uri("nbcad://session/01732db8-694c-886c-87d8-c2c64537d673").unwrap() {
             ResourceKind::Session(id) => assert_eq!(id, "01732db8-694c-886c-87d8-c2c64537d673"),
@@ -291,32 +532,72 @@ mod tests {
 
     #[test]
     fn catalogs_include_product_surfaces() {
-        let resources = list_resources();
-        let uris: Vec<_> = resources["resources"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .filter_map(|item| item["uri"].as_str())
-            .collect();
-        assert!(uris.contains(&"nbcad://document"));
-        assert!(uris.contains(&"nbcad://drawing"));
-        assert!(uris.contains(&"nbcad://sessions"));
+        let resource_catalog = list_resources();
+        let uris = catalog_uris(&resource_catalog);
+        assert_eq!(uris, MAIN_RESOURCE_URIS);
+        for uri in MAIN_RESOURCE_URIS {
+            assert!(
+                parse_resource_uri(uri).is_ok(),
+                "main resource {uri} must parse"
+            );
+        }
         let prompt_catalog = list_prompts();
-        let prompts: Vec<_> = prompt_catalog["prompts"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .filter_map(|item| item["name"].as_str())
-            .collect();
-        assert!(prompts.contains(&"model_box"));
-        assert!(prompts.contains(&"print_3mf"));
-        assert!(prompts.contains(&"drawing_read"));
-        assert!(prompts.contains(&"drawing_sheet"));
+        let prompts = catalog_prompt_names(&prompt_catalog);
+        assert_eq!(prompts, MAIN_PROMPT_NAMES);
+        for name in MAIN_PROMPT_NAMES {
+            let prompt = get_prompt(name, &json!({})).unwrap();
+            let text = prompt["messages"][0]["content"]["text"].as_str().unwrap();
+            assert!(text.len() > 40, "prompt {name} recipe is too short: {text}");
+            assert_ne!(
+                prompt_title(name),
+                *name,
+                "prompt {name} needs a human title"
+            );
+        }
         assert!(
             get_prompt("model_box", &json!({})).unwrap()["messages"][0]["content"]["text"]
                 .as_str()
                 .unwrap()
                 .contains("sketch_begin")
+        );
+        assert!(
+            get_prompt("model_solid", &json!({"kind": "loft"})).unwrap()["messages"][0]["content"]
+                ["text"]
+                .as_str()
+                .unwrap()
+                .contains("solid_loft")
+        );
+        assert!(
+            get_prompt("import_step", &json!({})).unwrap()["messages"][0]["content"]["text"]
+                .as_str()
+                .unwrap()
+                .contains("solid_import_step")
+        );
+        assert!(
+            get_prompt("export_step", &json!({})).unwrap()["messages"][0]["content"]["text"]
+                .as_str()
+                .unwrap()
+                .contains("solid_export_step")
+        );
+        assert!(
+            get_prompt("drawing_export", &json!({"format": "svg"})).unwrap()["messages"][0]
+                ["content"]["text"]
+                .as_str()
+                .unwrap()
+                .contains("cad_drawing_export_svg")
+        );
+        assert!(
+            get_prompt("undo_history", &json!({})).unwrap()["messages"][0]["content"]["text"]
+                .as_str()
+                .unwrap()
+                .contains("cad_undo")
+        );
+        assert!(
+            get_prompt("invoke", &json!({"method": "add_line"})).unwrap()["messages"][0]["content"]
+                ["text"]
+                .as_str()
+                .unwrap()
+                .contains("cad_invoke")
         );
         assert!(get_prompt("unknown", &json!({})).is_err());
     }

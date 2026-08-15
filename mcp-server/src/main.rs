@@ -3581,7 +3581,7 @@ fn server_info() -> Value {
 }
 
 fn modeling_manual() -> &'static str {
-    "Modeling: one persistent headless CAD document. Begin and finish sketches before solid features. Use returned entity/body/face/edge ids. Soft disclosure is on; out-of-focus tools stay callable. Typical loop: sketch_begin → sketch_add_* / constraints → sketch_finish → sketch_profiles → solid_extrude (or revolve/sweep/loft/rib) → solid_scene / cad_document. Mechanical full control: cad_invoke (any host method) and cad_drawing_command (any drawing op). Application history: cad_undo / cad_redo. Optional UI co-link: cad_list_sessions → cad_attach. Live UI workspace: cad_set_workspace solid|drawing. Drawings: cad_drawing_create_sheet → cad_drawing_auto_layout / cad_drawing_add_* → cad_drawing_project_sheet / cad_drawing_export_dxf / cad_drawing_export_svg. File import: solid_import_step. Print: solid_export_3mf."
+    "Modeling: one persistent headless CAD document. Begin and finish sketches before solid features. Use returned entity/body/face/edge ids. Soft disclosure is on; out-of-focus tools stay callable. Typical loop: sketch_begin → sketch_add_* / constraints → sketch_finish → sketch_profiles → solid_extrude (or revolve/sweep/loft/rib) → solid_scene / cad_document. Read state via nbcad://document|scene|sketch|profiles|features|drawing|workspace. Recipes: prompts/list (model_box, model_solid, import_step, export_step, drawing_export, undo_history, invoke). Mechanical full control: cad_invoke (any host method) and cad_drawing_command (any drawing op). Application history: cad_undo / cad_redo. Optional UI co-link: cad_list_sessions → cad_attach. Live UI workspace: cad_set_workspace solid|drawing. Drawings: cad_drawing_create_sheet → cad_drawing_auto_layout / cad_drawing_add_* → cad_drawing_project_sheet / cad_drawing_export_dxf / cad_drawing_export_svg. File import: solid_import_step. Print: solid_export_3mf."
 }
 
 fn modern_protocol_manual() -> &'static str {
@@ -3936,8 +3936,45 @@ fn read_product_resource(server: &mut CadServer, uri: &str) -> Result<Value, Str
         surfaces::ResourceKind::Project => server.call_tool("cad_project_model", json!({}))?,
         surfaces::ResourceKind::Scene => server.call_tool("solid_scene", json!({}))?,
         surfaces::ResourceKind::Drawing => server.call_tool("cad_drawing_document", json!({}))?,
-        surfaces::ResourceKind::Focus => server.disclosure.status_json(),
+        surfaces::ResourceKind::Focus => {
+            let mut status = server.disclosure.status_json();
+            server.annotate_workspace(&mut status);
+            status
+        }
+        surfaces::ResourceKind::Workspace => json!({
+            "workspace": server.workspace.as_str(),
+            "focus": server.disclosure.status_json(),
+        }),
         surfaces::ResourceKind::Sessions => session::sessions_list_json(),
+        surfaces::ResourceKind::Sketch => json!({
+            "active": server.manager.active_snapshot(),
+        }),
+        surfaces::ResourceKind::Sketches => json!({
+            "sketches": server.manager.finished_sketches(),
+        }),
+        surfaces::ResourceKind::Profiles => json!({
+            "profiles": server.manager.profile_catalog(),
+        }),
+        surfaces::ResourceKind::Visibility => json!({
+            "visibility": server.manager.project_visibility(),
+        }),
+        surfaces::ResourceKind::Appearances => json!({
+            "body_appearances": server.manager.body_appearances(),
+        }),
+        surfaces::ResourceKind::Materials => serde_json::from_str(&nbcad_export::catalog_json())
+            .map_err(|error| format!("catalog json: {error}"))?,
+        surfaces::ResourceKind::Features => json!({
+            "extrudes": server.manager.extrude_definitions(),
+            "revolves": server.manager.revolve_definitions(),
+            "sweeps": server.manager.sweep_definitions(),
+            "lofts": server.manager.loft_definitions(),
+            "ribs": server.manager.rib_definitions(),
+            "fillets": server.manager.fillet_definitions(),
+            "chamfers": server.manager.chamfer_definitions(),
+            "holes": server.manager.hole_definitions(),
+            "datum_planes": server.manager.datum_plane_definitions(),
+            "body_features": server.manager.body_feature_definitions(),
+        }),
         surfaces::ResourceKind::Session(session_id) => {
             session::require_valid_session_id(&session_id)?;
             let raw = session::require_model_json(&session_id)?;
@@ -4387,9 +4424,12 @@ mod tests {
             .iter()
             .filter_map(|item| item["uri"].as_str())
             .collect();
-        assert!(uris.contains(&"nbcad://document"));
-        assert!(uris.contains(&"nbcad://drawing"));
-        assert!(uris.contains(&"nbcad://sessions"));
+        for uri in surfaces::MAIN_RESOURCE_URIS {
+            assert!(
+                uris.contains(uri),
+                "resources/list missing main surface {uri}"
+            );
+        }
 
         let document = handle_message(
             &mut server,
@@ -4415,37 +4455,59 @@ mod tests {
                 > 2
         );
 
-        let drawing = handle_message(
-            &mut server,
-            json!({
-                "jsonrpc": "2.0",
-                "id": 3,
-                "method": "resources/read",
-                "params": { "_meta": modern_meta(), "uri": "nbcad://drawing" }
-            }),
-        )
-        .pop()
-        .unwrap();
+        let mut next_id = 3u64;
+        let drawing;
+        let workspace;
+        let focus;
+        let features;
+        let profiles;
+        let missing;
+        {
+            let mut read_resource = |uri: &str| {
+                next_id += 1;
+                handle_message(
+                    &mut server,
+                    json!({
+                        "jsonrpc": "2.0",
+                        "id": next_id,
+                        "method": "resources/read",
+                        "params": { "_meta": modern_meta(), "uri": uri }
+                    }),
+                )
+                .pop()
+                .unwrap()
+            };
+            drawing = read_resource("nbcad://drawing");
+            workspace = read_resource("nbcad://workspace");
+            focus = read_resource("nbcad://focus");
+            features = read_resource("nbcad://features");
+            profiles = read_resource("nbcad://profiles");
+            missing = read_resource("nbcad://nope");
+        }
         assert_eq!(drawing["result"]["resultType"], "complete");
-
-        let missing = handle_message(
-            &mut server,
-            json!({
-                "jsonrpc": "2.0",
-                "id": 4,
-                "method": "resources/read",
-                "params": { "_meta": modern_meta(), "uri": "nbcad://nope" }
-            }),
-        )
-        .pop()
-        .unwrap();
+        let workspace_text = workspace["result"]["contents"][0]["text"].as_str().unwrap();
+        assert!(
+            workspace_text.contains("\"workspace\""),
+            "nbcad://workspace must include workspace: {workspace_text}"
+        );
+        let focus_text = focus["result"]["contents"][0]["text"].as_str().unwrap();
+        assert!(
+            focus_text.contains("\"workspace\""),
+            "nbcad://focus must include workspace: {focus_text}"
+        );
+        let features_text = features["result"]["contents"][0]["text"].as_str().unwrap();
+        assert!(
+            features_text.contains("\"extrudes\""),
+            "nbcad://features must bundle definitions: {features_text}"
+        );
+        assert_eq!(profiles["result"]["resultType"], "complete");
         assert_eq!(missing["error"]["code"], -32602);
 
         let prompts = handle_message(
             &mut server,
             json!({
                 "jsonrpc": "2.0",
-                "id": 5,
+                "id": 50,
                 "method": "prompts/list",
                 "params": { "_meta": modern_meta() }
             }),
@@ -4458,16 +4520,18 @@ mod tests {
             .iter()
             .filter_map(|item| item["name"].as_str())
             .collect();
-        assert!(names.contains(&"model_box"));
-        assert!(names.contains(&"print_3mf"));
-        assert!(names.contains(&"drawing_read"));
-        assert!(names.contains(&"drawing_sheet"));
+        for name in surfaces::MAIN_PROMPT_NAMES {
+            assert!(
+                names.contains(name),
+                "prompts/list missing main recipe {name}"
+            );
+        }
 
         let box_prompt = handle_message(
             &mut server,
             json!({
                 "jsonrpc": "2.0",
-                "id": 6,
+                "id": 51,
                 "method": "prompts/get",
                 "params": { "_meta": modern_meta(), "name": "model_box" }
             }),
@@ -4478,6 +4542,22 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("sketch_begin"));
+
+        let invoke_prompt = handle_message(
+            &mut server,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 52,
+                "method": "prompts/get",
+                "params": { "_meta": modern_meta(), "name": "invoke" }
+            }),
+        )
+        .pop()
+        .unwrap();
+        assert!(invoke_prompt["result"]["messages"][0]["content"]["text"]
+            .as_str()
+            .unwrap()
+            .contains("cad_invoke"));
     }
 
     #[test]

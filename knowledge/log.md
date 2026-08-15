@@ -1,5 +1,13 @@
 # noBS CAD knowledge update log
 
+## 2026-08-15
+
+- **Update**: MCP main surface now advertises focused reads for sketch,
+  profiles, features, visibility, appearances, materials, and workspace, plus
+  recipes for import/export STEP, profile solids, drawing export, undo, and
+  `cad_invoke`. HLR projection and session focus/window templates stay as
+  tools, not resources.
+
 ## 2026-08-13
 
 - **Update**: MCP harness concept now records recommended protocol

@@ -16,7 +16,10 @@ runtime-upgrade recipe so agents that can switch on this process can do so.
 It covers sketch, solid, print, drawing-command, drawing-document, browser-visibility, application undo/redo, and a mechanical `cad_invoke` / `cad_drawing_command` escape hatch
 with **soft focus-scoped disclosure** (`tools.listChanged: true`). Out-of-focus
 tools stay callable. Product state is also readable as MCP **resources**
-(`nbcad://document`, `nbcad://drawing`, …) and recipes as **prompts**.
+(`nbcad://document`, `nbcad://scene`, `nbcad://sketch`, `nbcad://profiles`,
+`nbcad://features`, `nbcad://drawing`, `nbcad://workspace`, …) and recipes as
+**prompts** (`model_box`, `model_solid`, `import_step`, `export_step`,
+`drawing_export`, `undo_history`, `invoke`, …).
 
 For message-queued systems (Kafka / MQTT / NATS), set
 `NBCAD_MCP_TRANSPORT=bus-jsonl` and bridge `BusMessage` frames — see

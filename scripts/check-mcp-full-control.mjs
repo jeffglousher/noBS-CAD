@@ -111,15 +111,23 @@ const FILE_FN_TO_ID = {
   newProject: 'new',
 };
 
-const [hostSrc, drawingSrc, matrixSrc, toolsSrc, ribbonSrc, fileSrc] =
-  await Promise.all([
-    read('crates/sketch/src/host.rs'),
-    read('crates/sketch/src/drawing_ops.rs'),
-    read('mcp-server/src/full_control.rs'),
-    read('mcp-server/src/drawing_tools.rs'),
-    read('src/ribbon/config.ts'),
-    read('src/components/TopBar.tsx'),
-  ]);
+const [
+  hostSrc,
+  drawingSrc,
+  matrixSrc,
+  toolsSrc,
+  ribbonSrc,
+  fileSrc,
+  surfacesSrc,
+] = await Promise.all([
+  read('crates/sketch/src/host.rs'),
+  read('crates/sketch/src/drawing_ops.rs'),
+  read('mcp-server/src/full_control.rs'),
+  read('mcp-server/src/drawing_tools.rs'),
+  read('src/ribbon/config.ts'),
+  read('src/components/TopBar.tsx'),
+  read('mcp-server/src/surfaces.rs'),
+]);
 
 const host = hostMethods(hostSrc);
 const internal = new Set(
@@ -197,6 +205,91 @@ for (const tool of requiredTools) {
   }
 }
 
+function rustStringList(source, constName) {
+  const start = source.indexOf(`pub const ${constName}`);
+  if (start < 0) {
+    fail(`missing ${constName} in surfaces.rs`);
+    return [];
+  }
+  const slice = source.slice(start, source.indexOf('];', start) + 2);
+  return [...slice.matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+}
+
+const REQUIRED_RESOURCES = [
+  'nbcad://document',
+  'nbcad://project',
+  'nbcad://scene',
+  'nbcad://drawing',
+  'nbcad://focus',
+  'nbcad://workspace',
+  'nbcad://sessions',
+  'nbcad://sketch',
+  'nbcad://sketches',
+  'nbcad://profiles',
+  'nbcad://visibility',
+  'nbcad://appearances',
+  'nbcad://materials',
+  'nbcad://features',
+];
+const REQUIRED_PROMPTS = [
+  'model_box',
+  'model_hole',
+  'model_solid',
+  'attach_ui',
+  'print_3mf',
+  'import_step',
+  'export_step',
+  'drawing_read',
+  'drawing_sheet',
+  'drawing_export',
+  'undo_history',
+  'invoke',
+];
+
+const listedResources = rustStringList(surfacesSrc, 'MAIN_RESOURCE_URIS');
+const catalogResources = [
+  ...surfacesSrc.matchAll(/resource\("([^"]+)"/g),
+].map((match) => match[1]);
+for (const uri of REQUIRED_RESOURCES) {
+  if (!listedResources.includes(uri)) {
+    fail(`MAIN_RESOURCE_URIS is missing ${uri}`);
+  }
+  if (!catalogResources.includes(uri)) {
+    fail(`list_resources is missing ${uri}`);
+  }
+  if (!surfacesSrc.includes(`"${uri}" => Ok(ResourceKind::`)) {
+    fail(`parse_resource_uri is missing ${uri}`);
+  }
+  if (!mainSrc.includes(`ResourceKind::${resourceKindName(uri)}`)) {
+    fail(`read_product_resource is missing ${uri}`);
+  }
+}
+
+const listedPrompts = rustStringList(surfacesSrc, 'MAIN_PROMPT_NAMES');
+const catalogPrompts = [
+  ...surfacesSrc.matchAll(/prompt_desc\(\s*"([^"]+)"/g),
+].map((match) => match[1]);
+for (const name of REQUIRED_PROMPTS) {
+  if (!listedPrompts.includes(name)) {
+    fail(`MAIN_PROMPT_NAMES is missing ${name}`);
+  }
+  if (!catalogPrompts.includes(name)) {
+    fail(`list_prompts is missing ${name}`);
+  }
+  if (!surfacesSrc.includes(`"${name}" =>`)) {
+    fail(`get_prompt / prompt_title is missing ${name}`);
+  }
+}
+
+function resourceKindName(uri) {
+  const name = uri.slice('nbcad://'.length);
+  if (name === 'sketches') return 'Sketches';
+  return name
+    .split(/[_-]/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('');
+}
+
 if (failures.length > 0) {
   console.error('MCP full-control completeness failed:\n');
   for (const failure of failures) console.error(`- ${failure}`);
@@ -204,5 +297,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `MCP full-control complete: ${host.length} host methods, ${ops.length} drawing ops, ${ribbonMapped.size} ribbon mappings, ${fileIds.size} file features.`,
+  `MCP full-control complete: ${host.length} host methods, ${ops.length} drawing ops, ${ribbonMapped.size} ribbon mappings, ${fileIds.size} file features, ${listedResources.length} resources, ${listedPrompts.length} prompts.`,
 );

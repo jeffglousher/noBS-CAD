@@ -51,10 +51,22 @@ Soft disclosure: out-of-focus tools stay **callable**; results may include
 
 ## Small recipes
 
+Prefer `prompts/get` for the same loops (`model_box`, `model_hole`,
+`model_solid`, `print_3mf`, `import_step`, `export_step`, `drawing_sheet`,
+`drawing_export`, `undo_history`, `invoke`, `attach_ui`).
+
 | Name | Idea |
 |------|------|
 | Box | rectangle → extrude → one body |
 | Hole | box → hole on a face |
+| Solid | profiles → revolve / sweep / loft / rib |
+| STEP | `solid_import_step` / `solid_export_step` |
+| Drawing | sheet → HLR → DXF / SVG |
+| History | `cad_undo` / `cad_redo` / timeline tools |
+
+Read state with `resources/read` (`nbcad://document`, `scene`, `sketch`,
+`profiles`, `features`, `drawing`, `workspace`, `visibility`, `appearances`,
+`materials`). Tools remain the mutation path.
 
 Print-ready **3MF** with materials/colors: `solid_export_preflight` then
 `solid_export_3mf` (slicer Metadata hints, not a sliced G-code project).
