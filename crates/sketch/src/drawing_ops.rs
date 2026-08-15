@@ -361,10 +361,11 @@ pub fn apply_drawing_command(
     let before = drawing.clone();
     let preserve_release = match &command {
         DrawingCommand::AddRevision {
-            revision: DrawingRevisionDraft {
-                status: DrawingReleaseStatus::Released,
-                ..
-            },
+            revision:
+                DrawingRevisionDraft {
+                    status: DrawingReleaseStatus::Released,
+                    ..
+                },
         } => true,
         DrawingCommand::UpdateRevision { patch, .. } => {
             patch.get("status").and_then(Value::as_str) == Some("released")
@@ -2792,7 +2793,10 @@ mod tests {
             },
         )
         .unwrap();
-        assert_eq!(drawing.sheets[0].release.status, DrawingReleaseStatus::Draft);
+        assert_eq!(
+            drawing.sheets[0].release.status,
+            DrawingReleaseStatus::Draft
+        );
         assert_eq!(
             drawing.sheets[0].revisions[1].description,
             "Edited after release"

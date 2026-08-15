@@ -27,6 +27,7 @@
     "smoke:wasm": "node scripts/smoke-wasm.mjs",
     "smoke:colink": "node scripts/smoke-colink.mjs",
     "smoke:drawing-colink": "node scripts/smoke-drawing-colink.mjs",
+    "demo:drawing-manipulation": "node scripts/demo-drawing-manipulation.mjs",
     "check:knowledge": "node scripts/check-knowledge.mjs",
     "check:ids": "node scripts/check-nbcad-id.mjs",
     "test:session-bridge": "node scripts/test-session-http-bridge.mjs",
