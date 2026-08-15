@@ -16,6 +16,7 @@
 
 mod constraint;
 mod drawing;
+mod drawing_export;
 mod drawing_ops;
 mod dto;
 mod entity;
@@ -34,12 +35,16 @@ pub mod host;
 
 pub use constraint::{Constraint, ConstraintId, ConstraintKind};
 pub use drawing::{
-    DrawingAnnotationDto, DrawingCircularRefDto, DrawingDocumentDto, DrawingEdgeEndpoint,
-    DrawingLineRefDto, DrawingLinearDimensionMode, DrawingProjectionMethod,
+    drawing_sheet_size, DrawingAnnotationDto, DrawingCircularRefDto, DrawingDocumentDto,
+    DrawingEdgeEndpoint, DrawingLineRefDto, DrawingLinearDimensionMode, DrawingProjectionMethod,
     DrawingRadialDimensionMode, DrawingSheetDto, DrawingSheetFormat, DrawingSheetOrientation,
     DrawingStandard, DrawingTemplateDto, DrawingTitleBlockDto, DrawingToleranceNoteDto,
     DrawingTolerancePreset, DrawingTopologyAnchorRefDto, DrawingViewAlignment, DrawingViewDto,
     DrawingViewKind,
+};
+pub use drawing_export::{
+    drawing_sheet_dxf, drawing_sheet_svg, manufacturing_profile_dxf, DrawingExportCircle,
+    DrawingExportView,
 };
 pub use drawing_ops::{
     apply_drawing_command, projection_intent_for_view, projection_intents_for_sheet,

@@ -77,6 +77,8 @@ pub fn handle(manager: &mut SketchManager, method: &str, payload: &str) -> Strin
                 manager.apply_drawing_command(command)
             })
         }
+        "drawing_undo" => to_json(manager.undo_drawing()),
+        "drawing_redo" => to_json(manager.redo_drawing()),
         "set_body_appearance" => with_payload(payload, |appearance: nbcad_core::BodyAppearance| {
             manager.set_body_appearance(appearance)
         }),
@@ -267,5 +269,25 @@ fn to_json<R: Serialize>(result: Result<R, SessionError>) -> String {
             .to_string(),
             _ => err_json(e.to_string()),
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn public_host_methods_include_drawing_history() {
+        let source = include_str!("host.rs");
+        for method in [
+            "drawing_command",
+            "drawing_undo",
+            "drawing_redo",
+            "solid_commit",
+            "project_prepare_load",
+        ] {
+            assert!(
+                source.contains(&format!("\"{method}\" =>")),
+                "host.rs is missing {method}"
+            );
+        }
     }
 }

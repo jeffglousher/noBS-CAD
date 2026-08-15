@@ -21,6 +21,7 @@ import { dropApplicationHistory } from '../engine/applicationHistory';
 import {
   exportProjectModelWithVisibility,
   useAppStore,
+  type AppMode,
   type ProjectTabSummary,
 } from '../store/appStore';
 import type { SaveTarget } from './fileIO';
@@ -201,7 +202,10 @@ async function loadModelState(
  * Apply an external project model (MCP live writeback / session poll).
  * Reloads the active tab engine context and store from `modelJson`.
  */
-export async function applyExternalProjectModel(modelJson: string): Promise<void> {
+export async function applyExternalProjectModel(
+  modelJson: string,
+  workspace?: string,
+): Promise<void> {
   const state = useAppStore.getState();
   if (state.mode === 'sketch' || state.activeTool) {
     throw new Error('cannot apply external model while a sketch is active');
@@ -231,7 +235,15 @@ export async function applyExternalProjectModel(modelJson: string): Promise<void
       projectState.drawingDocument,
       projectState.projectVisibility,
     );
-  useAppStore.setState({ dirty: true });
+  const next: { dirty: boolean; activeTab?: string; mode?: AppMode } = { dirty: true };
+  if (workspace === 'drawing') {
+    next.activeTab = 'drawing';
+    next.mode = 'solid';
+  } else if (workspace === 'solid') {
+    next.activeTab = 'solid';
+    next.mode = 'solid';
+  }
+  useAppStore.setState(next);
 }
 
 async function currentModelState(): Promise<ProjectTabViewState> {

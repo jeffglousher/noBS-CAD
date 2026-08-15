@@ -297,12 +297,14 @@ impl SessionBridgeState {
             "updated_ms": 0
         }));
         let model_json = fs::read_to_string(dir.join("model.json")).unwrap_or_default();
+        let focus = read_json_file(&dir.join("focus.json")).unwrap_or(json!({}));
         Ok(json!({
             "session_id": publisher.session_id,
             "generation": heartbeat.get("generation").cloned().unwrap_or(json!(0)),
             "source": heartbeat.get("source").cloned().unwrap_or(json!(null)),
             "writer": writer,
             "model_json": model_json,
+            "focus": focus,
             "session_mode": "live",
         }))
     }

@@ -228,6 +228,7 @@ async function pollWriteback(): Promise<void> {
     let generation = 0;
     let source: string | undefined;
     let modelJson: string | null = null;
+    let workspaceHint: string | undefined;
     if (useHttpBridge()) {
       const heartbeat = (await httpJson(
         `/__nbcad_session/${knownSessionId}/heartbeat.json`,
@@ -241,11 +242,21 @@ async function pollWriteback(): Promise<void> {
       }
       const model = await httpJson(`/__nbcad_session/${knownSessionId}/model.json`);
       modelJson = typeof model === 'string' ? model : JSON.stringify(model);
+      try {
+        const focus = (await httpJson(
+          `/__nbcad_session/${knownSessionId}/focus.json`,
+        )) as { workspace?: string; focus?: string };
+        workspaceHint =
+          focus.workspace === 'drawing' || focus.focus === 'drawing' ? 'drawing' : 'solid';
+      } catch {
+        workspaceHint = 'solid';
+      }
     } else {
       const snapshot = await invoke<{
         generation?: number;
         source?: string;
         model_json?: string;
+        focus?: { workspace?: string; focus?: string };
       }>('mcp_session_bridge_poll');
       generation = Number(snapshot.generation ?? 0);
       source = snapshot.source;
@@ -255,11 +266,15 @@ async function pollWriteback(): Promise<void> {
         return;
       }
       modelJson = snapshot.model_json ?? null;
+      workspaceHint =
+        snapshot.focus?.workspace === 'drawing' || snapshot.focus?.focus === 'drawing'
+          ? 'drawing'
+          : 'solid';
     }
     if (!modelJson) return;
     applyingExternal = true;
     try {
-      await applyExternalProjectModel(modelJson);
+      await applyExternalProjectModel(modelJson, workspaceHint);
       lastSeenGeneration = generation;
       skipPublishUntil = Date.now() + 1_000;
       if (typeof window !== 'undefined') {

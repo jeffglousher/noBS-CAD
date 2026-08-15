@@ -74,7 +74,9 @@ impl FocusPack {
             }
             FocusPack::Solid => "Solid creators: extrude, revolve, sweep, loft, and rib.",
             FocusPack::Modify => "Edge and face modifiers: fillet, chamfer, and hole.",
-            FocusPack::BodyOps => "Body operations: shell, mirror, patterns, combine, and split.",
+            FocusPack::BodyOps => {
+                "Body operations: shell, mirror, patterns, combine, split, and STEP import."
+            }
             FocusPack::Datums => "Construction planes and datum features.",
             FocusPack::History => "Rollback, delete, and reorder in feature history.",
             FocusPack::Inspect => "Read-only solid and sketch definition catalogs.",
@@ -82,7 +84,7 @@ impl FocusPack {
                 "Manufacturing export: 3MF/STL/STEP, materials, appearance, and print demos."
             }
             FocusPack::Drawing => {
-                "Technical drawings: sheet/view/annotation commands, DTO get/set, and HLR projection. DXF/print stay in the UI."
+                "Technical drawings: sheet/view/annotation commands, undo/redo, HLR projection, and MCP-native DXF/SVG/profile export."
             }
         }
     }
@@ -482,6 +484,7 @@ pub fn tags_for_tool(name: &str) -> (FocusPack, bool) {
             | "solid_recompute"
             | "cad_get_focus"
             | "cad_set_focus"
+            | "cad_set_workspace"
             | "cad_list_focus_areas"
             | "cad_get_tool_disclosure_mode"
             | "cad_set_tool_disclosure_mode"
@@ -574,7 +577,8 @@ pub fn tags_for_tool(name: &str) -> (FocusPack, bool) {
         | "solid_combine"
         | "solid_edit_combine"
         | "solid_split_body"
-        | "solid_edit_split_body" => FocusPack::BodyOps,
+        | "solid_edit_split_body"
+        | "solid_import_step" => FocusPack::BodyOps,
         "construction_plane_definitions"
         | "construction_plane_offset"
         | "construction_plane_edit_offset"
@@ -649,7 +653,8 @@ pub fn auto_focus_for_tool(name: &str) -> Option<FocusPack> {
             || name.contains("mirror")
             || name.contains("pattern")
             || name.contains("combine")
-            || name.contains("split_body"))
+            || name.contains("split_body")
+            || name.contains("import_step"))
     {
         return Some(FocusPack::BodyOps);
     }
@@ -888,6 +893,7 @@ mod tests {
             "solid_edit_combine",
             "solid_split_body",
             "solid_edit_split_body",
+            "solid_import_step",
             "construction_plane_definitions",
             "construction_plane_offset",
             "construction_plane_edit_offset",
@@ -912,7 +918,7 @@ mod tests {
             "solid_scene",
             "solid_recompute",
         ];
-        assert_eq!(modeling.len(), 109);
+        assert_eq!(modeling.len(), 110);
         for name in modeling {
             let (pack, spine) = tags_for_tool(name);
             assert!(
@@ -941,6 +947,10 @@ mod tests {
             "cad_drawing_add_note",
             "cad_drawing_projection",
             "cad_drawing_project_sheet",
+            "cad_drawing_undo",
+            "cad_drawing_export_dxf",
+            "cad_drawing_export_svg",
+            "cad_drawing_export_profile_dxf",
         ] {
             assert_eq!(tags_for_tool(name).0, FocusPack::Drawing, "{name}");
         }

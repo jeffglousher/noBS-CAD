@@ -4,6 +4,7 @@
 //! Headless MCP (and any host that calls `drawing_command`) uses this module
 //! so agents get first-class sheet/view/annotation ops instead of inventing
 //! a `DrawingDocumentDto`. Generated HLR curves stay out of the document.
+//! Drawing undo/redo live on `SketchManager`, not in this command enum.
 
 use nbcad_core::BodyId;
 use nbcad_solid::{HoleDefinitionDto, HoleExtent, HoleStyle, HoleThreadHand, SolidSceneDto};
@@ -2597,6 +2598,19 @@ mod tests {
         let drawing = manager.drawing_document();
         assert_eq!(drawing.sheets.len(), 1);
         assert_eq!(drawing.sheets[0].views.len(), 4);
+        let undone = crate::host::handle(&mut manager, "drawing_undo", "");
+        assert!(undone.contains("\"ok\":true"), "{undone}");
+        assert_eq!(manager.drawing_document().sheets[0].annotations.len(), 0);
+        let redone = crate::host::handle(&mut manager, "drawing_redo", "");
+        assert!(redone.contains("VIA HOST"), "{redone}");
+        let empty = crate::host::handle(&mut manager, "drawing_undo", "");
+        assert!(empty.contains("\"ok\":true"), "{empty}");
+        let empty = crate::host::handle(&mut manager, "drawing_undo", "");
+        assert!(empty.contains("\"ok\":true"), "{empty}");
+        let empty = crate::host::handle(&mut manager, "drawing_undo", "");
+        assert!(empty.contains("\"ok\":true"), "{empty}");
+        let exhausted = crate::host::handle(&mut manager, "drawing_undo", "");
+        assert!(exhausted.contains("\"ok\":false"), "{exhausted}");
     }
 
     #[test]

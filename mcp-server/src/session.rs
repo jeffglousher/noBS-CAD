@@ -210,6 +210,30 @@ pub fn release_writer(session_id: &str) -> Result<(), String> {
     claim_writer(session_id, "none", generation)
 }
 
+/// Write `focus.json` so a live UI can follow MCP workspace/focus.
+pub fn write_focus(
+    session_id: &str,
+    focus: &str,
+    workspace: &str,
+    generation: u64,
+) -> Result<(), String> {
+    require_valid_session_id(session_id)?;
+    let body = json!({
+        "focus": focus,
+        "workspace": workspace,
+        "session_id": session_id,
+        "updated_ms": now_ms(),
+        "generation": generation,
+        "session_mode": "live",
+        "source": "mcp",
+    });
+    write_session(
+        session_id,
+        "focus.json",
+        &serde_json::to_string_pretty(&body).map_err(|error| error.to_string())?,
+    )
+}
+
 /// Write `model.json` and bump heartbeat for a live session revision.
 pub fn write_model_revision(
     session_id: &str,

@@ -7,16 +7,20 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use nbcad_core::BodyId;
 use nbcad_export::MeshExportRequest;
 use nbcad_occt::{
-    drawing_projection_anchors, drawing_projection_circles, DrawingProjectionRequest,
-    DrawingSectionPlaneDto, OcctKernel,
+    drawing_projection_anchors, drawing_projection_circles, DrawingProjectionDto,
+    DrawingProjectionRequest, DrawingSectionPlaneDto, OcctKernel,
 };
 use nbcad_sketch::projection_intents_for_sheet;
-use nbcad_sketch::{host, SketchManager};
+use nbcad_sketch::{
+    drawing_sheet_dxf, drawing_sheet_svg, host, manufacturing_profile_dxf, DrawingExportCircle,
+    DrawingExportView, SketchManager,
+};
 use nbcad_solid::{CommitKernelRequest, RecomputePlanDto, SolidSceneDto, StepExportRequest};
 use serde_json::{json, Map, Value};
 
 mod disclosure;
 mod drawing_tools;
+mod full_control;
 mod session;
 mod surfaces;
 
@@ -33,7 +37,9 @@ const META_CLIENT_INFO: &str = "io.modelcontextprotocol/clientInfo";
 const META_CLIENT_CAPABILITIES: &str = "io.modelcontextprotocol/clientCapabilities";
 const META_SERVER_INFO: &str = "io.modelcontextprotocol/serverInfo";
 const UNSUPPORTED_PROTOCOL_VERSION: i64 = -32022;
-const MODELING_TOOL_COUNT: usize = 156;
+const MODELING_TOOL_COUNT: usize = 162;
+const CONTROL_TOOL_COUNT: usize = 12;
+const PRINT_HELPER_COUNT: usize = 8;
 
 #[derive(Clone, Copy)]
 enum Payload {
@@ -139,6 +145,37 @@ enum SessionAttachMode {
     Live,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum WorkspaceKind {
+    Solid,
+    Drawing,
+}
+
+impl WorkspaceKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Solid => "solid",
+            Self::Drawing => "drawing",
+        }
+    }
+
+    fn parse(value: &str) -> Option<Self> {
+        match value {
+            "solid" | "model" | "sketch" => Some(Self::Solid),
+            "drawing" => Some(Self::Drawing),
+            _ => None,
+        }
+    }
+
+    fn from_focus(focus: FocusPack) -> Self {
+        if matches!(focus, FocusPack::Drawing) {
+            Self::Drawing
+        } else {
+            Self::Solid
+        }
+    }
+}
+
 struct CadServer {
     manager: SketchManager,
     kernel: OcctKernel,
@@ -147,6 +184,7 @@ struct CadServer {
     attached_document_id: Option<String>,
     attached_session_mode: SessionAttachMode,
     attached_generation: u64,
+    workspace: WorkspaceKind,
     pending_recompute_transaction: Option<u64>,
     /// First legacy-era reply already carried the 2026-07-28 success manual.
     legacy_protocol_nudge_sent: bool,
@@ -161,6 +199,7 @@ impl CadServer {
             attached_document_id: None,
             attached_session_mode: SessionAttachMode::None,
             attached_generation: 0,
+            workspace: WorkspaceKind::Solid,
             pending_recompute_transaction: None,
             legacy_protocol_nudge_sent: false,
         })
@@ -289,6 +328,10 @@ impl CadServer {
                 self.set_body_appearance_tool(arguments)?
             } else if name == "cad_drawing_projection" || name == "cad_drawing_project_sheet" {
                 self.drawing_projection_tool(name, arguments)?
+            } else if name == "cad_drawing_export_dxf" || name == "cad_drawing_export_svg" {
+                self.drawing_export_tool(name, arguments)?
+            } else if name == "cad_drawing_export_profile_dxf" {
+                self.profile_dxf_tool(arguments)?
             } else {
                 parse_engine_envelope(host::handle(&mut self.manager, engine_method, &payload))?
             }
@@ -331,7 +374,11 @@ impl CadServer {
 
     fn call_control(&mut self, name: &str, arguments: Value) -> Result<Value, String> {
         let value = match name {
-            "cad_get_focus" => self.disclosure.status_json(),
+            "cad_get_focus" => {
+                let mut status = self.disclosure.status_json();
+                self.annotate_workspace(&mut status);
+                status
+            }
             "cad_set_focus" => {
                 let focus_name = arguments
                     .get("focus")
@@ -344,7 +391,29 @@ impl CadServer {
                     .and_then(Value::as_bool)
                     .unwrap_or(true);
                 self.disclosure.set_focus(focus, explicit);
-                self.disclosure.status_json()
+                self.workspace = WorkspaceKind::from_focus(focus);
+                let mut status = self.disclosure.status_json();
+                self.annotate_workspace(&mut status);
+                self.write_live_focus(&mut status)?;
+                status
+            }
+            "cad_set_workspace" => {
+                let workspace_name = arguments
+                    .get("workspace")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| "missing required argument 'workspace'".to_string())?;
+                let workspace = WorkspaceKind::parse(workspace_name)
+                    .ok_or_else(|| format!("unknown workspace '{workspace_name}'"))?;
+                self.workspace = workspace;
+                let focus = match workspace {
+                    WorkspaceKind::Drawing => FocusPack::Drawing,
+                    WorkspaceKind::Solid => FocusPack::Solid,
+                };
+                self.disclosure.set_focus(focus, true);
+                let mut status = self.disclosure.status_json();
+                self.annotate_workspace(&mut status);
+                self.write_live_focus(&mut status)?;
+                status
             }
             "cad_list_focus_areas" => DisclosureState::focus_areas_json(),
             "cad_get_tool_disclosure_mode" => {
@@ -590,6 +659,12 @@ impl CadServer {
         };
         let generation = self.attached_generation.saturating_add(1);
         session::write_model_revision(&session_id, &model_json, generation, "mcp")?;
+        session::write_focus(
+            &session_id,
+            self.disclosure.active().as_str(),
+            self.workspace.as_str(),
+            generation,
+        )?;
         session::claim_writer(&session_id, "mcp", generation)?;
         self.attached_generation = generation;
         if let Value::Object(object) = &mut value {
@@ -654,8 +729,67 @@ impl CadServer {
             if let Some(focus) = FocusPack::parse(focus_name) {
                 self.disclosure.set_focus(focus, false);
                 self.disclosure.clear_explicit_lock();
+                self.workspace = WorkspaceKind::from_focus(focus);
             }
         }
+        if let Some(workspace_name) = focus_value.get("workspace").and_then(Value::as_str) {
+            if let Some(workspace) = WorkspaceKind::parse(workspace_name) {
+                self.workspace = workspace;
+            }
+        }
+    }
+
+    fn annotate_workspace(&self, value: &mut Value) {
+        if let Value::Object(object) = value {
+            object.insert(
+                "workspace".to_string(),
+                Value::String(self.workspace.as_str().to_string()),
+            );
+        }
+    }
+
+    fn write_live_focus(&mut self, value: &mut Value) -> Result<(), String> {
+        if self.attached_session_mode != SessionAttachMode::Live {
+            return Ok(());
+        }
+        let Some(session_id) = self.attached_document_id.clone() else {
+            return Ok(());
+        };
+        let writer = session::read_writer(&session_id);
+        if writer.get("writer").and_then(Value::as_str) == Some("ui") {
+            return Err(
+                "session writer conflict: UI holds the writer lock; call cad_refresh or wait"
+                    .to_string(),
+            );
+        }
+        let generation = self.attached_generation.saturating_add(1);
+        let model =
+            parse_engine_envelope(host::handle(&mut self.manager, "project_export_model", ""))?;
+        let model_json = match model {
+            Value::String(text) => text,
+            other => serde_json::to_string(&other)
+                .map_err(|error| format!("could not encode model.json: {error}"))?,
+        };
+        session::write_model_revision(&session_id, &model_json, generation, "mcp")?;
+        session::write_focus(
+            &session_id,
+            self.disclosure.active().as_str(),
+            self.workspace.as_str(),
+            generation,
+        )?;
+        session::claim_writer(&session_id, "mcp", generation)?;
+        self.attached_generation = generation;
+        if let Value::Object(object) = value {
+            object.insert(
+                "_session".to_string(),
+                json!({
+                    "writeback": true,
+                    "generation": generation,
+                    "workspace": self.workspace.as_str(),
+                }),
+            );
+        }
+        Ok(())
     }
 
     fn export_mesh(&mut self, name: &str, arguments: Value) -> Result<Value, String> {
@@ -764,6 +898,54 @@ impl CadServer {
             }));
         }
         Ok(json!({ "views": views }))
+    }
+
+    fn drawing_export_tool(&mut self, name: &str, arguments: Value) -> Result<Value, String> {
+        let sheet_id = optional_u64(&arguments, "sheet_id")?;
+        let projected = self.drawing_projection_tool("cad_drawing_project_sheet", arguments)?;
+        let document = self.manager.drawing_document();
+        let export_views = export_views_from_projection(&document, &projected)?;
+        let text = if name == "cad_drawing_export_svg" {
+            drawing_sheet_svg(&document, sheet_id, &export_views)?
+        } else {
+            drawing_sheet_dxf(&document, sheet_id, &export_views)?
+        };
+        Ok(json!({
+            "format": if name == "cad_drawing_export_svg" { "svg" } else { "dxf" },
+            "encoding": "utf8_and_base64",
+            "sheet_id": sheet_id.or(document.active_sheet_id),
+            "view_count": export_views.len(),
+            "byte_length": text.len(),
+            "text": text,
+            "bytes_base64": BASE64.encode(text.as_bytes()),
+        }))
+    }
+
+    fn profile_dxf_tool(&mut self, arguments: Value) -> Result<Value, String> {
+        let sketch_name = arguments
+            .get("sketch_name")
+            .and_then(Value::as_str)
+            .ok_or_else(|| "missing required argument 'sketch_name'".to_string())?;
+        let profile_index = arguments
+            .get("profile_index")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| "missing required argument 'profile_index'".to_string())?;
+        let catalog = self.manager.profile_catalog();
+        let item = catalog
+            .iter()
+            .find(|item| item.sketch_name == sketch_name)
+            .ok_or_else(|| format!("sketch '{sketch_name}' has no profile catalog"))?;
+        let dxf = manufacturing_profile_dxf(item, profile_index as u32)?;
+        Ok(json!({
+            "format": "dxf",
+            "kind": "manufacturing_profile",
+            "sketch_name": sketch_name,
+            "profile_index": profile_index,
+            "encoding": "utf8_and_base64",
+            "byte_length": dxf.len(),
+            "text": dxf,
+            "bytes_base64": BASE64.encode(dxf.as_bytes()),
+        }))
     }
 
     fn project_drawing_request(
@@ -923,6 +1105,65 @@ fn parse_engine_envelope(raw: String) -> Result<Value, String> {
     }
 }
 
+fn export_views_from_projection(
+    document: &nbcad_sketch::DrawingDocumentDto,
+    projected: &Value,
+) -> Result<Vec<DrawingExportView>, String> {
+    let views = projected
+        .get("views")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "drawing projection did not return views".to_string())?;
+    let mut exported = Vec::new();
+    for item in views {
+        let view_id = item
+            .get("view_id")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| "projected view is missing view_id".to_string())?;
+        let projection: DrawingProjectionDto = serde_json::from_value(
+            item.get("projection")
+                .cloned()
+                .ok_or_else(|| format!("projected view {view_id} is missing projection"))?,
+        )
+        .map_err(|error| format!("invalid projection for view {view_id}: {error}"))?;
+        let stored = document
+            .sheets
+            .iter()
+            .flat_map(|sheet| sheet.views.iter())
+            .find(|view| view.id == view_id);
+        exported.push(DrawingExportView {
+            view_id,
+            position: stored.map(|view| view.position).unwrap_or([0.0, 0.0]),
+            scale: stored.map(|view| view.scale).unwrap_or(1.0),
+            visible: projection
+                .visible
+                .into_iter()
+                .map(|polyline| polyline.points)
+                .collect(),
+            hidden: projection
+                .hidden
+                .into_iter()
+                .map(|polyline| polyline.points)
+                .collect(),
+            section: projection
+                .section
+                .into_iter()
+                .map(|polyline| polyline.points)
+                .collect(),
+            circles: projection
+                .circles
+                .into_iter()
+                .map(|circle| DrawingExportCircle {
+                    center: circle.center,
+                    radius: circle.radius,
+                    hidden: circle.hidden,
+                })
+                .collect(),
+            bounds: projection.bounds,
+        });
+    }
+    Ok(exported)
+}
+
 fn optional_u64(arguments: &Value, key: &str) -> Result<Option<u64>, String> {
     match arguments.get(key) {
         None | Some(Value::Null) => Ok(None),
@@ -935,6 +1176,32 @@ fn optional_u64(arguments: &Value, key: &str) -> Result<Option<u64>, String> {
 }
 
 /// Tools that never mutate the project model — skip writer checks / writeback.
+fn is_outside_modeling_registry(name: &str) -> bool {
+    matches!(
+        name,
+        "solid_export_step"
+            | "solid_export_stl"
+            | "solid_export_3mf"
+            | "solid_export_preflight"
+            | "material_catalog"
+            | "body_appearances"
+            | "set_body_appearance"
+            | "demo_export_pip_3mf"
+            | "cad_get_focus"
+            | "cad_set_focus"
+            | "cad_set_workspace"
+            | "cad_list_focus_areas"
+            | "cad_get_tool_disclosure_mode"
+            | "cad_set_tool_disclosure_mode"
+            | "cad_list_all_tools"
+            | "cad_cancel_recompute"
+            | "cad_list_sessions"
+            | "cad_attach"
+            | "cad_refresh"
+            | "cad_detach"
+    )
+}
+
 fn is_session_read_only_tool(name: &str) -> bool {
     matches!(
         name,
@@ -945,6 +1212,9 @@ fn is_session_read_only_tool(name: &str) -> bool {
             | "cad_drawing_document"
             | "cad_drawing_projection"
             | "cad_drawing_project_sheet"
+            | "cad_drawing_export_dxf"
+            | "cad_drawing_export_svg"
+            | "cad_drawing_export_profile_dxf"
             | "solid_export_step"
             | "solid_export_stl"
             | "solid_export_3mf"
@@ -1549,7 +1819,7 @@ fn tool_specs() -> Vec<ToolSpec> {
         ToolSpec::direct(
             "cad_drawing_document",
             "Get drawing document",
-            "Return the technical drawing DTO stored in the project (sheets and view intent; not generated HLR curves). Prefer cad_drawing_* command tools for one sheet/view/annotation change. Native HLR is cad_drawing_project_sheet; DXF/print remain UI.",
+            "Return the technical drawing DTO stored in the project (sheets and view intent; not generated HLR curves). Prefer cad_drawing_* command tools for one sheet/view/annotation change. Native HLR is cad_drawing_project_sheet; paper interchange is cad_drawing_export_dxf / cad_drawing_export_svg.",
             "drawing_document",
             Payload::Empty,
             empty_schema(),
@@ -1623,6 +1893,62 @@ fn tool_specs() -> Vec<ToolSpec> {
                 "view_id": { "type": "integer", "minimum": 1 }
             }
         }),
+    ));
+    tools.push(ToolSpec::direct(
+        "cad_drawing_undo",
+        "Undo drawing command",
+        "Undo the last drawing document mutation in this MCP process (sheet/view/annotation/template/BOM).",
+        "drawing_undo",
+        Payload::Empty,
+        empty_schema(),
+    ));
+    tools.push(ToolSpec::direct(
+        "cad_drawing_redo",
+        "Redo drawing command",
+        "Redo the next drawing document mutation in this MCP process.",
+        "drawing_redo",
+        Payload::Empty,
+        empty_schema(),
+    ));
+    tools.push(ToolSpec::direct(
+        "cad_drawing_export_dxf",
+        "Export drawing DXF",
+        "MCP-native paper DXF from current HLR curves, notes, and title. This is not the UI annotation DXF writer; associative dimensions stay in the drawing DTO.",
+        "drawing_export_dxf",
+        Payload::Object,
+        json!({
+            "type": "object",
+            "properties": {
+                "sheet_id": { "type": "integer", "minimum": 1 }
+            }
+        }),
+    ));
+    tools.push(ToolSpec::direct(
+        "cad_drawing_export_svg",
+        "Export drawing SVG",
+        "Paper-space SVG of the active sheet (HLR curves, notes, title). MCP equivalent of Print; the OS print dialog stays in the UI.",
+        "drawing_export_svg",
+        Payload::Object,
+        json!({
+            "type": "object",
+            "properties": {
+                "sheet_id": { "type": "integer", "minimum": 1 }
+            }
+        }),
+    ));
+    tools.push(ToolSpec::direct(
+        "cad_drawing_export_profile_dxf",
+        "Export manufacturing profile DXF",
+        "1:1 sketch-plane DXF of one outer profile and its holes. Same File → Profile DXF output, without the UI save dialog.",
+        "drawing_export_profile_dxf",
+        Payload::Object,
+        object_schema(
+            json!({
+                "sketch_name": { "type": "string", "minLength": 1 },
+                "profile_index": { "type": "integer", "minimum": 0 }
+            }),
+            &["sketch_name", "profile_index"],
+        ),
     ));
     tools.extend([
         ToolSpec::direct(
@@ -2674,6 +3000,20 @@ fn tool_specs() -> Vec<ToolSpec> {
             ),
         ),
         ToolSpec::solid(
+            "solid_import_step",
+            "Import STEP",
+            "Import a STEP/STP file as a persistent history feature. Pass the exchange bytes as base64 (same as File → Import STEP).",
+            "solid_prepare_body_feature",
+            Payload::BodyFeature("import_step"),
+            object_schema(
+                json!({
+                    "file_name": { "type": "string", "minLength": 1 },
+                    "data_base64": { "type": "string", "minLength": 1 }
+                }),
+                &["file_name", "data_base64"],
+            ),
+        ),
+        ToolSpec::solid(
             "solid_recompute",
             "Recompute solids",
             "Fully replay active solid feature history through native OCCT.",
@@ -2875,7 +3215,7 @@ fn tool_specs() -> Vec<ToolSpec> {
         ToolSpec::control(
             "cad_set_focus",
             "Set focus",
-            "Set the active modeling focus pack and schedule a throttled tools/list_changed notification.",
+            "Set the active modeling focus pack and schedule a throttled tools/list_changed notification. Live attach also writes focus.json so the UI workspace can follow.",
             object_schema(
                 json!({
                     "focus": {
@@ -2888,6 +3228,20 @@ fn tool_specs() -> Vec<ToolSpec> {
                     }
                 }),
                 &["focus"],
+            ),
+        ),
+        ToolSpec::control(
+            "cad_set_workspace",
+            "Set UI workspace",
+            "Switch the product workspace the live UI should show: solid (model/sketch) or drawing. Writes focus.json on a live attach so the Drawing/Model switcher follows MCP.",
+            object_schema(
+                json!({
+                    "workspace": {
+                        "type": "string",
+                        "enum": ["solid", "drawing"]
+                    }
+                }),
+                &["workspace"],
             ),
         ),
         ToolSpec::control(
@@ -3042,7 +3396,7 @@ fn server_info() -> Value {
 }
 
 fn modeling_manual() -> &'static str {
-    "Modeling: one persistent headless CAD document. Begin and finish sketches before solid features. Use returned entity/body/face/edge ids. Soft disclosure is on; out-of-focus tools stay callable. Typical loop: sketch_begin → sketch_add_* / constraints → sketch_finish → sketch_profiles → solid_extrude (or revolve/sweep/loft/rib) → solid_scene / cad_document. Optional UI co-link: cad_list_sessions → cad_attach. Drawings: cad_drawing_create_sheet → cad_drawing_auto_layout / cad_drawing_add_* → cad_drawing_project_sheet; DTO get/set remain. DXF/print stay UI. Print: solid_export_3mf."
+    "Modeling: one persistent headless CAD document. Begin and finish sketches before solid features. Use returned entity/body/face/edge ids. Soft disclosure is on; out-of-focus tools stay callable. Typical loop: sketch_begin → sketch_add_* / constraints → sketch_finish → sketch_profiles → solid_extrude (or revolve/sweep/loft/rib) → solid_scene / cad_document. Optional UI co-link: cad_list_sessions → cad_attach. Live UI workspace: cad_set_workspace solid|drawing. Drawings: cad_drawing_create_sheet → cad_drawing_auto_layout / cad_drawing_add_* → cad_drawing_project_sheet / cad_drawing_export_dxf / cad_drawing_export_svg. File import: solid_import_step. Print: solid_export_3mf."
 }
 
 fn modern_protocol_manual() -> &'static str {
@@ -3697,36 +4051,15 @@ mod tests {
         let all_tools = catalog.as_array().unwrap();
         assert_eq!(
             all_tools.len(),
-            MODELING_TOOL_COUNT + 19,
-            "156 modeling tools plus 8 print helpers and 11 control tools"
+            MODELING_TOOL_COUNT + PRINT_HELPER_COUNT + CONTROL_TOOL_COUNT,
+            "162 modeling tools plus 8 print helpers and 12 control tools"
         );
         let modeling_count = all_tools
             .iter()
             .filter(|tool| {
-                !matches!(
-                    tool["name"].as_str(),
-                    Some(
-                        "solid_export_step"
-                            | "solid_export_stl"
-                            | "solid_export_3mf"
-                            | "solid_export_preflight"
-                            | "material_catalog"
-                            | "body_appearances"
-                            | "set_body_appearance"
-                            | "demo_export_pip_3mf"
-                            | "cad_get_focus"
-                            | "cad_set_focus"
-                            | "cad_list_focus_areas"
-                            | "cad_get_tool_disclosure_mode"
-                            | "cad_set_tool_disclosure_mode"
-                            | "cad_list_all_tools"
-                            | "cad_cancel_recompute"
-                            | "cad_list_sessions"
-                            | "cad_attach"
-                            | "cad_refresh"
-                            | "cad_detach"
-                    )
-                )
+                !tool["name"]
+                    .as_str()
+                    .is_some_and(is_outside_modeling_registry)
             })
             .count();
         assert_eq!(modeling_count, MODELING_TOOL_COUNT);
@@ -4213,28 +4546,7 @@ mod tests {
     fn focus_pack_matrix_covers_modeling_registry() {
         let mut packs = std::collections::BTreeMap::<&str, usize>::new();
         for tool in tool_specs() {
-            if matches!(
-                tool.name,
-                "solid_export_step"
-                    | "solid_export_stl"
-                    | "solid_export_3mf"
-                    | "solid_export_preflight"
-                    | "material_catalog"
-                    | "body_appearances"
-                    | "set_body_appearance"
-                    | "demo_export_pip_3mf"
-                    | "cad_get_focus"
-                    | "cad_set_focus"
-                    | "cad_list_focus_areas"
-                    | "cad_get_tool_disclosure_mode"
-                    | "cad_set_tool_disclosure_mode"
-                    | "cad_list_all_tools"
-                    | "cad_cancel_recompute"
-                    | "cad_list_sessions"
-                    | "cad_attach"
-                    | "cad_refresh"
-                    | "cad_detach"
-            ) {
+            if is_outside_modeling_registry(tool.name) {
                 continue;
             }
             *packs.entry(tool.pack.as_str()).or_default() += 1;
@@ -4246,12 +4558,53 @@ mod tests {
         assert_eq!(packs["sketch"], 50);
         assert_eq!(packs["solid"], 10);
         assert!(packs["modify"] >= 6);
-        assert!(packs["body_ops"] >= 10);
+        assert!(packs["body_ops"] >= 11);
         assert!(packs["datums"] >= 6);
         assert!(packs["history"] >= 3);
         assert_eq!(packs["inspect"], 12);
         assert_eq!(packs["drawing"], drawing_tools::DRAWING_PACK_TOOL_COUNT);
         assert!(!packs.contains_key("print"));
+    }
+
+    #[test]
+    fn full_control_matrix_covers_registered_product_tools() {
+        let catalog: std::collections::HashSet<_> =
+            tool_specs().into_iter().map(|tool| tool.name).collect();
+        for item in full_control::HOST_METHODS {
+            assert!(
+                catalog.contains(item.tool),
+                "host method {} maps to unknown tool {}",
+                item.method,
+                item.tool
+            );
+        }
+        for item in full_control::RIBBON_FEATURES {
+            assert!(
+                catalog.contains(item.tool),
+                "ribbon {} maps to unknown tool {}",
+                item.action,
+                item.tool
+            );
+        }
+        for item in full_control::FILE_FEATURES {
+            assert!(
+                catalog.contains(item.tool),
+                "file {} maps to unknown tool {}",
+                item.id,
+                item.tool
+            );
+        }
+        for tool in [
+            "solid_import_step",
+            "cad_drawing_export_dxf",
+            "cad_drawing_export_svg",
+            "cad_drawing_export_profile_dxf",
+            "cad_drawing_undo",
+            "cad_drawing_redo",
+            "cad_set_workspace",
+        ] {
+            assert!(catalog.contains(tool), "missing full-control tool {tool}");
+        }
     }
 
     #[test]

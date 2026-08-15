@@ -87,6 +87,10 @@ pub struct SketchManager {
     body_appearances: Vec<BodyAppearance>,
     /// Persistent technical-drawing sheets and view definitions.
     drawings: DrawingDocumentDto,
+    /// Runtime drawing undo stack (not persisted in model.json).
+    drawing_undo: Vec<DrawingDocumentDto>,
+    /// Runtime drawing redo stack (not persisted in model.json).
+    drawing_redo: Vec<DrawingDocumentDto>,
     /// Persistent Browser visibility expressed with stable model identities.
     project_visibility: ProjectVisibilityDto,
     /// Candidate manager held until its OCCT replay commits successfully.
@@ -123,6 +127,8 @@ impl SketchManager {
             grid_step: GRID_STEP_MM,
             body_appearances: Vec::new(),
             drawings: DrawingDocumentDto::default(),
+            drawing_undo: Vec::new(),
+            drawing_redo: Vec::new(),
             project_visibility: ProjectVisibilityDto::default(),
             pending_project: None,
         }
@@ -292,6 +298,8 @@ impl SketchManager {
             grid_step: GRID_STEP_MM,
             body_appearances: model.body_appearances,
             drawings: model.drawings,
+            drawing_undo: Vec::new(),
+            drawing_redo: Vec::new(),
             project_visibility: model.visibility,
             pending_project: None,
         };
@@ -525,6 +533,7 @@ impl SketchManager {
         drawing: DrawingDocumentDto,
     ) -> Result<DrawingDocumentDto, SessionError> {
         drawing.validate().map_err(SessionError::Solid)?;
+        self.record_drawing_history();
         self.drawings = drawing;
         Ok(self.drawings.clone())
     }
@@ -541,7 +550,41 @@ impl SketchManager {
             command,
         )
         .map_err(SessionError::Solid)?;
-        self.set_drawing_document(next)
+        next.validate().map_err(SessionError::Solid)?;
+        self.record_drawing_history();
+        self.drawings = next;
+        Ok(self.drawings.clone())
+    }
+
+    pub fn undo_drawing(&mut self) -> Result<DrawingDocumentDto, SessionError> {
+        let previous = self.drawing_undo.pop().ok_or_else(|| {
+            SessionError::Solid("nothing to undo on the drawing document".to_string())
+        })?;
+        self.drawing_redo.push(self.drawings.clone());
+        self.drawings = previous;
+        Ok(self.drawings.clone())
+    }
+
+    pub fn redo_drawing(&mut self) -> Result<DrawingDocumentDto, SessionError> {
+        let next = self.drawing_redo.pop().ok_or_else(|| {
+            SessionError::Solid("nothing to redo on the drawing document".to_string())
+        })?;
+        self.drawing_undo.push(self.drawings.clone());
+        self.drawings = next;
+        Ok(self.drawings.clone())
+    }
+
+    fn record_drawing_history(&mut self) {
+        const DRAWING_HISTORY_LIMIT: usize = 64;
+        let current = self.drawings.clone();
+        if self.drawing_undo.last() == Some(&current) {
+            return;
+        }
+        self.drawing_undo.push(current);
+        if self.drawing_undo.len() > DRAWING_HISTORY_LIMIT {
+            self.drawing_undo.remove(0);
+        }
+        self.drawing_redo.clear();
     }
 
     pub fn set_body_appearance(
