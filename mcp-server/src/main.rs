@@ -4561,6 +4561,91 @@ mod tests {
     }
 
     #[test]
+    fn product_resources_read_a_real_occt_document() {
+        let (mut server, scene) = mcp_box();
+        assert!(
+            scene["scene"]["bodies"]
+                .as_array()
+                .is_some_and(|bodies| !bodies.is_empty()),
+            "mcp_box must produce a body: {scene}"
+        );
+
+        let mut next_id = 1u64;
+        let mut read_resource = |uri: &str| {
+            next_id += 1;
+            handle_message(
+                &mut server,
+                json!({
+                    "jsonrpc": "2.0",
+                    "id": next_id,
+                    "method": "resources/read",
+                    "params": { "_meta": modern_meta(), "uri": uri }
+                }),
+            )
+            .pop()
+            .unwrap()
+        };
+
+        let sketch = read_resource("nbcad://sketch");
+        let profiles = read_resource("nbcad://profiles");
+        let features = read_resource("nbcad://features");
+        let workspace = read_resource("nbcad://workspace");
+        let focus = read_resource("nbcad://focus");
+
+        for (uri, response) in [
+            ("nbcad://sketch", &sketch),
+            ("nbcad://profiles", &profiles),
+            ("nbcad://features", &features),
+            ("nbcad://workspace", &workspace),
+            ("nbcad://focus", &focus),
+        ] {
+            assert_eq!(
+                response["result"]["resultType"], "complete",
+                "{uri} must complete: {response}"
+            );
+        }
+
+        let sketch_json: Value =
+            serde_json::from_str(sketch["result"]["contents"][0]["text"].as_str().unwrap())
+                .unwrap();
+        assert!(
+            sketch_json["active"].is_null(),
+            "finished box must leave no active sketch: {sketch_json}"
+        );
+
+        let profiles_json: Value =
+            serde_json::from_str(profiles["result"]["contents"][0]["text"].as_str().unwrap())
+                .unwrap();
+        assert!(
+            profiles_json["profiles"]
+                .as_array()
+                .is_some_and(|items| !items.is_empty()),
+            "real document must expose closed profiles: {profiles_json}"
+        );
+
+        let features_json: Value =
+            serde_json::from_str(features["result"]["contents"][0]["text"].as_str().unwrap())
+                .unwrap();
+        assert!(
+            features_json["extrudes"]
+                .as_array()
+                .is_some_and(|items| !items.is_empty()),
+            "real document must expose the extrude: {features_json}"
+        );
+
+        let workspace_text = workspace["result"]["contents"][0]["text"].as_str().unwrap();
+        assert!(
+            workspace_text.contains("\"workspace\""),
+            "nbcad://workspace must include workspace: {workspace_text}"
+        );
+        let focus_text = focus["result"]["contents"][0]["text"].as_str().unwrap();
+        assert!(
+            focus_text.contains("\"workspace\""),
+            "nbcad://focus must include workspace: {focus_text}"
+        );
+    }
+
+    #[test]
     fn drawing_and_visibility_tools_roundtrip() {
         let mut server = CadServer::new().unwrap();
         let drawing = server.call_tool("cad_drawing_document", json!({})).unwrap();

@@ -26,11 +26,12 @@ async function markdownFiles(directory) {
 }
 
 function frontmatter(content) {
-  if (!content.startsWith('---\n')) return null;
-  const end = content.indexOf('\n---\n', 4);
+  const normalized = content.replace(/\r\n/g, '\n');
+  if (!normalized.startsWith('---\n')) return null;
+  const end = normalized.indexOf('\n---\n', 4);
   if (end < 0) return null;
   const fields = new Map();
-  for (const line of content.slice(4, end).split('\n')) {
+  for (const line of normalized.slice(4, end).split('\n')) {
     const separator = line.indexOf(':');
     if (separator < 1 || /^\s/.test(line)) continue;
     fields.set(
