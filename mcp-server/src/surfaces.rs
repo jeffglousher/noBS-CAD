@@ -301,7 +301,8 @@ mod tests {
         assert!(uris.contains(&"nbcad://document"));
         assert!(uris.contains(&"nbcad://drawing"));
         assert!(uris.contains(&"nbcad://sessions"));
-        let prompts: Vec<_> = list_prompts()["prompts"]
+        let prompt_catalog = list_prompts();
+        let prompts: Vec<_> = prompt_catalog["prompts"]
             .as_array()
             .unwrap()
             .iter()

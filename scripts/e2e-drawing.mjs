@@ -137,7 +137,7 @@ async function dragDrawingExtensionGrip(
 }
 
 try {
-  await page.goto(BASE, { waitUntil: 'networkidle' });
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => window.__appStore.getState().document !== null);
 
   // A box supplies unambiguous angle anchors; two separate cylinders supply
