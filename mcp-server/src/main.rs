@@ -784,6 +784,24 @@ impl CadServer {
                     .to_string(),
             );
         }
+        // project_export_model refuses an in-progress sketch. Keep the live
+        // lock and focus.json, then write model.json on sketch_finish.
+        if self.manager.has_active_sketch() {
+            session::write_focus(
+                &session_id,
+                self.disclosure.active().as_str(),
+                self.workspace.as_str(),
+                self.attached_generation,
+            )?;
+            return Ok(annotate_session_meta(
+                value,
+                json!({
+                    "writeback": false,
+                    "deferred": "active_sketch",
+                    "generation": self.attached_generation,
+                }),
+            ));
+        }
         let model =
             parse_engine_envelope(host::handle(&mut self.manager, "project_export_model", ""))?;
         let model_json = match model {
@@ -801,24 +819,13 @@ impl CadServer {
         )?;
         session::claim_writer(&session_id, "mcp", generation)?;
         self.attached_generation = generation;
-        if let Value::Object(object) = &mut value {
-            object.insert(
-                "_session".to_string(),
-                json!({
-                    "writeback": true,
-                    "generation": generation,
-                }),
-            );
-        } else {
-            value = json!({
-                "result": value,
-                "_session": {
-                    "writeback": true,
-                    "generation": generation,
-                }
-            });
-        }
-        Ok(value)
+        Ok(annotate_session_meta(
+            value,
+            json!({
+                "writeback": true,
+                "generation": generation,
+            }),
+        ))
     }
 
     fn load_snapshot_model(&mut self, session_id: &str) -> Result<(), String> {
@@ -895,6 +902,24 @@ impl CadServer {
                 "session writer conflict: UI holds the writer lock; call cad_refresh or wait"
                     .to_string(),
             );
+        }
+        if self.manager.has_active_sketch() {
+            session::write_focus(
+                &session_id,
+                self.disclosure.active().as_str(),
+                self.workspace.as_str(),
+                self.attached_generation,
+            )?;
+            *value = annotate_session_meta(
+                std::mem::take(value),
+                json!({
+                    "writeback": false,
+                    "deferred": "active_sketch",
+                    "generation": self.attached_generation,
+                    "workspace": self.workspace.as_str(),
+                }),
+            );
+            return Ok(());
         }
         let generation = self.attached_generation.saturating_add(1);
         let model =
@@ -1358,6 +1383,17 @@ fn is_session_read_only_tool(name: &str) -> bool {
             | "body_appearances"
             | "demo_export_pip_3mf"
     )
+}
+
+fn annotate_session_meta(mut value: Value, session: Value) -> Value {
+    if let Value::Object(object) = &mut value {
+        object.insert("_session".to_string(), session);
+        return value;
+    }
+    json!({
+        "result": value,
+        "_session": session
+    })
 }
 
 fn annotate_disclosure(
@@ -5467,8 +5503,8 @@ mod tests {
         assert_eq!(server.attached_session_mode, SessionAttachMode::Live);
         assert_eq!(session::read_writer(&unique)["writer"], "mcp");
 
-        // Mutate in solid mode (not sketch_begin): writeback exports via
-        // project_export_model, which refuses while a sketch is active.
+        // Mutate in solid mode: writeback exports via project_export_model.
+        // In-progress sketches defer model.json until sketch_finish.
         let before = session::require_model_json(&unique).unwrap();
         let mutated = server
             .call_tool("cad_set_document_name", json!({"name": "LiveWritebackDoc"}))
@@ -5524,6 +5560,68 @@ mod tests {
         )
         .unwrap();
         session::claim_writer(unique, writer, generation).unwrap();
+    }
+
+    #[test]
+    fn live_attach_defers_model_writeback_while_sketch_is_active() {
+        let _guard = session::lock_env();
+        let unique = session::test_session_uuid();
+        let dir = std::env::temp_dir().join(format!("nbcad-sessions-live-sketch-{unique}"));
+        std::env::set_var("NBCAD_SESSION_DIR", &dir);
+        let mut donor = CadServer::new().unwrap();
+        donor.call_tool("cad_new_project", json!({})).unwrap();
+        let model = donor.call_tool("cad_project_model", json!({})).unwrap();
+        let model_json = model
+            .as_str()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| serde_json::to_string(&model).unwrap());
+        write_ui_session(&unique, &model_json, 1, "none");
+
+        let mut server = CadServer::new().unwrap();
+        let attached = server
+            .call_tool("cad_attach", json!({"session_id": unique, "mode": "live"}))
+            .unwrap();
+        assert_eq!(attached["session_mode"], "live");
+        let before = session::require_model_json(&unique).unwrap();
+
+        let begun = server
+            .call_tool(
+                "sketch_begin",
+                json!({"plane": {"type": "origin_plane", "plane": "xy"}}),
+            )
+            .expect("sketch_begin must not fail live writeback");
+        assert_eq!(begun["_session"]["writeback"], false);
+        assert_eq!(begun["_session"]["deferred"], "active_sketch");
+        assert_eq!(session::require_model_json(&unique).unwrap(), before);
+
+        server
+            .call_tool(
+                "sketch_add_rectangle_locked",
+                json!({
+                    "mode": "center",
+                    "anchor": {"x": 0.0, "y": 0.0},
+                    "corner_hint": {"x": 10.0, "y": 10.0},
+                    "width_mm": 20.0,
+                    "height_mm": 20.0,
+                    "ctrl_held": false
+                }),
+            )
+            .unwrap();
+        assert_eq!(session::require_model_json(&unique).unwrap(), before);
+
+        let finished = server
+            .call_tool("sketch_finish", json!({}))
+            .expect("sketch_finish should write the project");
+        assert_eq!(finished["_session"]["writeback"], true);
+        let after = session::require_model_json(&unique).unwrap();
+        assert_ne!(before, after, "sketch_finish should write model.json");
+        assert!(
+            after.contains("Sketch1"),
+            "writeback model should include the finished sketch: {after}"
+        );
+
+        std::env::remove_var("NBCAD_SESSION_DIR");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
