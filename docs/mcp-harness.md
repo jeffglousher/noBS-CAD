@@ -17,13 +17,13 @@ machine (or CI runner).
 |-------|----------------|
 | Transport | **stdio** JSON-RPC (`nbcad-mcp`) — logs on **stderr**; optional **`bus-jsonl`** envelope for Kafka/MQTT/NATS connectors ([mcp-message-bus.md](mcp-message-bus.md)) |
 | Protocol | **Recommended `2026-07-28`:** `server/discover` + per-request `_meta`. `initialize` (`2025-06-18`) is a compatibility pathway only — first reply includes the runtime-upgrade manual. Unsupported versions return JSON-RPC `-32022`. Resources (`nbcad://…`) and prompts are advertised. |
-| Tools | **156** modeling tools + control/export helpers (includes 49 drawing-pack tools: commands, DTO get/set, HLR projection) |
+| Tools | **162** modeling tools + 8 print helpers + 12 control tools (includes 54 drawing-pack tools: commands, DTO get/set, HLR, undo/redo, DXF/SVG/profile export) |
 | Disclosure | Soft focus-scoped; `tools.listChanged: true`; ~300 ms throttle |
 | Notify worker | Stdin reader thread + timed wake — `list_changed` / soft-TTL flush **without** a later client ping |
 | Document | One persistent feature history **per MCP process** |
-| Sessions | Snapshot + **live** co-link: `cad_list_sessions` / `cad_attach` (`mode`: `read_only`\|`live`) / `cad_refresh` / `cad_detach` |
+| Sessions | Snapshot + **live** co-link: `cad_list_sessions` / `cad_attach` (`mode`: `read_only`\|`live`) / `cad_refresh` / `cad_detach` / `cad_set_workspace` |
 | Geometry | Same native OCCT replay path as desktop when OCCT is available |
-| Export | STEP + STL + **3MF** (`solid_export_*`, `material_catalog`); 3MF preferred for slicers |
+| Export | STEP + STL + **3MF** (`solid_export_*`, `material_catalog`); STEP import (`solid_import_step`); drawing DXF/SVG/profile (`cad_drawing_export_*`) |
 
 ### Soft disclosure (not a jail)
 Spine → active pack → soft packs (60 s TTL, LRU 2). Hidden tools stay

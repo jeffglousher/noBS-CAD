@@ -36,7 +36,7 @@ default editor path.
 `body_appearances` / `set_body_appearance`, `solid_export_preflight`, and
 `demo_export_pip_3mf`.
 
-**Drawings / Browser:** first-class `cad_drawing_*` command tools (create sheet, auto layout, views, annotations, templates, revisions, BOM) plus `cad_drawing_document` / `cad_set_drawing_document` for the DTO. Native HLR: `cad_drawing_project_sheet` / `cad_drawing_projection`. DXF/print stay in the UI. `cad_project_visibility` / `cad_set_project_visibility` for hidden bodies/datums/sketches.
+**Drawings / Browser:** first-class `cad_drawing_*` command tools (create sheet, auto layout, views, annotations, templates, revisions, BOM, undo/redo) plus `cad_drawing_document` / `cad_set_drawing_document` for the DTO. Native HLR: `cad_drawing_project_sheet` / `cad_drawing_projection`. Paper interchange: `cad_drawing_export_dxf` / `cad_drawing_export_svg` / `cad_drawing_export_profile_dxf`. Live UI workspace: `cad_set_workspace`. File import: `solid_import_step`. `cad_project_visibility` / `cad_set_project_visibility` for hidden bodies/datums/sketches.
 
 ## Build and verify
 

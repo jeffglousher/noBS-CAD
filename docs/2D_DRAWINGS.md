@@ -13,7 +13,7 @@ owns document UI, and Bevy remains the native interactive 3D viewport.
 | `nbcad-occt` | Produces visible/hidden vector curves from exact B-reps with OCCT HLR and exposes stable endpoints and fitted circular topology for annotations. |
 | Tauri host | Serializes drawing commands and exact projection requests with the live kernel. |
 | React/SVG | Lays out sheets, edits properties, and moves views. SVG remains an internal browser/debug surface. |
-| DXF writer | Emits editable true-size paper geometry, layers, semantic dimensions, leaders, notes, and title-block content for CAD interchange, plus separate 1:1 model profiles. |
+| DXF writer | UI annotation-rich paper DXF (Jack). MCP has a separate HLR/profile writer: `cad_drawing_export_dxf` / `cad_drawing_export_profile_dxf` / `cad_drawing_export_svg`. |
 | Browser fallback | Projects tessellated topology for fast UI development when the native kernel is unavailable. It is not an exact manufacturing result. |
 | Bevy | Owns the native 3D viewport only. Its child view is explicitly hidden while the drawing workspace is active. |
 
@@ -303,6 +303,10 @@ native OCCT full/depth section clipping, frontend type/build checks, and a
 browser end-to-end workflow that creates ISO and ANSI sheets, places aligned
 views, creates/drags associative annotations, exercises undo/redo, and parses
 both sheet and 1:1 profile DXF structure.
+
+MCP drives the same drawing document through `cad_drawing_*` commands,
+`cad_drawing_undo` / `cad_drawing_redo`, and MCP-native DXF/SVG/profile export.
+The live UI follows `cad_set_workspace drawing` when a session is attached.
 
 DXF and printed PDF are the supported delivery paths in this implementation;
 DWG is not emitted. Company and regulatory drawing release still requires the

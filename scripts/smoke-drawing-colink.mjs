@@ -272,6 +272,16 @@ async function main() {
     );
     atomicWrite(modelPath, JSON.stringify(published));
     atomicWrite(
+      path.join(SESSION_DIR, sessionId, 'focus.json'),
+      JSON.stringify({
+        focus: 'drawing',
+        workspace: 'drawing',
+        session_id: sessionId,
+        generation: nextGeneration,
+        source: 'mcp',
+      }),
+    );
+    atomicWrite(
       heartbeatPath,
       JSON.stringify({
         updated_ms: Date.now(),
@@ -299,9 +309,11 @@ async function main() {
     if (applied.title !== `colink-drawing-${nextGeneration}`) {
       throw new Error(`expected writeback title colink-drawing-${nextGeneration}, got ${JSON.stringify(applied)}`);
     }
+    if (applied.activeTab !== 'drawing') {
+      throw new Error(`expected MCP workspace writeback to open Drawing, got ${JSON.stringify(applied)}`);
+    }
     await page.evaluate(() => {
       window.__appStore.getState().setDrawingSheetSetupOpen(false);
-      window.__appStore.getState().setActiveTab('drawing');
     });
     await page.getByTestId('drawing-workspace').waitFor({ timeout: 30_000 });
     await screenshot(page, 'drawing_workspace_after_mcp_writeback.png');
