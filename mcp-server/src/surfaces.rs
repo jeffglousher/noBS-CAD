@@ -254,15 +254,15 @@ fn prompt_desc(
     })
 }
 
-fn prompt_title(name: &str) -> &'static str {
+fn prompt_title(name: &str) -> String {
     match name {
-        "model_box" => "Model a box",
-        "model_hole" => "Add a hole",
-        "attach_ui" => "Attach to the UI session",
-        "print_3mf" => "Export 3MF",
-        "drawing_read" => "Inspect drawings",
-        "drawing_sheet" => "Create a drawing sheet",
-        _ => name,
+        "model_box" => "Model a box".to_string(),
+        "model_hole" => "Add a hole".to_string(),
+        "attach_ui" => "Attach to the UI session".to_string(),
+        "print_3mf" => "Export 3MF".to_string(),
+        "drawing_read" => "Inspect drawings".to_string(),
+        "drawing_sheet" => "Create a drawing sheet".to_string(),
+        other => other.to_string(),
     }
 }
 
