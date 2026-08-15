@@ -173,8 +173,9 @@ async function main() {
       null,
       { timeout: 15_000 },
     );
-    await hold(page, 900);
+    await hold(page, 1600);
     await shot(page, 'manipulation_06_after_delete_view.png');
+    await hold(page, 800);
 
     const video = page.video();
     await context.close();
