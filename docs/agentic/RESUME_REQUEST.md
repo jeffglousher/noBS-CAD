@@ -42,8 +42,8 @@ Surfaces (MCP 2026 read + recipe path):
 - Resources: `nbcad://document|project|scene|drawing|focus|workspace|sessions|sketch|sketches|profiles|visibility|appearances|materials|features` plus template `nbcad://session/{session_id}`
 - `nbcad://focus` includes `workspace` (same as `cad_get_focus`)
 - New reads assemble from `SketchManager` / catalog JSON (not `call_tool`)
-- Prompts: `model_box`, `model_hole`, `model_solid`, `attach_ui`, `print_3mf`, `import_step`, `export_step`, `drawing_read`, `drawing_sheet`, `drawing_export`, `undo_history`, `invoke`
-- Constants `MAIN_RESOURCE_URIS` (14) and `MAIN_PROMPT_NAMES` (12) in `mcp-server/src/surfaces.rs` are the catalog source of truth
+- Prompts: `model_box`, `model_hole`, `model_solid`, `attach_ui`, `print_3mf`, `model_print_tool`, `import_step`, `export_step`, `drawing_read`, `drawing_sheet`, `drawing_export`, `undo_history`, `invoke`
+- Constants `MAIN_RESOURCE_URIS` (14) and `MAIN_PROMPT_NAMES` (13) in `mcp-server/src/surfaces.rs` are the catalog source of truth
 
 **Intentionally not MCP:** theme/6DOF settings, pointer Select, project tab close, collaboration comments, `window.print()` (MCP returns SVG), Jack’s annotation-rich UI DXF writer, disabled ribbon placeholders, #11 in-process shared engine, #12 two UI windows.
 
@@ -57,7 +57,7 @@ Surfaces (MCP 2026 read + recipe path):
 
 ## Acceptance criteria
 
-- [ ] `npm run check:mcp-control` reports `102 host methods, 45 drawing ops, 98 ribbon mappings, 11 file features, 14 resources, 12 prompts`
+- [ ] `npm run check:mcp-control` reports `102 host methods, 45 drawing ops, 98 ribbon mappings, 11 file features, 14 resources, 13 prompts`
 - [ ] `cargo fmt --manifest-path mcp-server/Cargo.toml -- --check` is clean
 - [ ] `cargo test --manifest-path mcp-server/Cargo.toml` passes on a machine with native OCCT 7.9.x (`resources_and_prompts_cover_product_surfaces`, `read_product_resource` for the new URIs, invoke/undo goldens, registry counts 166 / 55 / 186)
 - [ ] `cargo test --manifest-path crates/sketch/Cargo.toml --lib` — 105 passed

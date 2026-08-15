@@ -25,8 +25,8 @@
 //! Template: `nbcad://session/{session_id}` peeks a session `model.json`.
 //!
 //! Recipes (`prompts/get`): `model_box`, `model_hole`, `model_solid`,
-//! `attach_ui`, `print_3mf`, `import_step`, `export_step`, `drawing_read`,
-//! `drawing_sheet`, `drawing_export`, `undo_history`, `invoke`.
+//! `attach_ui`, `print_3mf`, `model_print_tool`, `import_step`, `export_step`,
+//! `drawing_read`, `drawing_sheet`, `drawing_export`, `undo_history`, `invoke`.
 //!
 //! # Remaining (not this slice)
 //!
@@ -68,6 +68,7 @@ pub const MAIN_PROMPT_NAMES: &[&str] = &[
     "model_solid",
     "attach_ui",
     "print_3mf",
+    "model_print_tool",
     "import_step",
     "export_step",
     "drawing_read",
@@ -165,6 +166,12 @@ pub fn list_prompts() -> Value {
                 "Export 3MF",
                 "Preflight then export 3MF with materials/colors for a slicer target.",
                 &[("slicer_target", "bambu, orca, prusa, or cura", false)]
+            ),
+            prompt_desc(
+                "model_print_tool",
+                "Walk through a printable tool",
+                "Sketch, build, and export a useful small 3D-printed part (desk cable clip).",
+                &[]
             ),
             prompt_desc(
                 "import_step",
@@ -336,6 +343,21 @@ pub fn get_prompt(name: &str, arguments: &Value) -> Result<Value, String> {
                  5. STL is geometry-only; STEP is CAD interchange (see export_step)."
             )
         }
+        "model_print_tool" => {
+            "Walk through a useful small 3D-printed tool (desk cable clip).\n\
+             1. cad_list_all_tools (or resources/list). cad_agent_guidance is not on this server.\n\
+             2. Optional UI: read nbcad://sessions then cad_attach mode=live. cad_set_workspace solid.\n\
+             3. cad_new_project only for a fresh document. cad_set_document_name.\n\
+             4. cad_set_focus sketch. sketch_begin on origin_plane xy. sketch_set_grid_snap enabled=false.\n\
+             5. sketch_add_rectangle_locked with width_mm/height_mm for the plate. sketch_finish. Read nbcad://profiles.\n\
+             6. cad_set_focus solid. solid_extrude a new_body (plate 3–4 mm). Confirm nbcad://scene.\n\
+             7. sketch_begin on planar_face (plate top), face_origin=face_center. Add locked rectangles for clip walls.\n\
+             8. sketch_finish → solid_extrude join (8–12 mm). Do not stop at a single origin-plane extrusion.\n\
+             9. cad_set_focus modify. solid_fillet / solid_chamfer / solid_hole using Body/Face/Edge ids from nbcad://scene.\n\
+             10. cad_set_focus print. material_catalog → set_body_appearance → solid_export_preflight → solid_export_3mf slicer_target=bambu_studio.\n\
+             11. Confirm nbcad://document, nbcad://features, nbcad://appearances. Print flat; keep walls ≥ 2 mm."
+                .to_string()
+        }
         "import_step" => {
             let file_name = arguments
                 .get("file_name")
@@ -466,6 +488,7 @@ fn prompt_title(name: &str) -> String {
         "model_solid" => "Create a solid from profiles".to_string(),
         "attach_ui" => "Attach to the UI session".to_string(),
         "print_3mf" => "Export 3MF".to_string(),
+        "model_print_tool" => "Walk through a printable tool".to_string(),
         "import_step" => "Import STEP".to_string(),
         "export_step" => "Export STEP".to_string(),
         "drawing_read" => "Inspect drawings".to_string(),
@@ -566,6 +589,12 @@ mod tests {
                 .as_str()
                 .unwrap()
                 .contains("solid_loft")
+        );
+        assert!(
+            get_prompt("model_print_tool", &json!({})).unwrap()["messages"][0]["content"]["text"]
+                .as_str()
+                .unwrap()
+                .contains("sketch_add_rectangle_locked")
         );
         assert!(
             get_prompt("import_step", &json!({})).unwrap()["messages"][0]["content"]["text"]

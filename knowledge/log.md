@@ -2,6 +2,9 @@
 
 ## 2026-08-15
 
+- **Update**: Added `model_print_tool` — an assistant walkthrough recipe for
+  sketching a useful small 3D-printed part (desk cable clip), then fillet /
+  chamfer / hole and `print_3mf`.
 - **Update**: MCP main surface now advertises focused reads for sketch,
   profiles, features, visibility, appearances, materials, and workspace, plus
   recipes for import/export STEP, profile solids, drawing export, undo, and

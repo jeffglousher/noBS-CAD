@@ -237,6 +237,7 @@ const REQUIRED_PROMPTS = [
   'model_solid',
   'attach_ui',
   'print_3mf',
+  'model_print_tool',
   'import_step',
   'export_step',
   'drawing_read',
