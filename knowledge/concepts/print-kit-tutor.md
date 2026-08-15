@@ -8,8 +8,10 @@ updated: 2026-08-15
 
 # Print-kit tutor
 
-A rerunnable CAD exam, not a one-off prototype. MCP teaches a 0.4 mm Bambu
-nozzle tolerance stack by building a real printable journal kit and grading it.
+**Benchmark #1** in the agentic MCP suite
+([integration tests](../../docs/agentic/INTEGRATION_TESTS.md)). A rerunnable
+CAD exam, not a one-off prototype. MCP teaches a 0.4 mm Bambu nozzle
+tolerance stack by building a real printable journal kit and grading it.
 
 - Spec: [print-kit-tutor.spec.json](../../scripts/fixtures/print-kit-tutor.spec.json)
 - Recipe: `prompts/get model_print_kit`

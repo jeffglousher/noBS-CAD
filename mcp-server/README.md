@@ -45,10 +45,14 @@ default editor path.
 
 ## Build and verify
 
+Ordered MCP benchmarks start with the print-kit tutor
+([docs/agentic/INTEGRATION_TESTS.md](../docs/agentic/INTEGRATION_TESTS.md) #1):
+
 ```sh
 cargo build --release --manifest-path mcp-server/Cargo.toml
-cargo test --manifest-path mcp-server/Cargo.toml
+cargo test --manifest-path mcp-server/Cargo.toml print_kit_tutor
 npm run test:mcp-print-kit
+cargo test --manifest-path mcp-server/Cargo.toml
 ```
 
 Windows:

@@ -1,7 +1,9 @@
 # Print-kit tutor (CAD synthesis exam)
 
-This is the reusable integration test for **AI → printable mechanical CAD**.
-It is the curriculum, the worked example, and the grader.
+**Benchmark #1** in the agentic suite
+([INTEGRATION_TESTS.md](INTEGRATION_TESTS.md)). This is the reusable
+integration test for **AI → printable mechanical CAD**. It is the
+curriculum, the worked example, and the grader.
 
 ## What to build
 

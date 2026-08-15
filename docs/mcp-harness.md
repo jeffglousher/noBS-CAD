@@ -76,6 +76,12 @@ Focus / mode / soft-TTL changes schedule `notifications/tools/list_changed`.
 The server wakes on that deadline even if the client is idle — it does **not**
 require a later `ping` or tool call to flush the notification.
 
+### Integration tests / benchmarks
+Ordered agentic suite: [agentic/INTEGRATION_TESTS.md](agentic/INTEGRATION_TESTS.md).
+**#1 is the print-kit tutor** (`npm run test:mcp-print-kit` +
+`cargo test print_kit_tutor`) — AI → FDM-tolerant printable kit, not a
+tool-count gate.
+
 ### Message bus (system integration)
 Host-neutral crate `nbcad-mcp-bus` defines request/reply subjects and an
 `InMemoryBus` that **CI requires**. Set `NBCAD_MCP_TRANSPORT=bus-jsonl` so an

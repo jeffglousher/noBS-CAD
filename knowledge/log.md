@@ -2,6 +2,9 @@
 
 ## 2026-08-15
 
+- **Update**: Promoted the print-kit tutor to **benchmark #1** in
+  [docs/agentic/INTEGRATION_TESTS.md](../docs/agentic/INTEGRATION_TESTS.md)
+  (ordered MCP integration tests).
 - **Update**: Added `model_print_kit` — a reusable CAD synthesis exam
   (journal + 608 bushing + housing + helical loft) that grades 0.4 mm Bambu
   nozzle tolerancing. Spec `scripts/fixtures/print-kit-tutor.spec.json`;

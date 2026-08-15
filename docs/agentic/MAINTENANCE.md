@@ -28,9 +28,20 @@ Example Cursor / VS Code config:
 
 ## Tests
 
+Ordered MCP benchmarks live in [INTEGRATION_TESTS.md](INTEGRATION_TESTS.md).
+**#1 is the print-kit tutor** ([PRINT_KIT_TUTOR.md](PRINT_KIT_TUTOR.md)):
+
 ```powershell
-cargo test --manifest-path mcp-server/Cargo.toml
+cargo test --manifest-path mcp-server/Cargo.toml print_kit_tutor
 npm run test:mcp-print-kit
+```
+
+Then the rest of the suite:
+
+```powershell
+npm run check:mcp-control
+cargo test --manifest-path mcp-server/Cargo.toml
+npm run test:session-bridge
 ```
 
 CI: `.github/workflows/mcp-server.yml` (Windows + vcpkg OCCT).

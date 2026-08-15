@@ -41,5 +41,7 @@ Proposals: [proposed architecture](../../docs/proposed-architecture.md).
 3. First-party NATS/Kafka connector binary
 
 See also the [MCP 2026 success manual](../../docs/agentic/MCP_2026.md),
-the [MCP playbook](../../docs/agent-mcp.md), and
+the [MCP playbook](../../docs/agent-mcp.md),
+[integration tests](../../docs/agentic/INTEGRATION_TESTS.md) (benchmark #1
+is the print-kit tutor), and
 [server documentation](../../mcp-server/README.md).

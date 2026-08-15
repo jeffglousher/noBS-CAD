@@ -1,0 +1,42 @@
+# MCP integration tests and benchmarks
+
+This is the ordered list of **agentic CAD benchmarks**. Start here when
+proving the MCP server can teach and grade real modeling — not only that
+tools exist.
+
+**#1 is the print-kit tutor.** It is the first synthesis exam: an agent
+must design an FDM-tolerant mechanical kit, then a grader checks clearance,
+orientation, machine elements, a helical loft, and a 3MF package.
+
+Curriculum and grader detail: [PRINT_KIT_TUTOR.md](PRINT_KIT_TUTOR.md).
+Spec: `scripts/fixtures/print-kit-tutor.spec.json`. Recipe: `model_print_kit`.
+
+## Ordered benchmarks
+
+| # | Benchmark | How to run | What it proves |
+|---|-----------|------------|----------------|
+| **1** | **Print-kit tutor** (FDM journal kit) | `cargo test --manifest-path mcp-server/Cargo.toml print_kit_tutor` then `npm run test:mcp-print-kit` | AI → printable parts: +0.40 mm diametral clearance, no press fits, XY holes, 608 seat, 4-station helical loft, 3MF |
+| 2 | Completeness gate | `npm run check:mcp-control` | Modeling / print / control tools and main prompts stay wired (`model_print_kit` included) |
+| 3 | CadServer goldens | `cargo test --manifest-path mcp-server/Cargo.toml` | Headless OCCT replay and MCP RPC (includes the #1 engine exam) |
+| 4 | Session bridge | `npm run test:session-bridge` | Live attach, writer lock, UI heartbeat must not clobber MCP revisions |
+
+Windows needs OCCT on `PATH` for #1 and #3:
+
+```powershell
+$env:OCCT_ROOT = "$PWD\vcpkg_installed\x64-windows"
+$env:Path = "$env:OCCT_ROOT\bin;$env:Path"
+```
+
+CI (`.github/workflows/mcp-server.yml`) runs #2, then #3, then the Node half
+of #1. Optional live desktop for #1: `node scripts/mcp-print-kit-tutor.mjs --live`.
+
+Supporting crate jobs (export, xtask `install-mcp`) are packaging checks, not
+synthesis benchmarks. Do not insert them above #1.
+
+## Why #1 is first
+
+Tool-count and RPC goldens can pass while an agent still emits a single
+side-view extrusion that will not print or assemble. The print-kit tutor
+fails that class of answer. Later kit scale-ups (helical Savonius, double-D
+drive, thrust washers) reuse the same spec rules; they do not replace this
+exam.
