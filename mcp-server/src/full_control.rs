@@ -941,6 +941,10 @@ pub const FILE_FEATURES: &[FileFeature] = &[
         tool: "cad_project_model",
     },
     FileFeature {
+        id: "rename",
+        tool: "cad_set_document_name",
+    },
+    FileFeature {
         id: "importStep",
         tool: "solid_import_step",
     },
@@ -966,7 +970,62 @@ pub const FILE_FEATURES: &[FileFeature] = &[
     },
 ];
 
+pub const BROWSER_FEATURES: &[FileFeature] = &[
+    FileFeature {
+        id: "hide_show",
+        tool: "cad_set_project_visibility",
+    },
+    FileFeature {
+        id: "edit_sketch",
+        tool: "sketch_edit",
+    },
+    FileFeature {
+        id: "delete_feature",
+        tool: "solid_delete_feature",
+    },
+    FileFeature {
+        id: "appearance",
+        tool: "set_body_appearance",
+    },
+    FileFeature {
+        id: "rename_document",
+        tool: "cad_set_document_name",
+    },
+];
+
+pub const TIMELINE_FEATURES: &[FileFeature] = &[
+    FileFeature {
+        id: "rollback",
+        tool: "solid_set_rollback",
+    },
+    FileFeature {
+        id: "reorder",
+        tool: "solid_reorder_feature",
+    },
+    FileFeature {
+        id: "delete",
+        tool: "solid_delete_feature",
+    },
+    FileFeature {
+        id: "edit_feature",
+        tool: "solid_edit_extrude",
+    },
+];
+
+pub const EDIT_FEATURES: &[FileFeature] = &[
+    FileFeature {
+        id: "undo",
+        tool: "cad_undo",
+    },
+    FileFeature {
+        id: "redo",
+        tool: "cad_redo",
+    },
+];
+
 pub const WORKSPACES: &[&str] = &["solid", "drawing"];
+
+pub const INTERNAL_HOST_METHODS: &[&str] = &["solid_commit"];
 
 #[cfg(test)]
 mod tests {
@@ -1003,6 +1062,9 @@ mod tests {
             .iter()
             .map(|item| item.tool)
             .chain(FILE_FEATURES.iter().map(|item| item.tool))
+            .chain(BROWSER_FEATURES.iter().map(|item| item.tool))
+            .chain(TIMELINE_FEATURES.iter().map(|item| item.tool))
+            .chain(EDIT_FEATURES.iter().map(|item| item.tool))
             .collect();
         for required in [
             "solid_import_step",
@@ -1011,9 +1073,110 @@ mod tests {
             "cad_drawing_export_profile_dxf",
             "cad_set_workspace",
             "cad_drawing_add_derived_view",
+            "cad_set_document_name",
+            "cad_undo",
+            "cad_redo",
         ] {
             assert!(tools.contains(required), "missing product tool {required}");
         }
         assert_eq!(WORKSPACES, &["solid", "drawing"]);
     }
+
+    #[test]
+    fn host_source_methods_are_in_the_matrix() {
+        let mapped: HashSet<_> = HOST_METHODS.iter().map(|item| item.method).collect();
+        for method in super::host_methods_in_source() {
+            if INTERNAL_HOST_METHODS.contains(&method.as_str()) {
+                continue;
+            }
+            assert!(
+                mapped.contains(method.as_str()),
+                "host method {method} is not in HOST_METHODS"
+            );
+        }
+    }
+
+    #[test]
+    fn drawing_command_source_ops_have_named_tools() {
+        let ops: HashSet<_> = crate::drawing_tools::drawing_command_tools()
+            .into_iter()
+            .map(|tool| tool.op.to_string())
+            .collect();
+        for op in super::drawing_ops_in_source() {
+            assert!(
+                ops.contains(&op),
+                "DrawingCommand {op} has no named MCP tool"
+            );
+        }
+        assert_eq!(ops.len(), crate::drawing_tools::DRAWING_COMMAND_TOOL_COUNT);
+    }
+}
+
+fn host_methods_in_source() -> Vec<String> {
+    include_str!("../../crates/sketch/src/host.rs")
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            let rest = trimmed.strip_prefix('"')?;
+            let end = rest.find('"')?;
+            let name = &rest[..end];
+            if rest[end + 1..].trim_start().starts_with("=>") {
+                Some(name.to_string())
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+fn drawing_ops_in_source() -> Vec<String> {
+    let src = include_str!("../../crates/sketch/src/drawing_ops.rs");
+    let start = src
+        .find("pub enum DrawingCommand")
+        .expect("DrawingCommand enum");
+    let body = &src[start..];
+    let end = body
+        .find("pub struct DrawingRevisionDraft")
+        .expect("enum terminator");
+    body[..end]
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            let name = trimmed
+                .strip_suffix(" {},")
+                .or_else(|| trimmed.strip_suffix(" {"))?;
+            if name
+                .chars()
+                .next()
+                .is_some_and(|ch| ch.is_ascii_uppercase())
+                && !name.contains(' ')
+            {
+                Some(pascal_to_snake(name))
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+fn pascal_to_snake(name: &str) -> String {
+    let chars: Vec<char> = name.chars().collect();
+    let mut out = String::new();
+    for (index, ch) in chars.iter().enumerate() {
+        if ch.is_ascii_uppercase() {
+            if index > 0 {
+                let prev_lower = chars[index - 1].is_ascii_lowercase();
+                let next_lower = chars
+                    .get(index + 1)
+                    .is_some_and(|next| next.is_ascii_lowercase());
+                if prev_lower || next_lower {
+                    out.push('_');
+                }
+            }
+            out.extend(ch.to_lowercase());
+        } else {
+            out.push(*ch);
+        }
+    }
+    out
 }

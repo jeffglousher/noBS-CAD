@@ -40,9 +40,10 @@ Pinned vcpkg checkout must use `fetch-depth: 0` (versioned port trees fail on sh
 1. Register `ToolSpec` in `mcp-server/src/main.rs` `tool_specs()` (drawing commands live in `drawing_tools.rs`).
 2. Add pack tags in `disclosure::tags_for_tool` (and `auto_focus_for_tool` if needed). `cad_drawing_*` is tagged as the drawing pack by prefix.
 3. Update `MODELING_TOOL_COUNT` / pack count assertions if it is a modeling tool.
-4. Add or extend a headless golden under `#[cfg(test)]` in `main.rs`.
-5. Update `docs/mcp-harness.md` matrix row if packs change.
-6. Run the test suite with OCCT DLLs on `PATH`.
+4. If the tool is a product feature, add it to `mcp-server/src/full_control.rs` and keep `npm run check:mcp-control` green.
+5. Add or extend a headless golden under `#[cfg(test)]` in `main.rs`.
+6. Update `docs/mcp-harness.md` matrix row if packs change.
+7. Run the test suite with OCCT DLLs on `PATH`.
 
 ## Disclosure knobs (defaults)
 

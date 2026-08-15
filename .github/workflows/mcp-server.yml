@@ -13,7 +13,10 @@ on:
       - 'crates/mcp-bus/**'
       - 'crates/id/**'
       - 'src/sessionBridge.ts'
+      - 'src/ribbon/config.ts'
+      - 'src/components/TopBar.tsx'
       - 'scripts/session-http-bridge.mjs'
+      - 'scripts/check-mcp-full-control.mjs'
       - 'xtask/**'
       - 'vcpkg.json'
       - '.github/workflows/mcp-server.yml'
@@ -28,7 +31,10 @@ on:
       - 'crates/mcp-bus/**'
       - 'crates/id/**'
       - 'src/sessionBridge.ts'
+      - 'src/ribbon/config.ts'
+      - 'src/components/TopBar.tsx'
       - 'scripts/session-http-bridge.mjs'
+      - 'scripts/check-mcp-full-control.mjs'
       - 'xtask/**'
       - 'vcpkg.json'
       - '.github/workflows/mcp-server.yml'
@@ -57,6 +63,14 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: MCP full-control completeness
+        run: node scripts/check-mcp-full-control.mjs
 
       - name: Rust formatting
         shell: pwsh

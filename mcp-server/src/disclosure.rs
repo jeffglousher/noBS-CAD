@@ -485,6 +485,7 @@ pub fn tags_for_tool(name: &str) -> (FocusPack, bool) {
             | "cad_get_focus"
             | "cad_set_focus"
             | "cad_set_workspace"
+            | "cad_invoke"
             | "cad_list_focus_areas"
             | "cad_get_tool_disclosure_mode"
             | "cad_set_tool_disclosure_mode"
@@ -586,9 +587,11 @@ pub fn tags_for_tool(name: &str) -> (FocusPack, bool) {
         | "construction_plane_edit_midplane"
         | "construction_plane_at_angle"
         | "construction_plane_edit_at_angle" => FocusPack::Datums,
-        "solid_set_rollback" | "solid_delete_feature" | "solid_reorder_feature" => {
-            FocusPack::History
-        }
+        "solid_set_rollback"
+        | "solid_delete_feature"
+        | "solid_reorder_feature"
+        | "cad_undo"
+        | "cad_redo" => FocusPack::History,
         "solid_extrude_definitions"
         | "solid_revolve_definitions"
         | "solid_sweep_definitions"
@@ -904,6 +907,9 @@ mod tests {
             "solid_set_rollback",
             "solid_delete_feature",
             "solid_reorder_feature",
+            "cad_undo",
+            "cad_redo",
+            "cad_invoke",
             "solid_extrude_definitions",
             "solid_revolve_definitions",
             "solid_sweep_definitions",
@@ -918,7 +924,7 @@ mod tests {
             "solid_scene",
             "solid_recompute",
         ];
-        assert_eq!(modeling.len(), 110);
+        assert_eq!(modeling.len(), 113);
         for name in modeling {
             let (pack, spine) = tags_for_tool(name);
             assert!(
@@ -951,6 +957,7 @@ mod tests {
             "cad_drawing_export_dxf",
             "cad_drawing_export_svg",
             "cad_drawing_export_profile_dxf",
+            "cad_drawing_command",
         ] {
             assert_eq!(tags_for_tool(name).0, FocusPack::Drawing, "{name}");
         }

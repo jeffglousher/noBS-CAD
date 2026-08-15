@@ -627,11 +627,13 @@ pub const DRAWING_COMMAND_TOOL_COUNT: usize = 45;
 pub const DRAWING_PROJECTION_TOOL_COUNT: usize = 2;
 pub const DRAWING_HISTORY_TOOL_COUNT: usize = 2;
 pub const DRAWING_EXPORT_TOOL_COUNT: usize = 3;
+pub const DRAWING_GENERIC_TOOL_COUNT: usize = 1;
 pub const DRAWING_PACK_TOOL_COUNT: usize = 2
     + DRAWING_COMMAND_TOOL_COUNT
     + DRAWING_PROJECTION_TOOL_COUNT
     + DRAWING_HISTORY_TOOL_COUNT
-    + DRAWING_EXPORT_TOOL_COUNT;
+    + DRAWING_EXPORT_TOOL_COUNT
+    + DRAWING_GENERIC_TOOL_COUNT;
 
 #[cfg(test)]
 mod tests {
@@ -642,7 +644,7 @@ mod tests {
     fn drawing_command_catalog_is_complete_and_unique() {
         let tools = drawing_command_tools();
         assert_eq!(tools.len(), DRAWING_COMMAND_TOOL_COUNT);
-        assert_eq!(DRAWING_PACK_TOOL_COUNT, 54);
+        assert_eq!(DRAWING_PACK_TOOL_COUNT, 55);
         let mut names = HashSet::new();
         let mut ops = HashSet::new();
         for tool in &tools {

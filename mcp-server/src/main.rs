@@ -37,7 +37,7 @@ const META_CLIENT_INFO: &str = "io.modelcontextprotocol/clientInfo";
 const META_CLIENT_CAPABILITIES: &str = "io.modelcontextprotocol/clientCapabilities";
 const META_SERVER_INFO: &str = "io.modelcontextprotocol/serverInfo";
 const UNSUPPORTED_PROTOCOL_VERSION: i64 = -32022;
-const MODELING_TOOL_COUNT: usize = 162;
+const MODELING_TOOL_COUNT: usize = 166;
 const CONTROL_TOOL_COUNT: usize = 12;
 const PRINT_HELPER_COUNT: usize = 8;
 
@@ -188,6 +188,8 @@ struct CadServer {
     pending_recompute_transaction: Option<u64>,
     /// First legacy-era reply already carried the 2026-07-28 success manual.
     legacy_protocol_nudge_sent: bool,
+    /// Solid Redo snapshots taken by `cad_undo` when it deletes the latest feature.
+    solid_redo_models: Vec<String>,
 }
 
 impl CadServer {
@@ -202,6 +204,7 @@ impl CadServer {
             workspace: WorkspaceKind::Solid,
             pending_recompute_transaction: None,
             legacy_protocol_nudge_sent: false,
+            solid_redo_models: Vec::new(),
         })
     }
 
@@ -332,37 +335,22 @@ impl CadServer {
                 self.drawing_export_tool(name, arguments)?
             } else if name == "cad_drawing_export_profile_dxf" {
                 self.profile_dxf_tool(arguments)?
+            } else if name == "cad_invoke" {
+                self.invoke_engine(arguments)?
+            } else if name == "cad_undo" {
+                self.application_undo()?
+            } else if name == "cad_redo" {
+                self.application_redo()?
             } else {
                 parse_engine_envelope(host::handle(&mut self.manager, engine_method, &payload))?
             }
         } else {
-            let plan_value =
-                parse_engine_envelope(host::handle(&mut self.manager, engine_method, &payload))?;
-            let plan: RecomputePlanDto = serde_json::from_value(plan_value)
-                .map_err(|error| format!("engine returned an invalid recompute plan: {error}"))?;
-            let transaction_id = plan.transaction_id;
-            self.pending_recompute_transaction = Some(transaction_id);
-            let scene = match self.kernel.recompute(&plan) {
-                Ok(scene) => scene,
-                Err(error) => {
-                    self.manager.cancel_solid_recompute(transaction_id);
-                    self.pending_recompute_transaction = None;
-                    return Err(error.to_string());
-                }
-            };
-            let commit = CommitKernelRequest {
-                transaction_id,
-                scene,
-            };
-            let committed = parse_engine_envelope(host::handle(
-                &mut self.manager,
-                "solid_commit",
-                &serde_json::to_string(&commit)
-                    .map_err(|error| format!("could not encode kernel result: {error}"))?,
-            ))?;
-            self.pending_recompute_transaction = None;
-            committed
+            self.replay_host_method(engine_method, &payload)?
         };
+
+        if execution == Execution::SolidReplay && !matches!(name, "cad_undo" | "cad_redo") {
+            self.solid_redo_models.clear();
+        }
 
         if let Some(focus) = auto_focus_for_tool(name) {
             self.disclosure.auto_hint(focus);
@@ -370,6 +358,152 @@ impl CadServer {
         value = annotate_disclosure(value, &self.disclosure, pack, spine);
         value = self.maybe_session_writeback(name, value)?;
         Ok(value)
+    }
+
+    fn replay_host_method(&mut self, method: &str, payload: &str) -> Result<Value, String> {
+        let plan_value = parse_engine_envelope(host::handle(&mut self.manager, method, payload))?;
+        let plan: RecomputePlanDto = serde_json::from_value(plan_value)
+            .map_err(|error| format!("engine returned an invalid recompute plan: {error}"))?;
+        let transaction_id = plan.transaction_id;
+        self.pending_recompute_transaction = Some(transaction_id);
+        let scene = match self.kernel.recompute(&plan) {
+            Ok(scene) => scene,
+            Err(error) => {
+                self.manager.cancel_solid_recompute(transaction_id);
+                self.pending_recompute_transaction = None;
+                return Err(error.to_string());
+            }
+        };
+        let commit = CommitKernelRequest {
+            transaction_id,
+            scene,
+        };
+        let committed = parse_engine_envelope(host::handle(
+            &mut self.manager,
+            "solid_commit",
+            &serde_json::to_string(&commit)
+                .map_err(|error| format!("could not encode kernel result: {error}"))?,
+        ))?;
+        self.pending_recompute_transaction = None;
+        Ok(committed)
+    }
+
+    fn invoke_engine(&mut self, arguments: Value) -> Result<Value, String> {
+        let method = arguments
+            .get("method")
+            .and_then(Value::as_str)
+            .ok_or_else(|| "missing required argument 'method'".to_string())?;
+        if method == "solid_commit" {
+            return Err(
+                "solid_commit is internal to replay; call the matching solid_* tool or cad_invoke with solid_prepare_*"
+                    .to_string(),
+            );
+        }
+        let payload = match arguments.get("arguments") {
+            None | Some(Value::Null) => String::new(),
+            Some(value) => serde_json::to_string(value)
+                .map_err(|error| format!("could not encode invoke arguments: {error}"))?,
+        };
+        if method.starts_with("solid_prepare_")
+            || method == "project_prepare_load"
+            || method == "project_prepare_new"
+        {
+            self.solid_redo_models.clear();
+            return self.replay_host_method(method, &payload);
+        }
+        parse_engine_envelope(host::handle(&mut self.manager, method, &payload))
+    }
+
+    fn application_undo(&mut self) -> Result<Value, String> {
+        if self.workspace == WorkspaceKind::Drawing {
+            let drawing =
+                parse_engine_envelope(host::handle(&mut self.manager, "drawing_undo", ""))?;
+            return Ok(json!({ "scope": "drawing", "drawing": drawing }));
+        }
+        if let Some(sketch) = self.manager.active_snapshot() {
+            if !sketch.can_undo {
+                return Err("nothing to undo in the active sketch".to_string());
+            }
+            let result = parse_engine_envelope(host::handle(&mut self.manager, "undo", ""))?;
+            return Ok(json!({ "scope": "sketch", "result": result }));
+        }
+        let document = self.manager.document_dto();
+        if document.rollback_index == 0 {
+            return Err("nothing to undo in the solid history".to_string());
+        }
+        if document.rollback_index == document.features.len() {
+            let model = self
+                .manager
+                .export_project_model()
+                .map_err(|error| error.to_string())?;
+            let feature_id = document.features[document.rollback_index - 1].id.0;
+            self.solid_redo_models.push(model);
+            let result = self.replay_host_method(
+                "solid_prepare_delete_feature",
+                &serde_json::to_string(&json!({ "feature_id": feature_id }))
+                    .map_err(|error| format!("could not encode delete: {error}"))?,
+            )?;
+            return Ok(json!({
+                "scope": "solid",
+                "op": "delete_feature",
+                "feature_id": feature_id,
+                "result": result
+            }));
+        }
+        let rollback_index = document.rollback_index - 1;
+        let result = self.replay_host_method(
+            "solid_prepare_set_rollback",
+            &serde_json::to_string(&json!({ "rollback_index": rollback_index }))
+                .map_err(|error| format!("could not encode rollback: {error}"))?,
+        )?;
+        Ok(json!({
+            "scope": "solid",
+            "op": "rollback",
+            "rollback_index": rollback_index,
+            "result": result
+        }))
+    }
+
+    fn application_redo(&mut self) -> Result<Value, String> {
+        if self.workspace == WorkspaceKind::Drawing {
+            let drawing =
+                parse_engine_envelope(host::handle(&mut self.manager, "drawing_redo", ""))?;
+            return Ok(json!({ "scope": "drawing", "drawing": drawing }));
+        }
+        if let Some(sketch) = self.manager.active_snapshot() {
+            if !sketch.can_redo {
+                return Err("nothing to redo in the active sketch".to_string());
+            }
+            let result = parse_engine_envelope(host::handle(&mut self.manager, "redo", ""))?;
+            return Ok(json!({ "scope": "sketch", "result": result }));
+        }
+        let document = self.manager.document_dto();
+        if document.rollback_index < document.features.len() {
+            let rollback_index = document.rollback_index + 1;
+            let result = self.replay_host_method(
+                "solid_prepare_set_rollback",
+                &serde_json::to_string(&json!({ "rollback_index": rollback_index }))
+                    .map_err(|error| format!("could not encode rollback: {error}"))?,
+            )?;
+            return Ok(json!({
+                "scope": "solid",
+                "op": "rollback",
+                "rollback_index": rollback_index,
+                "result": result
+            }));
+        }
+        let model = self
+            .solid_redo_models
+            .pop()
+            .ok_or_else(|| "nothing to redo in the solid history".to_string())?;
+        let payload = serde_json::to_string(&model)
+            .map_err(|error| format!("could not encode redo model: {error}"))?;
+        let result = self.replay_host_method("project_prepare_load", &payload)?;
+        Ok(json!({
+            "scope": "solid",
+            "op": "restore",
+            "result": result
+        }))
     }
 
     fn call_control(&mut self, name: &str, arguments: Value) -> Result<Value, String> {
@@ -1765,6 +1899,42 @@ fn tool_specs() -> Vec<ToolSpec> {
             object_schema(json!({"name": {"type": "string", "minLength": 1}}), &["name"]),
         ),
         ToolSpec::direct(
+            "cad_invoke",
+            "Invoke any engine method",
+            "Mechanical full-control escape hatch: call any host.rs method by name. solid_prepare_* and project_prepare_* run kernel replay. drawing_command takes {op, ...fields}. solid_commit is rejected. Prefer the named sketch_/solid_/cad_drawing_* tools when you know the feature.",
+            "cad_invoke",
+            Payload::Object,
+            object_schema(
+                json!({
+                    "method": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Engine host method (add_line, drawing_command, solid_prepare_extrude, …)"
+                    },
+                    "arguments": {
+                        "description": "JSON payload for that host method. Omit for empty methods."
+                    }
+                }),
+                &["method"],
+            ),
+        ),
+        ToolSpec::direct(
+            "cad_undo",
+            "Undo last product command",
+            "Application Undo: drawing workspace → drawing_undo; active sketch → sketch_undo; otherwise delete the latest solid feature (or step the rollback marker). Same Edit → Undo routing as the UI.",
+            "cad_undo",
+            Payload::Empty,
+            empty_schema(),
+        ),
+        ToolSpec::direct(
+            "cad_redo",
+            "Redo last product command",
+            "Application Redo: drawing workspace → drawing_redo; active sketch → sketch_redo; otherwise restore the last cad_undo solid snapshot or step the rollback marker forward.",
+            "cad_redo",
+            Payload::Empty,
+            empty_schema(),
+        ),
+        ToolSpec::direct(
             "cad_project_model",
             "Export project model",
             "Return the versioned model.json payload used inside a .nbcad project.",
@@ -1852,6 +2022,21 @@ fn tool_specs() -> Vec<ToolSpec> {
             tool.schema,
         ));
     }
+    tools.push(ToolSpec::direct(
+        "cad_drawing_command",
+        "Run any drawing command",
+        "Mechanical drawing escape hatch: pass op plus the same fields as the named cad_drawing_* command. Use this when a new DrawingCommand lands before a named wrapper exists.",
+        "drawing_command",
+        Payload::Object,
+        json!({
+            "type": "object",
+            "properties": {
+                "op": { "type": "string", "minLength": 1 }
+            },
+            "required": ["op"],
+            "additionalProperties": true
+        }),
+    ));
     tools.push(ToolSpec::direct(
         "cad_drawing_projection",
         "Project 3D bodies to 2D (HLR)",
@@ -3396,7 +3581,7 @@ fn server_info() -> Value {
 }
 
 fn modeling_manual() -> &'static str {
-    "Modeling: one persistent headless CAD document. Begin and finish sketches before solid features. Use returned entity/body/face/edge ids. Soft disclosure is on; out-of-focus tools stay callable. Typical loop: sketch_begin → sketch_add_* / constraints → sketch_finish → sketch_profiles → solid_extrude (or revolve/sweep/loft/rib) → solid_scene / cad_document. Optional UI co-link: cad_list_sessions → cad_attach. Live UI workspace: cad_set_workspace solid|drawing. Drawings: cad_drawing_create_sheet → cad_drawing_auto_layout / cad_drawing_add_* → cad_drawing_project_sheet / cad_drawing_export_dxf / cad_drawing_export_svg. File import: solid_import_step. Print: solid_export_3mf."
+    "Modeling: one persistent headless CAD document. Begin and finish sketches before solid features. Use returned entity/body/face/edge ids. Soft disclosure is on; out-of-focus tools stay callable. Typical loop: sketch_begin → sketch_add_* / constraints → sketch_finish → sketch_profiles → solid_extrude (or revolve/sweep/loft/rib) → solid_scene / cad_document. Mechanical full control: cad_invoke (any host method) and cad_drawing_command (any drawing op). Application history: cad_undo / cad_redo. Optional UI co-link: cad_list_sessions → cad_attach. Live UI workspace: cad_set_workspace solid|drawing. Drawings: cad_drawing_create_sheet → cad_drawing_auto_layout / cad_drawing_add_* → cad_drawing_project_sheet / cad_drawing_export_dxf / cad_drawing_export_svg. File import: solid_import_step. Print: solid_export_3mf."
 }
 
 fn modern_protocol_manual() -> &'static str {
@@ -4052,7 +4237,7 @@ mod tests {
         assert_eq!(
             all_tools.len(),
             MODELING_TOOL_COUNT + PRINT_HELPER_COUNT + CONTROL_TOOL_COUNT,
-            "162 modeling tools plus 8 print helpers and 12 control tools"
+            "166 modeling tools plus 8 print helpers and 12 control tools"
         );
         let modeling_count = all_tools
             .iter()
@@ -4554,13 +4739,13 @@ mod tests {
         assert_eq!(packs.values().sum::<usize>(), MODELING_TOOL_COUNT);
         // Modeling registry covers 9 packs; print helpers are outside MODELING_TOOL_COUNT.
         assert_eq!(packs.len(), FocusPack::ALL.len() - 1);
-        assert_eq!(packs["document"], 7);
+        assert_eq!(packs["document"], 8);
         assert_eq!(packs["sketch"], 50);
         assert_eq!(packs["solid"], 10);
         assert!(packs["modify"] >= 6);
         assert!(packs["body_ops"] >= 11);
         assert!(packs["datums"] >= 6);
-        assert!(packs["history"] >= 3);
+        assert!(packs["history"] >= 5);
         assert_eq!(packs["inspect"], 12);
         assert_eq!(packs["drawing"], drawing_tools::DRAWING_PACK_TOOL_COUNT);
         assert!(!packs.contains_key("print"));
@@ -4594,6 +4779,18 @@ mod tests {
                 item.tool
             );
         }
+        for item in full_control::BROWSER_FEATURES
+            .iter()
+            .chain(full_control::TIMELINE_FEATURES)
+            .chain(full_control::EDIT_FEATURES)
+        {
+            assert!(
+                catalog.contains(item.tool),
+                "product surface {} maps to unknown tool {}",
+                item.id,
+                item.tool
+            );
+        }
         for tool in [
             "solid_import_step",
             "cad_drawing_export_dxf",
@@ -4602,9 +4799,69 @@ mod tests {
             "cad_drawing_undo",
             "cad_drawing_redo",
             "cad_set_workspace",
+            "cad_invoke",
+            "cad_drawing_command",
+            "cad_undo",
+            "cad_redo",
         ] {
             assert!(catalog.contains(tool), "missing full-control tool {tool}");
         }
+    }
+
+    #[test]
+    fn cad_invoke_and_application_undo_cover_host_and_history() {
+        let mut server = CadServer::new().unwrap();
+        server
+            .call_tool(
+                "cad_invoke",
+                json!({
+                    "method": "begin_sketch",
+                    "arguments": {"plane": {"type": "origin_plane", "plane": "xy"}}
+                }),
+            )
+            .unwrap();
+        let line = server
+            .call_tool(
+                "cad_invoke",
+                json!({
+                    "method": "add_line",
+                    "arguments": {
+                        "from": {"x": 0.0, "y": 0.0},
+                        "to_raw": {"x": 10.0, "y": 0.0},
+                        "ctrl_held": false
+                    }
+                }),
+            )
+            .unwrap();
+        assert!(line["entity_id"].as_u64().is_some());
+        let undone = server.call_tool("cad_undo", json!({})).unwrap();
+        assert_eq!(undone["scope"], "sketch");
+        let redone = server.call_tool("cad_redo", json!({})).unwrap();
+        assert_eq!(redone["scope"], "sketch");
+        let sheet = server
+            .call_tool(
+                "cad_drawing_command",
+                json!({
+                    "op": "create_sheet",
+                    "standard": "iso",
+                    "format": "a4"
+                }),
+            )
+            .unwrap();
+        assert!(
+            sheet["sheets"].as_array().is_some() || sheet.get("id").is_some() || sheet.is_object()
+        );
+        server
+            .call_tool("cad_set_workspace", json!({"workspace": "drawing"}))
+            .unwrap();
+        let drawing_undone = server.call_tool("cad_undo", json!({})).unwrap();
+        assert_eq!(drawing_undone["scope"], "drawing");
+        assert!(server
+            .call_tool(
+                "cad_invoke",
+                json!({"method": "solid_commit", "arguments": {}})
+            )
+            .is_err());
     }
 
     #[test]

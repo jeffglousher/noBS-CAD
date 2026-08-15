@@ -13,7 +13,7 @@ The older `initialize` handshake (`2025-06-18` and earlier) remains a
 handshake never returns `2026-07-28`. The first reply to it includes the
 runtime-upgrade recipe so agents that can switch on this process can do so.
 
-It covers sketch, solid, print, drawing-command, drawing-document, and browser-visibility tools
+It covers sketch, solid, print, drawing-command, drawing-document, browser-visibility, application undo/redo, and a mechanical `cad_invoke` / `cad_drawing_command` escape hatch
 with **soft focus-scoped disclosure** (`tools.listChanged: true`). Out-of-focus
 tools stay callable. Product state is also readable as MCP **resources**
 (`nbcad://document`, `nbcad://drawing`, …) and recipes as **prompts**.
@@ -27,16 +27,17 @@ default editor path.
 > Proposed ideas (in-process co-link, multi-window broker, …):
 > [docs/proposed-architecture.md](../docs/proposed-architecture.md).
 
-**Spine controls:** `cad_get_focus`, `cad_set_focus`, disclosure mode get/set,
-`cad_list_all_tools`, `cad_cancel_recompute`, `cad_list_sessions`, `cad_attach`,
-`cad_refresh`, `cad_detach` (read-only snapshot or live writeback).
+**Spine controls:** `cad_get_focus`, `cad_set_focus`, `cad_set_workspace`,
+`cad_invoke`, disclosure mode get/set, `cad_list_all_tools`,
+`cad_cancel_recompute`, `cad_list_sessions`, `cad_attach`, `cad_refresh`,
+`cad_detach` (read-only snapshot or live writeback).
 
 **Print:** prefer `solid_export_3mf` (mm + materials + slicer Metadata). Also
 `solid_export_stl`, `solid_export_step` (CAD), `material_catalog`,
 `body_appearances` / `set_body_appearance`, `solid_export_preflight`, and
 `demo_export_pip_3mf`.
 
-**Drawings / Browser:** first-class `cad_drawing_*` command tools (create sheet, auto layout, views, annotations, templates, revisions, BOM, undo/redo) plus `cad_drawing_document` / `cad_set_drawing_document` for the DTO. Native HLR: `cad_drawing_project_sheet` / `cad_drawing_projection`. Paper interchange: `cad_drawing_export_dxf` / `cad_drawing_export_svg` / `cad_drawing_export_profile_dxf`. Live UI workspace: `cad_set_workspace`. File import: `solid_import_step`. `cad_project_visibility` / `cad_set_project_visibility` for hidden bodies/datums/sketches.
+**Drawings / Browser:** first-class `cad_drawing_*` command tools (create sheet, auto layout, views, annotations, templates, revisions, BOM, undo/redo) plus `cad_drawing_command` for any `op` and `cad_drawing_document` / `cad_set_drawing_document` for the DTO. Native HLR: `cad_drawing_project_sheet` / `cad_drawing_projection`. Paper interchange: `cad_drawing_export_dxf` / `cad_drawing_export_svg` / `cad_drawing_export_profile_dxf`. Application history: `cad_undo` / `cad_redo`. Live UI workspace: `cad_set_workspace`. File import: `solid_import_step`. `cad_project_visibility` / `cad_set_project_visibility` for hidden bodies/datums/sketches.
 
 ## Build and verify
 

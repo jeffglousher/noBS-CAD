@@ -556,6 +556,14 @@ impl SketchManager {
         Ok(self.drawings.clone())
     }
 
+    pub fn can_undo_drawing(&self) -> bool {
+        !self.drawing_undo.is_empty()
+    }
+
+    pub fn can_redo_drawing(&self) -> bool {
+        !self.drawing_redo.is_empty()
+    }
+
     pub fn undo_drawing(&mut self) -> Result<DrawingDocumentDto, SessionError> {
         let previous = self.drawing_undo.pop().ok_or_else(|| {
             SessionError::Solid("nothing to undo on the drawing document".to_string())

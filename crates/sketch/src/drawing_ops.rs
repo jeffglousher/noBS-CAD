@@ -2598,6 +2598,7 @@ mod tests {
         let drawing = manager.drawing_document();
         assert_eq!(drawing.sheets.len(), 1);
         assert_eq!(drawing.sheets[0].views.len(), 4);
+        assert!(manager.can_undo_drawing());
         let undone = crate::host::handle(&mut manager, "drawing_undo", "");
         assert!(undone.contains("\"ok\":true"), "{undone}");
         assert_eq!(manager.drawing_document().sheets[0].annotations.len(), 0);
