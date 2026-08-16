@@ -51,6 +51,6 @@ shaft/hub/wings/plate/bushing/cap names):
 
 Assumptions: Bambu PLA Basic Orange + Bambu PLA Glow, 1.24 g/cm³, $20/kg, print-volume factor 0.42.
 
-At exam scale 0.4 the last green run was ~40.9 cm³ CAD solid, **21.3 g**,
-**$0.43** PLA. The exam writes the live figures next to the project.
+At exam scale 0.4 the last green run was ~57.9 cm³ CAD solid, **30.1 g**,
+**$0.60** PLA. The exam writes the live figures next to the project.
 Electricity and machine time are not priced. No additional hardware.

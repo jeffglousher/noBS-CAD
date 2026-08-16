@@ -110,7 +110,17 @@ impl Spec {
         self.mm_min(self.inner_race_d, self.roller_d() + 4.0)
     }
     fn outer_race_id(&self) -> f64 {
-        self.inner_race_d() + 2.0 * self.roller_d() + self.fit_running_mm
+        let roller_fit = self.inner_race_d() + 2.0 * self.roller_d() + self.fit_running_mm;
+        let pocket = self.roller_d() + self.fit_pip_mm;
+        let web = self.nozzle_mm * 2.0;
+        // Cage OD sits just inside the cup. Pockets are larger than the
+        // rollers; without this floor they break through the rim and the
+        // revolute picker grabs a leftover arc.
+        let cage_fit = self.inner_race_d()
+            + 2.0 * pocket
+            + 2.0 * self.fit_running_mm
+            + 4.0 * web;
+        roller_fit.max(cage_fit)
     }
     fn cup_id(&self) -> f64 {
         self.outer_race_id()
@@ -331,6 +341,8 @@ impl Spec {
             && self.cage_pocket() + 1e-9 >= self.roller_d() + self.fit_pip_mm
             && (self.cage_h() - self.roller_h()).abs() < 1e-9
             && (self.cup_h() - (self.roller_h() + self.thrust_float)).abs() < 1e-9
+            && self.cage_od() * 0.5 + 1e-9
+                >= self.pcd() * 0.5 + self.cage_pocket() * 0.5
     }
     fn helix_ok(&self) -> bool {
         self.helix_deg >= 45.0 && self.helix_stations >= 2
@@ -1274,7 +1286,7 @@ fn form_assembly(
             cage_id,
             [0.0, 0.0],
             spec.cage_z() + spec.cage_h(),
-            spec.cage_od() * 0.5,
+            spec.cage_id() * 0.5,
         )
         .ok_or_else(|| "no on-axis cage circle for cage_spin".to_string())?,
         axle_id,
@@ -1433,8 +1445,12 @@ fn require_linked_solution(
         let yank = translation[0].hypot(translation[1]).hypot(translation[2]);
         if yank > 8.0 {
             return Err(format!(
-                "occurrence {} yanked {:.1} mm — connectors are off-axis or flipped",
-                pose["occurrence_id"], yank
+                "occurrence {} yanked {:.1} mm (t=[{:.2},{:.2},{:.2}]) — connectors are off-axis or flipped",
+                pose["occurrence_id"],
+                yank,
+                translation[0],
+                translation[1],
+                translation[2]
             ));
         }
     }
@@ -1563,7 +1579,7 @@ fn cylindrical_face_at(
         .as_array()?
         .iter()
         .find(|body| body["id"].as_u64() == Some(body_id))?;
-    let mut best: Option<(&Value, f64)> = None;
+    let mut best: Option<(&Value, f64, [f64; 3])> = None;
     for face in body["faces"].as_array()? {
         let Some(cylinder) = face.get("cylinder") else {
             continue;
@@ -1584,13 +1600,16 @@ fn cylindrical_face_at(
             continue;
         };
         let score = (radius - want_radius).abs();
-        if best.is_none_or(|(_, current)| score < current) {
-            best = Some((face, score));
+        if score > 2.5 {
+            continue;
+        }
+        if best.is_none_or(|(_, current, _)| score < current) {
+            best = Some((face, score, origin));
         }
     }
-    let (face, _) = best?;
+    let (face, _, origin) = best?;
     let frame = json!({
-        "origin": [xy[0], xy[1], z],
+        "origin": [origin[0], origin[1], z],
         "primary_axis": [0.0, 0.0, 1.0],
         "secondary_axis": [1.0, 0.0, 0.0]
     });
@@ -1639,7 +1658,11 @@ fn circular_edge_at(
         let Some(radius) = circle["radius"].as_f64() else {
             continue;
         };
-        let score = (center[2] - z).abs() + (radius - want_radius).abs();
+        let radius_err = (radius - want_radius).abs();
+        if radius_err > 2.5 {
+            continue;
+        }
+        let score = (center[2] - z).abs() + radius_err;
         if best.is_none_or(|(_, current, _, _)| score < current) {
             best = Some((edge, score, center, radius));
         }
@@ -1654,7 +1677,7 @@ fn circular_edge_at(
         "kind": "circular_edge",
         "radius": radius,
         "frame": {
-            "origin": [xy[0], xy[1], center[2]],
+            "origin": [center[0], center[1], center[2]],
             "primary_axis": [0.0, 0.0, 1.0],
             "secondary_axis": [1.0, 0.0, 0.0]
         }

@@ -276,7 +276,11 @@ function innerRaceD() {
   return mmMin(spec.inner_race_d, rollerD() + 4);
 }
 function outerRaceId() {
-  return innerRaceD() + 2 * rollerD() + spec.fit_running_mm;
+  const rollerFit = innerRaceD() + 2 * rollerD() + spec.fit_running_mm;
+  const pocket = rollerD() + spec.fit_pip_mm;
+  const web = spec.nozzle_mm * 2;
+  const cageFit = innerRaceD() + 2 * pocket + 2 * spec.fit_running_mm + 4 * web;
+  return Math.max(rollerFit, cageFit);
 }
 function cupId() {
   return outerRaceId();
@@ -483,7 +487,8 @@ function rollersOk() {
     axleFlangeD() + 1e-9 > cupOd() &&
     cagePocket() + 1e-9 >= rollerD() + spec.fit_pip_mm &&
     Math.abs(cageH() - rollerH()) < 1e-9 &&
-    Math.abs(cupH() - (rollerH() + spec.thrust_float)) < 1e-9
+    Math.abs(cupH() - (rollerH() + spec.thrust_float)) < 1e-9 &&
+    cageOd() * 0.5 + 1e-9 >= pcd() * 0.5 + cagePocket() * 0.5
   );
 }
 function helixOk() {
@@ -1072,11 +1077,12 @@ function cylindricalFaceAt(scene, bodyId, xy, z, wantRadius) {
     const radius = Number(cylinder.radius);
     if (!Number.isFinite(radius)) continue;
     const score = Math.abs(radius - wantRadius);
-    if (!best || score < best.score) best = { face, radius, score };
+    if (score > 2.5) continue;
+    if (!best || score < best.score) best = { face, radius, score, origin };
   }
   if (!best) return null;
   const frame = {
-    origin: [xy[0], xy[1], z],
+    origin: [best.origin[0], best.origin[1], z],
     primary_axis: [0, 0, 1],
     secondary_axis: [1, 0, 0],
   };
@@ -1104,7 +1110,9 @@ function circularEdgeAt(scene, bodyId, xy, z, wantRadius) {
     if (Math.hypot(center[0] - xy[0], center[1] - xy[1]) > 2) continue;
     const radius = Number(circle.radius);
     if (!Number.isFinite(radius)) continue;
-    const score = Math.abs(center[2] - z) + Math.abs(radius - wantRadius);
+    const radiusErr = Math.abs(radius - wantRadius);
+    if (radiusErr > 2.5) continue;
+    const score = Math.abs(center[2] - z) + radiusErr;
     if (!best || score < best.score) best = { edge, center, radius, score };
   }
   if (!best) return null;
@@ -1117,7 +1125,7 @@ function circularEdgeAt(scene, bodyId, xy, z, wantRadius) {
     kind: "circular_edge",
     radius: best.radius,
     frame: {
-      origin: [xy[0], xy[1], best.center[2]],
+      origin: [best.center[0], best.center[1], best.center[2]],
       primary_axis: [0, 0, 1],
       secondary_axis: [1, 0, 0],
     },
@@ -1256,7 +1264,7 @@ async function formAssembly(ids) {
       "no on-axis axle race for cage_spin",
     ),
     need(
-      axisConnectorAt(scene, ids.cageId, [0, 0], cageZ() + cageH(), cageOd() * 0.5),
+      axisConnectorAt(scene, ids.cageId, [0, 0], cageZ() + cageH(), cageId() * 0.5),
       "no on-axis cage circle for cage_spin",
     ),
     ids.axleId,
