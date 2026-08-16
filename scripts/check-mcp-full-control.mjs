@@ -346,6 +346,9 @@ if (!tutorSrc.includes('bushing_spin') || !tutorSrc.includes('hub_mount') || !tu
 if (!tutorSrc.includes('cutBedReliefCircle') || !tutorSrc.includes('fit_pip_mm') || !tutorSrc.includes('bed_relief')) {
   fail('print-kit Node exam must model PIP clearance and elephant-foot lead-ins');
 }
+if (!tutorSrc.includes('hubDeckH') || !tutorSrc.includes('bladeRootZ') || !tutorSrc.includes('blade root base')) {
+  fail('print-kit Node exam must seat blades on a deck that sits on the bushing');
+}
 if (!tutorSrc.includes('solid_move_copy') || !tutorSrc.includes('layoutPrintPlate')) {
   fail('print-kit Node exam must lay the kit out on one plate before export');
 }
@@ -370,6 +373,9 @@ if (!rustTutor.includes('bushing_spin') || !rustTutor.includes('hub_mount') || !
 }
 if (!rustTutor.includes('cut_bed_relief_circle') || !rustTutor.includes('fit_pip_mm') || !rustTutor.includes('bed_relief')) {
   fail('print-kit cargo exam must model PIP clearance and elephant-foot lead-ins');
+}
+if (!rustTutor.includes('hub_deck_h') || !rustTutor.includes('blade_root_z') || !rustTutor.includes('blade root base')) {
+  fail('print-kit cargo exam must seat blades on a deck that sits on the bushing');
 }
 if (!rustTutor.includes('solid_move_copy') || !rustTutor.includes('layout_print_plate')) {
   fail('print-kit cargo exam must lay the kit out on one plate before export');

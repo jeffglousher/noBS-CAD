@@ -126,7 +126,7 @@
     {
       "id": "one_piece_rotor",
       "title": "Blades and hub are one part",
-      "teach": "The rotor is a single printed body: hub plus three drafted helical NACAs, open at the tips. Do not tenon three separate wings into a hub. Print the rotor standing on the hub, tips up."
+      "teach": "The rotor is a single printed body: a deck that sits on the bushing shoulder, plus three drafted helical NACAs that start on that deck (root stumps on the bed — no mid-air overhang). Do not tenon three separate wings into a hub. Print the rotor standing on the deck, tips up. The deck is the rotating mount on the bushing."
     },
     {
       "id": "airfoil",
@@ -141,7 +141,7 @@
     {
       "id": "print_flat",
       "title": "Print rotational parts lying down",
-      "teach": "Never design a tall skinny shaft that needs a tower of support. The axle is a flanged square puck, printed on the flange. Base, bushing, cage, and retainer print flat, each with a 2-nozzle bed lead-in on functional holes. Only the rotor stands up, and its tips are open/drafted. Cage+rollers are the PIP cluster; the bushing is not nested around them."
+      "teach": "Never design a tall skinny shaft that needs a tower of support. The axle is a flanged square puck, printed on the flange. Base, bushing, cage, and retainer print flat, each with a 2-nozzle bed lead-in on functional holes. The rotor stands on its deck (the bushing seat) so each blade root is an XY airfoil on the bed — not an overhang. Cage+rollers are the PIP cluster; the bushing is not nested around them."
     },
     {
       "id": "helix",
@@ -161,7 +161,7 @@
     {
       "id": "export",
       "title": "Export one laid-out plate",
-      "teach": "Wipe Print-Kit-Tutor/ first so leftover five-plate and shaft/hub/wings names are gone. Save the assembled .nbcad, then solid_move_copy parts onto the bed (rotor standing on the hub, others flat) and solid_export_3mf once as 01-kit. Two materials only: PLA Orange (including the bushing) and PLA Glow (rotor). Do not export the assembled nest as the print job."
+      "teach": "Wipe Print-Kit-Tutor/ first so leftover five-plate and shaft/hub/wings names are gone. Save the assembled .nbcad, then solid_move_copy parts onto the bed (rotor standing on the deck, others flat) and solid_export_3mf once as 01-kit. Two materials only: PLA Orange (including the bushing) and PLA Glow (rotor). Do not export the assembled nest as the print job."
     }
   ]
 }

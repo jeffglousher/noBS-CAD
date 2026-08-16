@@ -34,7 +34,7 @@ floors (roller Ø8, TE 0.8, 4-nozzle walls) are clamped.
 | Base | Y-frame + short square stator post, one piece | Post is the grounded axis. Print flat. |
 | Axle | Flanged inner-race puck, square bore | Friction on the post (+0.16). Print on the flange. |
 | Bushing | Outer-race ring + external shoulder | Freewheels on the rollers. Hub friction-mounts on the OD and sits on the shoulder. Print flat. PLA Orange. |
-| Rotor | Hub + 3 helical **NACA 0021** blades, **one body**, open drafted tips | Bore = bushing OD + friction. Not the outer race. Print standing on the hub. PLA Glow. |
+| Rotor | Deck on the bushing shoulder + 3 helical **NACA 0021** blades rooted on that deck, **one body**, open drafted tips | Bore = bushing OD + friction. Not the outer race. Print standing on the deck. PLA Glow. |
 | Roller cartridge | Cage + 6 PIP rollers, min Ø8, large PCD | Running +0.40 on rollers / inner race / bushing ID. PIP on the kit plate. |
 | Retainer | Washer covering the open raceway | Slip +0.28 on the post. Floats 0.20 above the hub. |
 

@@ -160,7 +160,7 @@ graded, but it was the wrong product for additive manufacturing:
 | Base | Flat (Y-frame + post) |
 | Axle | On the flange |
 | Bushing | Flat (shoulder on the bed) |
-| Rotor | Standing on the hub, tips up |
+| Rotor | Standing on the deck (bushing seat), tips up. Root stumps on the bed. |
 | Roller cartridge | Flat, PIP |
 | Retainer | Flat |
 
@@ -169,7 +169,7 @@ graded, but it was the wrong product for additive manufacturing:
 1. Axle puck onto the square post (friction locate). Flange **sits** on the base.
 2. Bushing over the inner race, 0.20 above the flange. Outer race is the bushing ID.
 3. Roller cartridge inside the bushing. Cage and each roller are linked (revolute).
-4. Rotor hub **friction-mounts** on the bushing OD and **sits** on the shoulder. Blades are one body with the hub.
+4. Rotor **deck** **friction-mounts** on the bushing OD and **sits** on the shoulder. Blades grow from that deck — one body. That is the rotating mount.
 5. Retainer washer **square-slip** on the post, floats 0.20 above the hub, and covers the open raceway.
 
 If those steps are not visible in the solid, the exam failed.
@@ -195,3 +195,9 @@ If those steps are not visible in the solid, the exam failed.
 | PIP at assembled running | Cage pockets at +0.40 are 0.20 mm/side. Same-plate first layers weld. | PIP pockets +0.80 (2 nozzles). Assembled races stay +0.40. |
 | Bed-printed friction bore | Hub bore and axle square sit on the bed. Elephant foot closes +0.16. | 0.80 mm lead-in on hub bore, bushing ID, axle square, retainer square. Functional land starts above layer 1. |
 | Bushing nested around rollers | Race-to-roller at +0.40 is 0.10 mm/side on the same plate. They fuse. | Bushing is its own body. Cage+rollers are the PIP cluster. Axial capture is flange + retainer, not a top lip. |
+
+### 2026-08-16 blade root / deck pass
+
+| Fault | Why it failed | Correction |
+|-------|---------------|------------|
+| Overhung blade roots | Loft started mid-hub (`hub_h × 0.35`), out at wing radius. First layers of a standing print were air. Blades did not sit on the bushing seat. | Deck on the bushing shoulder (OD flush with the flange). Wide print arms + root stumps on the bed. Helical loft starts at `blade_root_z` = deck top. The deck is the rotating mount (`hub_mount` + `bushing_spin`). |

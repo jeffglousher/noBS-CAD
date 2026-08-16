@@ -2,6 +2,11 @@
 
 ## 2026-08-16
 
+- **Update**: Print-kit rotor seats a deck on the bushing shoulder.
+  Blade roots are XY airfoils on that deck (print arms + stumps); the
+  helical loft starts at `blade_root_z`, not mid-hub. The deck is the
+  rotating mount (`hub_mount` + `bushing_spin`). Overhung roots fail
+  both print and aero.
 - **Update**: Print-kit FDM pass: PIP pockets are +0.80 (2 nozzles), not
   assembled running +0.40. Every bed-printed locate (hub bore, bushing ID,
   axle square, retainer square) has a 0.80 mm elephant-foot lead-in. The

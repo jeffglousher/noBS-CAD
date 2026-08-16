@@ -34,6 +34,7 @@ Do not ship any of these. They have already been built. They are not turbines.
 - PIP at assembled running clearance (cage pockets or rollers inside the bushing at +0.40). Same-plate gap must be **2 nozzles**
 - A friction or running bore on the print bed with no lead-in (elephant foot closes +0.16 and pinches a race)
 - Nesting the bushing around the PIP rollers on the plate (0.10 mm/side — they fuse)
+- Overhung blade roots / a loft that starts mid-hub (the standing print has no first-layer airfoil). Seat a **deck** on the bushing shoulder; put root stumps on the bed; loft from that deck so the rotor can print and rotate
 - Press fits, same-angle lifted cones (parallel surfaces never touch)
 - A report that only says READY TO PRINT
 - A fat frame: base envelope > 1.55 × rotor tip diameter (the Ø90 cookie)
@@ -51,7 +52,7 @@ A **directionless vertical-axis wind turbine** (VAWT) sized to fill a Bambu Lab 
 
 Architecture (required): **helical / Gorlov H-Darrieus** with a **symmetric airfoil** section. Symmetric because the blade sees reversing α every revolution. Helical because a straight extrusion is idle for most of the rev. Directionless means: odd blade count, 120° spacing, chord tangent to the cylinder at every station, identical blades, no preferred wind azimuth.
 
-Helix rule: loft a **closed NACA** at ≥2 stations. Mid-chord stays on radius R. Chord stays tangent. Twist ≥45° over the span (spec: 60°). Root at 30°. Open drafted tips — no end cap. Print the rotor standing on the hub.
+Helix rule: loft a **closed NACA** at ≥2 stations. Mid-chord stays on radius R. Chord stays tangent. Twist ≥45° over the span (spec: 60°). Root at 30°. Open drafted tips — no end cap. Print the rotor standing on the **deck** that sits on the bushing shoulder. Each blade root is an XY airfoil on the bed — not an overhang.
 
 The center is **short**. Do not build a tall mast. A stout printed roller pack inside a distinct bushing takes the angular load from the blade tips. The stator is a square post on the Y-frame; the bushing freewheels on the rollers; the hub friction-mounts on the bushing OD.
 
@@ -77,7 +78,7 @@ Six **individual** functional parts, then an **assembly** (components + occurren
 | Base | **Y-frame** + short square stator post. One piece. No cookie. | Flat |
 | Axle | Flanged inner-race **puck**, square bore (friction on the post). Never a tall skinny shaft | On the flange |
 | Bushing | Outer-race ring + **external shoulder**. Hub seats on the OD. Not the cage. | Flat |
-| Rotor | Hub + 3 helical drafted **NACA 0021** blades, **one body**, open tips. Bore = bushing OD + friction | Standing on the hub |
+| Rotor | **Deck** on the bushing shoulder + 3 helical drafted **NACA 0021** blades rooted on that deck, **one body**, open tips. Bore = bushing OD + friction | Standing on the deck |
 | Roller cartridge | Cage + ≥6 PIP rollers, min Ø8, large PCD **inside the bushing ID** | Flat, PIP on the kit plate |
 | Retainer | Washer covering the open raceway, slip on the post | Flat |
 
@@ -91,7 +92,7 @@ FDM layer lines are roughness. Unfinished printed airfoils pay Cd.
 
 Specify, in the report, all of:
 
-1. **Print orientation per body.** Rotor standing so layer lines run **spanwise**. Axle / bushing / cage / retainer / base flat (bores are XY circles)
+1. **Print orientation per body.** Rotor standing on the deck so layer lines run **spanwise** and each blade root is on the bed. Axle / bushing / cage / retainer / base flat (bores are XY circles)
 2. **As-printed Ra class**: assume 10–25 µm as-printed FDM. Target service Ra ≤ 5 µm on blade skins
 3. **Finish process (no extra machine parts)**: PLA — sand 400 → 800 → 1000 on blade skins. ABS — acetone vapor 40–50 min class; do not immerse. Do not vapor-smooth a running fit
 4. **Forbidden on aero / race faces**: fuzzy skin, fuzzy supports, elephant-foot left on the land
@@ -125,7 +126,7 @@ Then form a **linked** CAD assembly: `cad_set_focus assembly` (or `cad_set_works
 - `revolute` per roller — each PIP roller spins in its pocket
 - `rigid` retainer_sit — washer with a **square slip** hole on the post
 
-Pick on-axis circular edges / cylinders (bushing ID / OD, hub bore, axle race, roller axes). Do not pick a blade-spar face — planar centroids yank parts off-axis. `assembly_solution` must be solved without occurrence yanks. Blades stay **one printed body** with the hub (centrifugal + cyclic root bending). Ship an assembly drawing: `cad_drawing_create_sheet` + `cad_drawing_auto_layout` + notes for fits, loads, print orientation, and BOM.
+Pick on-axis circular edges / cylinders (bushing ID / OD, hub bore, axle race, roller axes). Do not pick a blade-spar face — planar centroids yank parts off-axis. `assembly_solution` must be solved without occurrence yanks. Blades stay **one printed body** with the deck (centrifugal + cyclic root bending). The deck **sits** on the bushing shoulder and friction-mounts on the OD — that is how the rotor rotates. Ship an assembly drawing: `cad_drawing_create_sheet` + `cad_drawing_auto_layout` + notes for fits, loads, print orientation, and BOM.
 
 Print each functional part in its own orientation on **one** plate. The roller cartridge is print-in-place (cage + rollers stay together). Save the assembled `.nbcad`, then `solid_move_copy` parts onto the bed and `solid_export_3mf` once as `01-kit`. Appearances: PLA Orange (base, axle, bushing, cage, rollers, retainer) and PLA Glow (rotor). Do not export the assembled nest as the print job.
 
@@ -137,10 +138,10 @@ Minimum wall 1.6 mm (4 nozzles). Functional holes are complete XY circles. Disab
 2. Base **Y-frame** + square stator post. One piece, print flat
 3. Axle: flange + inner-race cylinder, square bore, print on the flange
 4. Bushing: outer-race tube + external shoulder. Hub bore = bushing OD + friction
-5. Rotor: hub ring JOIN three helical **NACA 0021** lofts, open drafted tips, print standing. The hub is **not** the outer race
+5. Rotor: **deck** (sits on the bushing shoulder) JOIN print arms JOIN root stumps JOIN three helical **NACA 0021** lofts from the deck (not mid-hub), open drafted tips, print standing on the deck. The hub is **not** the outer race
 6. Roller cage + PIP rollers on a large PCD **inside the bushing**. Retainer washer over the raceway
 7. cad_set_workspace assembly. One `assembly_create_component` per moving body (base, axle, bushing, rotor, cage, each roller, retainer — no extra occurrence). Ground the base. Rigid axle_sit + hub_mount + retainer_sit; revolute bushing_spin / cage / rollers on axes (not a spar). cad_set_focus drawing. Sheet + auto-layout + notes
-8. cad_set_focus print. set_body_appearance to **PLA Orange** and **PLA Glow** only. solid_export_preflight. Save the assembled `.nbcad`. **Delete** any prior `Print-Kit-Tutor/` 3MFs (and `Print-Kit-Tutor.3mf`). `solid_move_copy` the parts onto one bed (rotor standing on the hub, others flat). Then `solid_export_3mf` **once** as `01-kit` with every kit body_id. The folder must contain exactly that file.
+8. cad_set_focus print. set_body_appearance to **PLA Orange** and **PLA Glow** only. solid_export_preflight. Save the assembled `.nbcad`. **Delete** any prior `Print-Kit-Tutor/` 3MFs (and `Print-Kit-Tutor.3mf`). `solid_move_copy` the parts onto one bed (rotor standing on the deck, others flat). Then `solid_export_3mf` **once** as `01-kit` with every kit body_id. The folder must contain exactly that file.
 9. `cad_set_project_visibility`: hide every construction plane (`hidden_datum_plane_ids`) and finished loft sketches (`hidden_sketch_names`). The shipped `.nbcad` must read as the six-part kit, not orange datum stacks.
 10. Write the design report. Include role-based fits, scale vs X2D, roller PCD, bushing mount, and why the rotor is one piece
 
@@ -167,7 +168,7 @@ At least the real product faults: scatter, colliding spinner, helical C, hoop se
 
 ### 3. Final product
 
-BOM of the six parts, stack, assembly order, how the hub mounts on the bushing.
+BOM of the six parts, stack, assembly order, how the deck mounts on the bushing and how the blades grow from that deck.
 
 ### 4. Printing cost — plastic and material
 
