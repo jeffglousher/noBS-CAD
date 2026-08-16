@@ -151,6 +151,7 @@ enum SessionAttachMode {
 enum WorkspaceKind {
     Solid,
     Drawing,
+    Assembly,
 }
 
 impl WorkspaceKind {
@@ -158,6 +159,7 @@ impl WorkspaceKind {
         match self {
             Self::Solid => "solid",
             Self::Drawing => "drawing",
+            Self::Assembly => "assembly",
         }
     }
 
@@ -165,6 +167,7 @@ impl WorkspaceKind {
         match value {
             "solid" | "model" | "sketch" => Some(Self::Solid),
             "drawing" => Some(Self::Drawing),
+            "assembly" => Some(Self::Assembly),
             _ => None,
         }
     }
@@ -543,7 +546,7 @@ impl CadServer {
                 self.workspace = workspace;
                 let focus = match workspace {
                     WorkspaceKind::Drawing => FocusPack::Drawing,
-                    WorkspaceKind::Solid => FocusPack::Solid,
+                    WorkspaceKind::Solid | WorkspaceKind::Assembly => FocusPack::Solid,
                 };
                 self.disclosure.set_focus(focus, true);
                 let mut status = self.disclosure.status_json();
@@ -3452,12 +3455,12 @@ fn tool_specs() -> Vec<ToolSpec> {
         ToolSpec::control(
             "cad_set_workspace",
             "Set UI workspace",
-            "Switch the product workspace the live UI should show: solid (model/sketch) or drawing. Writes focus.json on a live attach so the Drawing/Model switcher follows MCP.",
+            "Switch the product workspace the live UI should show: solid (model/sketch), drawing, or assembly. Writes focus.json on a live attach so the Drawing/Model switcher follows MCP. Assembly has no named MCP pack yet — use cad_invoke assembly_*.",
             object_schema(
                 json!({
                     "workspace": {
                         "type": "string",
-                        "enum": ["solid", "drawing"]
+                        "enum": ["solid", "drawing", "assembly"]
                     }
                 }),
                 &["workspace"],

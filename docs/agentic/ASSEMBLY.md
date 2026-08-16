@@ -17,18 +17,24 @@ honest about that: nine printable VAWT bodies on one axis, no mates.
 - Approximate interference and swept-collision reports
 - Browser / viewport consume `assembly_solution` poses
 
-## What MCP still does not have
+## What MCP still does not have (named tools)
 
-| Missing MCP surface | Why it matters |
-|---------------------|----------------|
-| `assembly_document` / `assembly_solution` | Agents cannot read the occurrence tree or solved poses |
-| Create/update component or occurrence | No instance reuse from MCP |
-| Create/update/delete joint | Fits stay numbers in sketches |
-| Motion / positions / contact sets | No kinematics from the exam harness |
-| Interference / swept collision | No assemble-check tool for the print kit |
+All 36 `assembly_*` host methods are reachable today via `cad_invoke`
+(`method` + `arguments`). There is **no** named `assembly_*` MCP pack
+and no `FocusPack::Assembly`. Tool count stays 186 (166+8+12).
+
+| Engine method | Named MCP tool | Why it matters |
+|---------------|----------------|----------------|
+| `assembly_document` / `assembly_solution` | `cad_invoke` only | Agents should read the occurrence tree without guessing the host name |
+| Create/update component or occurrence | `cad_invoke` only | Instance reuse is not in the exam spine |
+| Create/update/delete joint | `cad_invoke` only | Fits stay numbers in the print-kit tutor |
+| Motion / positions / contact sets | `cad_invoke` only | No kinematics recipe yet |
+| Interference / swept collision | `cad_invoke` only | No assemble-check lesson in the tutor |
+| Ribbon `bodyFeature:move_copy` | `cad_invoke` only | Jack’s solid move/copy is not a named `solid_*` tool |
 
 Do **not** bump `MODELING_TOOL_COUNT` to paper over this. A later pack
 can wrap the existing host methods without rewriting Jack’s crate.
+`cad_set_workspace` accepts `assembly` so the live UI can follow.
 
 ## What MCP can do today
 

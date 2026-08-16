@@ -427,6 +427,158 @@ pub const HOST_METHODS: &[HostMethod] = &[
         method: "set_grid_step",
         tool: "sketch_set_grid_step",
     },
+    HostMethod {
+        method: "assembly_document",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_set_document",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_solution",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_create_component",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_update_component",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_create_occurrence",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_update_occurrence",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_duplicate_occurrence",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_set_occurrence_grounded",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_set_occurrence_pose",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_preview_joint",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_create_joint",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_update_joint",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_preview_joint_update",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_delete_joint",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_set_joint_enabled",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_set_joint_motion",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_preview_joint_motion",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_set_joint_coordinates",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_preview_joint_coordinates",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_preview_mechanism_drag",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_apply_joint_motions",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_create_position",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_update_position",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_delete_position",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_apply_position",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_create_motion_study",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_update_motion_study",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_delete_motion_study",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_sample_motion_study",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_export_motion_path_csv",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_create_contact_set",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_update_contact_set",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_delete_contact_set",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_interference_check",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_evaluate_motion_study",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_swept_collision_check",
+        tool: "cad_invoke",
+    },
+    HostMethod {
+        method: "assembly_set_grounded_body",
+        tool: "cad_invoke",
+    },
 ];
 
 /// Enabled ribbon actions (and flyout payloads) that ship in the product.
@@ -525,6 +677,21 @@ pub const RIBBON_FEATURES: &[RibbonFeature] = &[
         action: "bodyFeature",
         payload: Some("split_body"),
         tool: "solid_split_body",
+    },
+    RibbonFeature {
+        action: "bodyFeature",
+        payload: Some("move_copy"),
+        tool: "cad_invoke",
+    },
+    RibbonFeature {
+        action: "assemblyWorkspace",
+        payload: None,
+        tool: "cad_set_workspace",
+    },
+    RibbonFeature {
+        action: "joint",
+        payload: None,
+        tool: "cad_invoke",
     },
     RibbonFeature {
         action: "sketchPattern",
@@ -1023,7 +1190,7 @@ pub const EDIT_FEATURES: &[FileFeature] = &[
     },
 ];
 
-pub const WORKSPACES: &[&str] = &["solid", "drawing"];
+pub const WORKSPACES: &[&str] = &["solid", "drawing", "assembly"];
 
 pub const INTERNAL_HOST_METHODS: &[&str] = &["solid_commit"];
 
@@ -1079,7 +1246,7 @@ mod tests {
         ] {
             assert!(tools.contains(required), "missing product tool {required}");
         }
-        assert_eq!(WORKSPACES, &["solid", "drawing"]);
+        assert_eq!(WORKSPACES, &["solid", "drawing", "assembly"]);
     }
 
     #[test]
