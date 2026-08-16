@@ -91,7 +91,7 @@
     {
       "id": "assemble",
       "title": "Individual parts, then an assembly",
-      "teach": "Each functional part is its own body. The three blades and hub are one rotor. Then create components/occurrences and a revolute so the hub freewheels on the fixed post. The print-kit is an assembly, not a glued nest and not a bag of coupons."
+      "teach": "Each functional part is its own component with exactly one occurrence. assembly_create_component already inserts the root instance — do not create a second copy. Mate the revolute on the turbine axis (hub/race faces), not a blade spar. Five parts, five occurrences, one spin joint."
     },
     {
       "id": "rollers",

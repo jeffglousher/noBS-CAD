@@ -43,8 +43,10 @@ press fits.
 
 Assembly order: **base → axle → roller cartridge → rotor → retainer**.
 
-Then: `assembly_create_component` / `assembly_create_occurrence`, ground
-the base, revolute on the axis. Ship an A3 assembly drawing with notes.
+Then: one `assembly_create_component` per part (that call already
+inserts the root occurrence — a second `assembly_create_occurrence`
+duplicates every part). Ground the base. Revolute on the **axis**
+(hub/race faces, not a blade spar). Ship an A3 assembly drawing with notes.
 
 Print each functional part in its own orientation. The cartridge is
 print-in-place. The exam **wipes** `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor\`
@@ -85,7 +87,7 @@ Agents start with `prompts/get model_print_kit`.
 1. Start from a blank document (`cad_new_project`, 0 bodies; hide datums)
 2. Fits are per role and material (running +0.40, slip +0.28, friction +0.16)
 3. Snug is not a press
-4. Individual parts, then an assembly (5 components; rotor is one piece)
+4. Individual parts, then an assembly (5 components, 5 occurrences; rotor is one piece)
 5. Print a roller pack that takes tip moment (large PCD, no 608)
 6. Keep the machine even (3 blades at 120°, 60° helix from 30°)
 7. Blades and hub are one part

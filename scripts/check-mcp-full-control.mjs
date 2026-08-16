@@ -324,9 +324,21 @@ if (!tutorSrc.includes('cleanKitOutputs') || !tutorSrc.includes('retired_print_p
 if (!tutorSrc.includes('requireBlankDocument') || !tutorSrc.includes('hideConstruction')) {
   fail('print-kit Node exam must start from a blank document and hide construction planes');
 }
+if (tutorSrc.includes('name: `${name}_1`') || /assembly_create_occurrence/.test(tutorSrc)) {
+  fail('print-kit Node exam must not create a second occurrence of each part');
+}
+if (!tutorSrc.includes('planarFaceOnAxis') || !tutorSrc.includes('requireAxisFrame')) {
+  fail('print-kit Node exam must mate the revolute on the turbine axis');
+}
 const rustTutor = await read('mcp-server/src/print_kit_tutor.rs');
 if (!rustTutor.includes('require_blank_document') || !rustTutor.includes('hide_construction')) {
   fail('print-kit cargo exam must start from a blank document and hide construction planes');
+}
+if (rustTutor.includes('assembly_create_occurrence')) {
+  fail('print-kit cargo exam must not create a second occurrence of each part');
+}
+if (!rustTutor.includes('planar_face_on_axis') || !rustTutor.includes('require_axis_frame')) {
+  fail('print-kit cargo exam must mate the revolute on the turbine axis');
 }
 const printKitPrompt = await read('mcp-server/src/prompts/model_print_kit.md');
 if (!/blank document|0 bodies|recovered/i.test(printKitPrompt)) {

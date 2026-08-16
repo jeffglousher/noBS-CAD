@@ -900,9 +900,10 @@ fn form_assembly(
         "cad_set_focus",
         json!({ "focus": "assembly", "explicit": true }),
     )?;
+    let _ = call("cad_set_workspace", json!({ "workspace": "assembly" }));
     let mut cartridge = vec![cage_id];
     cartridge.extend(roller_ids.iter().copied());
-    let mut components = Vec::new();
+    let mut base_occurrence_id = None;
     for (name, body_ids) in [
         ("base", vec![base_id]),
         ("axle", vec![axle_id]),
@@ -922,50 +923,63 @@ fn form_assembly(
             .as_u64()
             .or_else(|| created["component"]["id"].as_u64())
             .ok_or_else(|| format!("component {name} missing id: {created}"))?;
-        let occurrence = call(
-            "assembly_create_occurrence",
-            json!({
-                "component_id": component_id,
-                "name": format!("{name}_1")
-            }),
-        )?;
-        components.push((name, component_id, occurrence));
-    }
-    if let Some((_, _, occ)) = components.first() {
-        if let Some(occurrence_id) = occ["id"].as_u64() {
-            let _ = call(
-                "assembly_set_occurrence_grounded",
-                json!({ "occurrence_id": occurrence_id, "grounded": true }),
-            );
+        let document = call("assembly_document", json!({}))?;
+        let occurrence_id = authored_occurrence_id(&document, component_id)
+            .ok_or_else(|| format!("component {name} has no root occurrence"))?;
+        if name == "base" {
+            base_occurrence_id = Some(occurrence_id);
         }
-        let _ = call(
-            "assembly_set_grounded_body",
-            json!({ "body_id": base_id }),
-        );
     }
-    let scene = call("solid_scene", json!({}))?;
-    if let (Some(axle_face), Some(rotor_face)) = (
-        planar_face_near_z(&scene, axle_id, spec.race_z() + spec.cage_h()),
-        planar_face_near_z(&scene, rotor_id, spec.hub_z() + spec.hub_h()),
-    ) {
+    if let Some(occurrence_id) = base_occurrence_id {
         call(
-            "assembly_create_joint",
-            json!({
-                "name": "rotor_spin",
-                "kind": "revolute",
-                "connector_a": axle_face,
-                "connector_b": rotor_face,
-                "grounded_body_id": axle_id
-            }),
+            "assembly_set_occurrence_grounded",
+            json!({ "occurrence_id": occurrence_id, "grounded": true }),
         )?;
     }
+    let _ = call(
+        "assembly_set_grounded_body",
+        json!({ "body_id": base_id }),
+    );
+    let scene = call("solid_scene", json!({}))?;
+    let axle_face = planar_face_on_axis(
+        &scene,
+        axle_id,
+        spec.race_z() + spec.cage_h(),
+        spec.inner_race_d() * 0.5 + 2.0,
+    )
+    .ok_or_else(|| "no on-axis axle race face for the revolute".to_string())?;
+    let rotor_face = planar_face_on_axis(
+        &scene,
+        rotor_id,
+        spec.hub_z() + spec.hub_h(),
+        spec.hub_od() * 0.5 + 1.0,
+    )
+    .ok_or_else(|| "no on-axis hub face for the revolute".to_string())?;
+    require_axis_frame(&axle_face, "axle revolute")?;
+    require_axis_frame(&rotor_face, "rotor revolute")?;
+    call(
+        "assembly_create_joint",
+        json!({
+            "name": "rotor_spin",
+            "kind": "revolute",
+            "connector_a": axle_face,
+            "connector_b": rotor_face,
+            "grounded_body_id": axle_id
+        }),
+    )?;
     let document = call("assembly_document", json!({}))?;
     let defs = document["component_structure"]["definitions"]
         .as_array()
         .map(|items| items.len())
         .unwrap_or(0);
-    if defs < 5 {
-        return Err(format!("expected 5 components, got {defs}"));
+    let occs = document["component_structure"]["occurrences"]
+        .as_array()
+        .map(|items| items.len())
+        .unwrap_or(0);
+    if defs != 5 || occs != 5 {
+        return Err(format!(
+            "expected 5 parts / 5 occurrences, got {defs} components / {occs} occurrences"
+        ));
     }
     Ok(())
 }
@@ -1046,7 +1060,39 @@ fn make_assembly_drawing(
     Ok(())
 }
 
-fn planar_face_near_z(scene: &Value, body_id: u64, z: f64) -> Option<Value> {
+fn authored_occurrence_id(document: &Value, component_id: u64) -> Option<u64> {
+    let occurrences = document["component_structure"]["occurrences"].as_array()?;
+    let matches: Vec<&Value> = occurrences
+        .iter()
+        .filter(|occurrence| occurrence["component_id"].as_u64() == Some(component_id))
+        .collect();
+    if matches.len() == 1 {
+        return matches[0]["id"].as_u64();
+    }
+    matches
+        .iter()
+        .find(|occurrence| {
+            !occurrence["name"]
+                .as_str()
+                .is_some_and(|name| name.ends_with("_1"))
+        })
+        .or_else(|| matches.first())
+        .and_then(|occurrence| occurrence["id"].as_u64())
+}
+
+fn require_axis_frame(connector: &Value, label: &str) -> Result<(), String> {
+    let origin = xyz(&connector["frame"]["origin"])
+        .ok_or_else(|| format!("{label}: connector frame missing origin"))?;
+    let radial = origin[0].hypot(origin[1]);
+    if radial > 4.0 {
+        return Err(format!(
+            "{label}: face is {radial:.1} mm off the axis — do not mate a blade spar"
+        ));
+    }
+    Ok(())
+}
+
+fn planar_face_on_axis(scene: &Value, body_id: u64, z: f64, max_xy: f64) -> Option<Value> {
     let body = scene["bodies"]
         .as_array()?
         .iter()
@@ -1059,7 +1105,11 @@ fn planar_face_near_z(scene: &Value, body_id: u64, z: f64) -> Option<Value> {
         if normal[2].abs() < 0.85 {
             continue;
         }
-        let score = (origin[2] - z).abs();
+        let radial = origin[0].hypot(origin[1]);
+        if radial > max_xy {
+            continue;
+        }
+        let score = (origin[2] - z).abs() + radial * 0.05;
         if best.is_none_or(|(_, current)| score < current) {
             best = Some((face, score));
         }
@@ -1106,6 +1156,10 @@ fn grade(
         .as_array()
         .map(|items| items.len())
         .unwrap_or(0);
+    let occurrence_count = assembly["component_structure"]["occurrences"]
+        .as_array()
+        .map(|items| items.len())
+        .unwrap_or(0);
 
     let mut lessons = Vec::new();
     push_lesson(
@@ -1133,13 +1187,15 @@ fn grade(
         &mut lessons,
         "assemble",
         built.assembly_ok
-            && component_count >= 5
+            && component_count == 5
+            && occurrence_count == 5
             && bodies.len() >= spec.min_bodies
             && built.roller_ids.len() == spec.roller_count,
         format!(
-            "{} bodies, {} components, {} joints; {}",
+            "{} bodies, {} components, {} occurrences, {} joints; {}",
             bodies.len(),
             component_count,
+            occurrence_count,
             joint_count,
             built.assembly_detail
         ),

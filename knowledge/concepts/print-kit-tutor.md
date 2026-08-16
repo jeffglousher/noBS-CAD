@@ -21,8 +21,8 @@ nozzle fits by building a printed VAWT **assembly** and grading it.
 - Domain matrix: [MCP_GAP.md](../../docs/agentic/MCP_GAP.md)
 
 Five functional parts (base, axle puck, one-piece helical rotor, PIP
-roller cartridge, retainer), then components / occurrences / a revolute
-and an A3 drawing. The exam starts from a blank document (`cad_new_project`,
+roller cartridge, retainer), then one component and one occurrence per
+part plus a revolute on the axis (not a blade spar) and an A3 drawing. The exam starts from a blank document (`cad_new_project`,
 0 bodies) and hides construction planes before writing the `.nbcad`.
 Reruns wipe retired plates (`02-shaft` … `07-cap`)
 so `Print-Kit-Tutor/` holds only the current five 3MFs. Fits are per role (running +0.40, slip +0.28, friction

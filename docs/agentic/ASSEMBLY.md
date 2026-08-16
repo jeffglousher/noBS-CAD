@@ -7,9 +7,13 @@ collision. Host dispatch is `assembly_*` in `crates/sketch/src/host.rs`.
 MCP now wraps **every** one of those methods as a named tool in
 `FocusPack::Assembly` (`mcp-server/src/assembly_tools.rs`). Agents should
 call `assembly_create_joint`, not `cad_invoke`. The print-kit tutor now
-builds **individual parts**, then forms an assembly (components,
-occurrences, a revolute) and an annotated drawing. Fits stay numbers
-(running / slip / friction) — joints do not invent metal 608s.
+builds **individual parts**, then forms an assembly (one component and
+one occurrence per part, a revolute on the axis) and an annotated
+drawing. `assembly_create_component` already inserts the root
+occurrence — a second `assembly_create_occurrence` duplicates every
+part and the solver will yank a copy off-axis. Joint connectors must
+be hub/race faces on the turbine axis, not a blade spar. Fits stay
+numbers (running / slip / friction) — joints do not invent metal 608s.
 
 ## What the engine and MCP both have
 

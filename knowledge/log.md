@@ -2,6 +2,11 @@
 
 ## 2026-08-16
 
+- **Update**: Print-kit assembly is five parts / five occurrences.
+  `assembly_create_component` already inserts the root instance; a
+  second `assembly_create_occurrence` duplicated every part. The
+  revolute must use on-axis hub/race faces — a spar face at the same Z
+  yanked a second rotor off-axis.
 - **Update**: Print-kit exam starts from a blank document
   (`cad_new_project`, 0 bodies) and hides construction planes / loft
   sketches before writing `Print-Kit-Tutor.nbcad`. Desktop crash recovery

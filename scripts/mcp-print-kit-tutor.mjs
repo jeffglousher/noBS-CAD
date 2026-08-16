@@ -850,7 +850,7 @@ async function buildRetainer(known) {
   return newestBody(update, known);
 }
 
-function planarFaceNearZ(scene, bodyId, z) {
+function planarFaceOnAxis(scene, bodyId, z, maxXy) {
   const body = (scene.bodies ?? []).find((item) => item.id === bodyId);
   if (!body) return null;
   let best = null;
@@ -860,8 +860,10 @@ function planarFaceNearZ(scene, bodyId, z) {
     const origin = xyz(plane.origin);
     const normal = xyz(plane.normal);
     if (!origin || !normal || Math.abs(normal[2]) < 0.85) continue;
-    const score = Math.abs(origin[2] - z);
-    if (!best || score < best.score) best = { face, plane, score };
+    const radial = Math.hypot(origin[0], origin[1]);
+    if (radial > maxXy) continue;
+    const score = Math.abs(origin[2] - z) + radial * 0.05;
+    if (!best || score < best.score) best = { face, plane, score, radial };
   }
   if (!best) return null;
   return {
@@ -877,9 +879,33 @@ function planarFaceNearZ(scene, bodyId, z) {
   };
 }
 
+function requireAxisFrame(connector, label) {
+  const origin = xyz(connector?.frame?.origin);
+  if (!origin) throw new Error(`${label}: connector frame missing origin`);
+  const radial = Math.hypot(origin[0], origin[1]);
+  if (radial > 4) {
+    throw new Error(`${label}: face is ${radial.toFixed(1)} mm off the axis — do not mate a blade spar`);
+  }
+}
+
+function authoredOccurrenceId(document, componentId) {
+  const matches = (document.component_structure?.occurrences ?? []).filter(
+    (occurrence) => occurrence.component_id === componentId,
+  );
+  if (matches.length === 1) return matches[0].id;
+  return (
+    matches.find((occurrence) => !String(occurrence.name ?? "").endsWith("_1")) ?? matches[0]
+  )?.id;
+}
+
 async function formAssembly(ids) {
   await call("cad_set_focus", { focus: "assembly", explicit: true });
-  const components = [];
+  try {
+    await call("cad_set_workspace", { workspace: "assembly" });
+  } catch {
+    /* workspace follow is optional in headless */
+  }
+  let baseOccurrenceId = null;
   for (const [name, bodyIds] of [
     ["base", [ids.baseId]],
     ["axle", [ids.axleId]],
@@ -894,16 +920,14 @@ async function formAssembly(ids) {
     });
     const componentId = created.id ?? created.component?.id;
     if (!componentId) throw new Error(`component ${name} missing id: ${JSON.stringify(created)}`);
-    const occurrence = await call("assembly_create_occurrence", {
-      component_id: componentId,
-      name: `${name}_1`,
-    });
-    components.push({ name, componentId, occurrence });
+    const document = await call("assembly_document");
+    const occurrenceId = authoredOccurrenceId(document, componentId);
+    if (!occurrenceId) throw new Error(`component ${name} has no root occurrence`);
+    if (name === "base") baseOccurrenceId = occurrenceId;
   }
-  const grounded = components[0];
-  if (grounded?.occurrence?.id) {
+  if (baseOccurrenceId) {
     await call("assembly_set_occurrence_grounded", {
-      occurrence_id: grounded.occurrence.id,
+      occurrence_id: baseOccurrenceId,
       grounded: true,
     });
   }
@@ -913,20 +937,25 @@ async function formAssembly(ids) {
     /* optional on some hosts */
   }
   const scene = await call("solid_scene");
-  const axleFace = planarFaceNearZ(scene, ids.axleId, raceZ() + cageH());
-  const rotorFace = planarFaceNearZ(scene, ids.rotorId, hubZ() + hubH());
-  if (axleFace && rotorFace) {
-    await call("assembly_create_joint", {
-      name: "rotor_spin",
-      kind: "revolute",
-      connector_a: axleFace,
-      connector_b: rotorFace,
-      grounded_body_id: ids.axleId,
-    });
-  }
+  const axleFace = planarFaceOnAxis(scene, ids.axleId, raceZ() + cageH(), innerRaceD() * 0.5 + 2);
+  const rotorFace = planarFaceOnAxis(scene, ids.rotorId, hubZ() + hubH(), hubOd() * 0.5 + 1);
+  if (!axleFace) throw new Error("no on-axis axle race face for the revolute");
+  if (!rotorFace) throw new Error("no on-axis hub face for the revolute");
+  requireAxisFrame(axleFace, "axle revolute");
+  requireAxisFrame(rotorFace, "rotor revolute");
+  await call("assembly_create_joint", {
+    name: "rotor_spin",
+    kind: "revolute",
+    connector_a: axleFace,
+    connector_b: rotorFace,
+    grounded_body_id: ids.axleId,
+  });
   const document = await call("assembly_document");
   const defs = document.component_structure?.definitions?.length ?? 0;
-  if (defs < 5) throw new Error(`expected 5 components, got ${defs}`);
+  const occs = document.component_structure?.occurrences?.length ?? 0;
+  if (defs !== 5 || occs !== 5) {
+    throw new Error(`expected 5 parts / 5 occurrences, got ${defs} components / ${occs} occurrences`);
+  }
   return document;
 }
 
@@ -1197,6 +1226,11 @@ try {
   const scene = await call("solid_scene");
   const document = await call("cad_document");
   const assembly = await call("assembly_document").catch(() => ({}));
+  try {
+    await call("cad_set_workspace", { workspace: "assembly" });
+  } catch {
+    /* optional */
+  }
   const project = await call("cad_project_model");
   const modelJson =
     typeof project === "string"
@@ -1221,6 +1255,7 @@ try {
   const rotorFaces = rotor?.faces?.length ?? 0;
   const rotorSpan = rotorBox?.span[2] ?? 0;
   const componentCount = assembly.component_structure?.definitions?.length ?? 0;
+  const occurrenceCount = assembly.component_structure?.occurrences?.length ?? 0;
   const jointCount = assembly.joints?.length ?? 0;
 
   record(report.lessons, "blank", true, `${blankDetail}; ${hideDetail}`);
@@ -1239,8 +1274,12 @@ try {
   record(
     report.lessons,
     "assemble",
-    assemblyOk && componentCount >= 5 && bodies.length >= spec.min_bodies && rollerIds.length === spec.roller_count,
-    `${bodies.length} bodies, ${componentCount} components, ${jointCount} joints; ${assemblyDetail}`,
+    assemblyOk &&
+      componentCount === 5 &&
+      occurrenceCount === 5 &&
+      bodies.length >= spec.min_bodies &&
+      rollerIds.length === spec.roller_count,
+    `${bodies.length} bodies, ${componentCount} components, ${occurrenceCount} occurrences, ${jointCount} joints; ${assemblyDetail}`,
   );
   record(
     report.lessons,

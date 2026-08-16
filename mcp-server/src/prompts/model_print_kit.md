@@ -109,7 +109,7 @@ No screws, nuts, heat-set inserts, metal shafts, metal bearings, glue as a fit, 
 
 Assembly order: **base → axle → roller cartridge → rotor → retainer**.
 
-Then form the CAD assembly: `cad_set_focus assembly` (or `cad_set_workspace assembly`), `assembly_create_component` per part, `assembly_create_occurrence`, ground the base, `assembly_create_joint` revolute on the axis. Ship an assembly drawing: `cad_drawing_create_sheet` + `cad_drawing_auto_layout` + notes for fits, scale, print orientation, and BOM.
+Then form the CAD assembly: `cad_set_focus assembly` (or `cad_set_workspace assembly`). `assembly_create_component` per part — that call already inserts the one root occurrence. **Do not** `assembly_create_occurrence` again or you get two copies of every part and the solver yanks one off-axis. Ground the base occurrence. `assembly_create_joint` revolute on the **turbine axis** (axle race + hub ring faces). Do not pick a blade-spar face at the same Z. Ship an assembly drawing: `cad_drawing_create_sheet` + `cad_drawing_auto_layout` + notes for fits, scale, print orientation, and BOM.
 
 Print each functional part in its own orientation. The roller cartridge is print-in-place (cage + rollers, one plate). Export five print-plate 3MFs (`solid_export_3mf` + `body_ids`). Do not export the assembled nest as the print job.
 
@@ -122,7 +122,7 @@ Minimum wall 1.6 mm (4 nozzles). Functional holes are complete XY circles. Disab
 3. Axle: flange + inner-race cylinder, square bore, print on the flange
 4. Rotor: hub ring (outer race) JOIN three helical **NACA 0021** lofts, open drafted tips, print standing
 5. Roller cage + PIP rollers on a large PCD. Retainer ring
-6. cad_set_focus assembly. Components / occurrences / revolute. cad_set_focus drawing. Sheet + auto-layout + notes
+6. cad_set_workspace assembly. One `assembly_create_component` per part (no extra occurrence). Ground the base. Revolute on the axis (hub/race, not a spar). cad_set_focus drawing. Sheet + auto-layout + notes
 7. cad_set_focus print. set_body_appearance. solid_export_preflight. **Delete** any prior `Print-Kit-Tutor/` 3MFs (and `Print-Kit-Tutor.3mf`). Then `solid_export_3mf` **once per print plate** with body_ids (base, axle, rotor, cartridge, retainer) only. The folder must contain exactly those five files.
 8. `cad_set_project_visibility`: hide every construction plane (`hidden_datum_plane_ids`) and finished loft sketches (`hidden_sketch_names`). The shipped `.nbcad` must read as the five-part kit, not orange datum stacks.
 9. Write the design report. Include role-based fits, scale vs X2D, roller PCD, and why the rotor is one piece
