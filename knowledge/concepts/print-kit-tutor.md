@@ -28,9 +28,11 @@ bushing, cage, and each roller. The hub is not the outer race.
 Hub-on-rollers is a running fit, not friction. Same-plate PIP pockets
 are +0.80; assembled races stay +0.40. Bed-printed locates get a 0.80 mm
 lead-in. The bushing is not nested around the PIP rollers. The rotor is a
-**deck** that sits on the bushing shoulder, plus three blades whose roots
-are on that deck (XY airfoils on the bed — not mid-air overhangs). Blades
-stay one printed body with the deck. The exam starts from a blank document (`cad_new_project`,
+**root plate** out to the blades with a **socket** over the bushing
+flange. Blade lofts start on that plate (flat sit-plane cut — the draft
+ends on that horizontal, not from a surface above). The bushing is an
+open-top cup: drop the cartridge in, then drop the plate on. Blades
+stay one printed body with the plate. The exam starts from a blank document (`cad_new_project`,
 0 bodies) and hides construction planes before writing the `.nbcad`.
 Reruns wipe retired plates so `Print-Kit-Tutor/` holds only
 `01-kit.3mf` (parts laid out; PLA Orange + PLA Glow). Fits are per role

@@ -126,7 +126,7 @@
     {
       "id": "one_piece_rotor",
       "title": "Blades and hub are one part",
-      "teach": "The rotor is a single printed body: a deck that sits on the bushing shoulder, plus three drafted helical NACAs that start on that deck (root stumps on the bed — no mid-air overhang). Do not tenon three separate wings into a hub. Print the rotor standing on the deck, tips up. The deck is the rotating mount on the bushing."
+      "teach": "The rotor is a single printed body: a root plate out to the blades with a socket that drops over the bushing flange, plus three drafted helical NACAs whose first station is that plate (flat sit-plane cut — the draft continues down to that horizontal, not from a surface above). Do not hang blades off skinny arms. Print standing on the plate. Drop the cartridge into the open-top bushing, then drop the plate on."
     },
     {
       "id": "airfoil",
@@ -141,7 +141,7 @@
     {
       "id": "print_flat",
       "title": "Print rotational parts lying down",
-      "teach": "Never design a tall skinny shaft that needs a tower of support. The axle is a flanged square puck, printed on the flange. Base, bushing, cage, and retainer print flat, each with a 2-nozzle bed lead-in on functional holes. The rotor stands on its deck (the bushing seat) so each blade root is an XY airfoil on the bed — not an overhang. Cage+rollers are the PIP cluster; the bushing is not nested around them."
+      "teach": "Never design a tall skinny shaft that needs a tower of support. The axle is a flanged square puck, printed on the flange. Base, bushing, cage, and retainer print flat, each with a 2-nozzle bed lead-in on functional holes. The rotor stands on its root plate so each blade ends on that flat horizontal. Cage+rollers are the PIP cluster; drop them into the open-top bushing, then drop the plate on. The bushing is not nested around the rollers on the plate."
     },
     {
       "id": "helix",

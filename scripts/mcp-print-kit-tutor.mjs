@@ -300,16 +300,25 @@ function hubH() {
   return Math.max(mmMin(spec.hub_h, 8), rollerH());
 }
 function hubDeckH() {
-  return Math.max(mmMin(6, 2.4), bedReliefH());
+  return Math.max(mmMin(10, 4), hubSocketH() + bedReliefH());
 }
 function hubDeckOd() {
-  return bushingFlangeOd();
+  return (wingRadius() + chordRoot() * 0.18) * 2;
+}
+function hubSocketOd() {
+  return bushingFlangeOd() + spec.fit_slip_mm;
+}
+function hubSocketH() {
+  return bushingFlangeH();
+}
+function plateZ() {
+  return bushingZ();
 }
 function bladeArmW() {
   return Math.max(chordRoot() * 0.4, wall() * 6);
 }
 function bladeRootZ() {
-  return hubZ() + hubDeckH();
+  return plateZ();
 }
 function hubSquare() {
   return mm(spec.axle_square) + spec.fit_friction_mm;
@@ -399,7 +408,7 @@ function baseEnvelope() {
   return postCircleR() * 2 + padD();
 }
 function rotorPrintH() {
-  return Math.max(hubH(), hubDeckH()) + wingH();
+  return Math.max(wingH(), hubZ() + hubH() - plateZ());
 }
 function flangeZ() {
   return baseH();
@@ -515,8 +524,12 @@ function stackOk() {
     bedReliefH() + 1e-9 < retainerH() &&
     bedReliefH() + 1e-9 < axleFlangeH() &&
     hubDeckH() + 1e-9 < hubH() &&
-    hubDeckOd() + 1e-9 >= bushingOd() &&
-    Math.abs(bladeRootZ() - (hubZ() + hubDeckH())) < 1e-9
+    hubDeckOd() + 1e-9 > bushingFlangeOd() &&
+    hubDeckOd() + 1e-9 >= wingRadius() * 2 &&
+    hubSocketOd() + 1e-9 > bushingFlangeOd() &&
+    hubDeckH() + 1e-9 > hubSocketH() &&
+    Math.abs(plateZ() - bushingZ()) < 1e-9 &&
+    Math.abs(bladeRootZ() - plateZ()) < 1e-9
   );
 }
 function assemblyComponentCount() {
@@ -536,8 +549,8 @@ function sanityOk() {
 function estimatedSolidCm3() {
   const hub =
     Math.PI * ((hubOd() * 0.5) ** 2 - (hubBore() * 0.5) ** 2) * hubH() +
-    Math.PI * ((hubDeckOd() * 0.5) ** 2 - (hubOd() * 0.5) ** 2) * hubDeckH();
-  const roots = spec.wing_count * 0.7 * chordRoot() * wingThick() * hubDeckH();
+    Math.PI * ((hubDeckOd() * 0.5) ** 2 - (hubBore() * 0.5) ** 2) * hubDeckH() -
+    Math.PI * ((hubSocketOd() * 0.5) ** 2 - (hubBore() * 0.5) ** 2) * hubSocketH();
   const wings =
     spec.wing_count * 0.62 * ((chordRoot() + chordTip()) * 0.5) * wingThick() * wingH();
   const base =
@@ -551,7 +564,7 @@ function estimatedSolidCm3() {
     Math.PI * ((bushingOd() * 0.5) ** 2 - (outerRaceId() * 0.5) ** 2) * bushingH() +
     Math.PI * ((bushingFlangeOd() * 0.5) ** 2 - (bushingOd() * 0.5) ** 2) * bushingFlangeH();
   const retainer = (Math.PI * (retainerOd() * 0.5) ** 2 - retainerSquare() ** 2) * retainerH();
-  return (hub + roots + wings + base + axle + bushing + cage + rollers + retainer) / 1000;
+  return (hub + wings + base + axle + bushing + cage + rollers + retainer) / 1000;
 }
 function estimatedPrintMassG() {
   return estimatedSolidCm3() * spec.filament.density_g_cm3 * spec.filament.print_volume_factor;
@@ -617,6 +630,24 @@ async function addOrientedRect(center, length, width, angleDeg) {
   await addPoly(
     [corner(hl, hw), corner(hl, -hw), corner(-hl, -hw), corner(-hl, hw), corner(hl, hw)],
     true,
+  );
+}
+async function cutCircle(z, diameter, depth, bodyId, label) {
+  const deck = await offsetXY(z);
+  await beginDatum(deck);
+  await addCircle(0, 0, diameter);
+  const sketch = await finishSketch();
+  requireClean(
+    await call("solid_extrude", {
+      sketch_name: sketch,
+      profile_indices: [0],
+      operation: "cut",
+      extent: { type: "distance", distance: depth },
+      taper_angle_deg: 0,
+      flip: false,
+      target_body_ids: [bodyId],
+    }),
+    label,
   );
 }
 async function cutBedReliefCircle(z, diameter, bodyId, label) {
@@ -857,11 +888,18 @@ async function buildBushing(known) {
     bushingId,
     "bushing race bed lead-in",
   );
+  await cutCircle(
+    bushingZ() + bushingH() - bedReliefH(),
+    outerRaceId() + bedReliefD(),
+    bedReliefH(),
+    bushingId,
+    "bushing race install lead-in",
+  );
   return bushingId;
 }
 
 async function buildRotor(known) {
-  const z0 = hubZ();
+  const z0 = plateZ();
   const deck = await offsetXY(z0);
   await beginDatum(deck);
   await addCircle(0, 0, hubDeckOd());
@@ -877,10 +915,11 @@ async function buildRotor(known) {
       flip: false,
       target_body_ids: [],
     }),
-    "rotor deck on bushing",
+    "rotor root plate",
   );
   const rotorId = newestBody(update, known);
-  await beginDatum(deck);
+  await cutCircle(z0, hubSocketOd(), hubSocketH(), rotorId, "hub socket for bushing flange");
+  await beginDatum(await offsetXY(hubZ()));
   await addCircle(0, 0, hubOd());
   await addCircle(0, 0, hubBore());
   sketch = await finishSketch();
@@ -897,69 +936,6 @@ async function buildRotor(known) {
     "rotor hub",
   );
   for (let index = 0; index < spec.wing_count; index++) {
-    const [px, py] = helixCenter(index, 0);
-    await beginDatum(deck);
-    await addOrientedRect(
-      [px * 0.5, py * 0.5],
-      wingRadius() + chordRoot() * 0.5,
-      bladeArmW(),
-      wingAngleDeg(index),
-    );
-    sketch = await finishSketch();
-    requireClean(
-      await call("solid_extrude", {
-        sketch_name: sketch,
-        profile_indices: [0],
-        operation: "join",
-        extent: { type: "distance", distance: hubDeckH() },
-        taper_angle_deg: 0,
-        flip: false,
-        target_body_ids: [rotorId],
-      }),
-      `blade print arm ${index}`,
-    );
-    await beginDatum(deck);
-    await addOrientedRect(
-      [px * 0.5, py * 0.5],
-      wingRadius() + chordRoot() * 0.5,
-      wall() * 3,
-      wingAngleDeg(index),
-    );
-    sketch = await finishSketch();
-    requireClean(
-      await call("solid_extrude", {
-        sketch_name: sketch,
-        profile_indices: [0],
-        operation: "join",
-        extent: { type: "distance", distance: hubH() },
-        taper_angle_deg: 0,
-        flip: false,
-        target_body_ids: [rotorId],
-      }),
-      `blade spar ${index}`,
-    );
-    await beginDatum(deck);
-    await addAirfoil(
-      helixCenter(index, 0),
-      helixAzimuthDeg(index, 0) + 90,
-      chordRoot(),
-      spec.airfoil_t_c,
-      spec.airfoil_stations,
-      teMin(),
-    );
-    sketch = await finishSketch();
-    requireClean(
-      await call("solid_extrude", {
-        sketch_name: sketch,
-        profile_indices: [0],
-        operation: "join",
-        extent: { type: "distance", distance: hubDeckH() },
-        taper_angle_deg: 0,
-        flip: false,
-        target_body_ids: [rotorId],
-      }),
-      `blade root base ${index}`,
-    );
     const stations = Math.max(spec.helix_stations, 2);
     const sections = [];
     for (let station = 0; station < stations; station++) {
@@ -987,7 +963,7 @@ async function buildRotor(known) {
       `helical blade ${index}`,
     );
   }
-  await cutBedReliefCircle(z0, hubBore() + bedReliefD(), rotorId, "hub bore bed lead-in");
+  await cutBedReliefCircle(hubZ(), hubBore() + bedReliefD(), rotorId, "hub bore bed lead-in");
   return rotorId;
 }
 
@@ -1387,7 +1363,7 @@ async function moveBodies(bodyIds, translation) {
 
 async function layoutPrintPlate(ids) {
   const gap = 10;
-  const rotorR = rotorD() * 0.5;
+  const rotorR = Math.max(rotorD(), hubDeckOd()) * 0.5;
   const baseR = baseEnvelope() * 0.5;
   const axleR = axleFlangeD() * 0.5;
   const cartR = pcd() * 0.5 + rollerD() * 0.5;
@@ -1395,7 +1371,7 @@ async function layoutPrintPlate(ids) {
   const retR = retainerOd() * 0.5;
   const colX = rotorR + gap + Math.max(baseR, axleR);
   const smallX = colX + Math.max(baseR, axleR) + gap + Math.max(cartR, retR, bushR);
-  await moveBodies([ids.rotorId], [-rotorR - gap * 0.5, 0, -hubZ()]);
+  await moveBodies([ids.rotorId], [-rotorR - gap * 0.5, 0, -plateZ()]);
   await moveBodies([ids.baseId], [colX, baseR + gap * 0.5, 0]);
   await moveBodies([ids.axleId], [colX, -(axleR + gap * 0.5), -flangeZ()]);
   // Bushing stays its own body. Nesting it around the PIP rollers at
@@ -1427,15 +1403,15 @@ async function makeAssemblyDrawing() {
     ],
     [
       [18, 48],
-      "PRINT  one plate, laid out. Rotor STANDING on the deck (bushing seat). Others FLAT. Cartridge PIP. PLA Orange + PLA Glow (rotor).",
+      "PRINT  one plate, laid out. Rotor STANDING on the root plate (flat blade cuts). Others FLAT. Cartridge PIP. PLA Orange + PLA Glow (rotor).",
     ],
     [
       [18, 58],
-      "GDT  axle SITS on base. Hub deck SITS on bushing shoulder (friction on OD above bed lead-in). Blades grow from that deck. PIP pockets +0.80; do not nest bushing around rollers. 0.20 float at running lands.",
+      "GDT  axle SITS on base. Root plate SOCKET drops over the bushing flange; bore friction on the OD. Blades end on the plate bottom (sit plane). Open-top race: drop cartridge, then the rotor. PIP +0.80.",
     ],
     [
       [18, 68],
-      `BOM  base (Y-frame + square post) · axle (inner-race puck) · bushing (outer race + shoulder) · rotor (deck+3×${spec.airfoil} rooted on bushing) · roller cage + ${spec.roller_count} PIP rollers · retainer`,
+      `BOM  base (Y-frame + square post) · axle (inner-race puck) · bushing (open-top outer race) · rotor (root plate+socket+3×${spec.airfoil}) · roller cage + ${spec.roller_count} PIP rollers · retainer`,
     ],
     [
       [18, 78],
@@ -1470,6 +1446,7 @@ function writeDesignReport({ bodies, rotorBox, rotorFaces, plateFiles }) {
     ["Bed-printed friction bore, no lead-in", "Elephant foot closes a +0.16 hub bore and pinches the bushing race. 0.80 mm lead-in on every bed-printed locate."],
     ["Bushing nested around PIP rollers", "Race-to-roller at +0.40 is 0.10 mm/side. They fuse. Bushing prints as its own body; cage+rollers are the PIP cluster."],
     ["Overhung blade roots", "Loft started mid-hub, out at wing radius. First layers of a standing print were air. Deck on the bushing shoulder; print arms; root stumps on the bed; loft from the deck so the rotor can print and rotate."],
+    ["Tiny ring + blades from the surface above", "Ø41 deck + skinny arms. Airfoils started from the arm top, not a flat sit-plane cut. Root plate out to the blades; socket over the bushing flange; loft from plate_z so the draft ends on that horizontal."],
   ];
   const usd = estimatedFilamentUsd().toFixed(2);
   const markdown = `# Print Kit Tutor — design report
@@ -1486,7 +1463,7 @@ ${iterations.map(([name, why]) => `| ${name} | ${why} |`).join("\n")}
 
 - **Architecture:** Helical H-Darrieus, directionless (no yaw). Short fixed square post. Bushing freewheels on a printed roller pack; hub mounts on the bushing. No tall mast.
 - **Airfoil:** ${spec.airfoil} (t/c ${spec.airfoil_t_c}). 2026 VAWT dynamic-stall work favors t/c 21–24%. TE blunt to ${teMin()} mm (≥ 2 nozzles). Open drafted tips.
-- **Rotor:** one piece — deck on the bushing seat (OD flush with the shoulder) + print arms + root stumps + ${spec.wing_count} helical NACAs from the deck. c=${chordRoot().toFixed(1)}/${chordTip().toFixed(1)} mm, R=${wingRadius().toFixed(1)} mm, span=${wingH().toFixed(1)} mm, helix ${spec.helix_deg}°, σ=${solidity().toFixed(3)}. Envelope/rotor ${(baseEnvelope() / rotorD()).toFixed(2)}. The deck is the rotating mount; blades are not mid-air overhangs.
+- **Rotor:** one piece — root plate out to the blades (Ø${hubDeckOd().toFixed(1)}) with a socket over the bushing flange, plus ${spec.wing_count} helical NACAs lofted from that plate (flat sit-plane cut, chord drafts toward the tip). c=${chordRoot().toFixed(1)}/${chordTip().toFixed(1)} mm, R=${wingRadius().toFixed(1)} mm, span=${wingH().toFixed(1)} mm, helix ${spec.helix_deg}°, σ=${solidity().toFixed(3)}. Envelope/rotor ${(baseEnvelope() / rotorD()).toFixed(2)}.
 - **Fits:** assembled running +${spec.fit_running_mm} (rollers on races printed as other bodies). Same-plate PIP +${spec.fit_pip_mm} (cage pockets). Slip +${spec.fit_slip_mm} (square retainer). Friction +${spec.fit_friction_mm} on a land above a ${spec.bed_relief_mm} mm bed lead-in (axle square, hub bore). Slicer XY hole compensation stays 0. Axle **sits** on the base. Hub **sits** on the bushing shoulder. Thrust float ${spec.thrust_float} at running lands. Do **not** nest the bushing around the PIP rollers.
 - **Loads:** weight/thrust on the axle flange land (Z). Radial + overturning moment on the large-PCD roller pack inside the bushing (XY and tip moment). Torque about Z stays in the rotor; the square post is the stator. Centrifugal blade load is taken by the one-piece hub spars — do not friction-fit blades or the hub onto the rollers.
 - **Links:** rigid axle_sit + hub_mount + retainer_sit; revolute bushing_spin + cage_spin + ${spec.roller_count}× roller_spin. assembly_solution must stay solved without yanking parts off-axis.
@@ -1505,7 +1482,7 @@ Six functional parts, assembly order: ${spec.assembly_order.join(" → ")}.
 | Base | 1 | Y-frame + square stator post. Print flat. |
 | Axle | 1 | Inner-race puck, square bore, print on the flange. |
 | Bushing | 1 | Outer-race ring + external shoulder. Hub seats on the OD. Print flat. |
-| Rotor | 1 | Deck on bushing + 3× ${spec.airfoil} rooted on the bed, open tips, print standing. Friction-mounts on the bushing. |
+| Rotor | 1 | Root plate + bushing socket + 3× ${spec.airfoil} ending on the sit plane. Print standing. |
 | Roller cartridge | 1 | Cage + ${spec.roller_count} PIP rollers inside the bushing ID. |
 | Retainer | 1 | Washer on the post covering the open raceway. |
 
@@ -1525,7 +1502,7 @@ Print plate in \`${out3mfDir}\` (folder wiped first; parts laid out on one plate
 
 ${plateFiles.map((file) => `- \`${file}\``).join("\n")}
 
-Slicer: one plate, two materials (PLA Orange + PLA Glow). Base/axle/bushing/cage/retainer flat. Rotor standing on the deck (bushing seat), tips up.
+Slicer: one plate, two materials (PLA Orange + PLA Glow). Base/axle/bushing/cage/retainer flat. Rotor standing on the root plate, tips up.
 
 Project: \`${outProject}\`
 
@@ -1758,7 +1735,7 @@ try {
     report.lessons,
     "one_piece_rotor",
     rotorFaces >= spec.min_rotor_faces && rotorSpan > wingH() * 0.7 && chordRoot() > chordTip(),
-    `rotor faces=${rotorFaces} span=${rotorSpan.toFixed(1)} (deck on bushing + 3 rooted blades)`,
+    `rotor faces=${rotorFaces} span=${rotorSpan.toFixed(1)} (root plate + socket + 3 blades on the sit plane)`,
   );
   record(
     report.lessons,

@@ -19,7 +19,7 @@ fence, or whose only bearing is a short two-land sleeve, is also a
 | Group | Number | Why |
 |-------|--------|-----|
 | Section | NACA 0021, TE ≥ 0.8 mm, root chord > tip | 2026 thick-symmetric band; drafted standing print |
-| Rotor | One body: deck on the bushing shoulder + 3 helical blades rooted on that deck. X2D-max R=85, span=220, scale 0.4 in the exam | Always some blade working; no tenons; no mid-air roots |
+| Rotor | One body: root plate out to the blades, socket on the bushing flange, 3 helical blades ending on that plate. X2D-max R=85, span=220, scale 0.4 in the exam | Always some blade working; no tenons; no mid-air roots; no skinny-arm hangers |
 | Stand | Y-frame + short square stator post | Envelope/rotor ≤ 1.55; no cookie; no tall mast |
 | Bearing | Distinct outer-race bushing + 6× printed PIP rollers, min Ø8, large PCD | Tip moment. Hub mounts on the bushing OD. Not a 608. Not a two-land sleeve alone |
 | Fits | running +0.40 / PIP +0.80 / slip +0.28 / friction +0.16 | Role-based **and** same-plate vs assembled. 0.80 mm bed lead-in. Slicer XY hole comp = 0 |

@@ -2,6 +2,11 @@
 
 ## 2026-08-16
 
+- **Update**: Print-kit rotor is a root plate out to the blades with a
+  socket over the bushing flange. Helical lofts start at `plate_z` so
+  the airfoil draft ends on that flat sit plane, not from a surface
+  above. Open-top bushing: drop the cartridge in, then drop the plate
+  on. Tiny ring + skinny-arm hangers are a fail.
 - **Update**: Print-kit rotor seats a deck on the bushing shoulder.
   Blade roots are XY airfoils on that deck (print arms + stumps); the
   helical loft starts at `blade_root_z`, not mid-hub. The deck is the

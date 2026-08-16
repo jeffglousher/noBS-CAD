@@ -134,16 +134,27 @@ impl Spec {
         self.mm_min(self.hub_h, 8.0).max(self.roller_h())
     }
     fn hub_deck_h(&self) -> f64 {
-        self.mm_min(6.0, 2.4).max(self.bed_relief_h())
+        self.mm_min(10.0, 4.0)
+            .max(self.hub_socket_h() + self.bed_relief_h())
     }
     fn hub_deck_od(&self) -> f64 {
-        self.bushing_flange_od()
+        (self.wing_radius() + self.chord_root() * 0.18) * 2.0
     }
+    fn hub_socket_od(&self) -> f64 {
+        self.bushing_flange_od() + self.fit_slip_mm
+    }
+    fn hub_socket_h(&self) -> f64 {
+        self.bushing_flange_h()
+    }
+    fn plate_z(&self) -> f64 {
+        self.bushing_z()
+    }
+    #[allow(dead_code)]
     fn blade_arm_w(&self) -> f64 {
         (self.chord_root() * 0.4).max(self.wall() * 6.0)
     }
     fn blade_root_z(&self) -> f64 {
-        self.hub_z() + self.hub_deck_h()
+        self.plate_z()
     }
     fn hub_square(&self) -> f64 {
         self.mm(self.axle_square) + self.fit_friction_mm
@@ -243,7 +254,8 @@ impl Spec {
         self.post_circle_r() * 2.0 + self.pad_d()
     }
     fn rotor_print_h(&self) -> f64 {
-        self.hub_h().max(self.hub_deck_h()) + self.wing_h()
+        self.wing_h()
+            .max(self.hub_z() + self.hub_h() - self.plate_z())
     }
     fn fits_x2d_at_max(&self) -> bool {
         let bed = self.usable_bed();
@@ -355,8 +367,12 @@ impl Spec {
             && self.bed_relief_h() + 1e-9 < self.retainer_h()
             && self.bed_relief_h() + 1e-9 < self.axle_flange_h()
             && self.hub_deck_h() + 1e-9 < self.hub_h()
-            && self.hub_deck_od() + 1e-9 >= self.bushing_od()
-            && (self.blade_root_z() - (self.hub_z() + self.hub_deck_h())).abs() < 1e-9
+            && self.hub_deck_od() + 1e-9 > self.bushing_flange_od()
+            && self.hub_deck_od() + 1e-9 >= self.wing_radius() * 2.0
+            && self.hub_socket_od() + 1e-9 > self.bushing_flange_od()
+            && self.hub_deck_h() + 1e-9 > self.hub_socket_h()
+            && (self.plate_z() - self.bushing_z()).abs() < 1e-9
+            && (self.blade_root_z() - self.plate_z()).abs() < 1e-9
     }
     fn assembly_component_count(&self) -> usize {
         6 + self.roller_count
@@ -375,13 +391,11 @@ impl Spec {
             * ((self.hub_od() * 0.5).powi(2) - (self.hub_bore() * 0.5).powi(2))
             * self.hub_h()
             + std::f64::consts::PI
-                * ((self.hub_deck_od() * 0.5).powi(2) - (self.hub_od() * 0.5).powi(2))
-                * self.hub_deck_h();
-        let roots = (self.wing_count as f64)
-            * 0.7
-            * self.chord_root()
-            * self.wing_thick()
-            * self.hub_deck_h();
+                * ((self.hub_deck_od() * 0.5).powi(2) - (self.hub_bore() * 0.5).powi(2))
+                * self.hub_deck_h()
+            - std::f64::consts::PI
+                * ((self.hub_socket_od() * 0.5).powi(2) - (self.hub_bore() * 0.5).powi(2))
+                * self.hub_socket_h();
         let wings = (self.wing_count as f64)
             * 0.62
             * ((self.chord_root() + self.chord_tip()) * 0.5)
@@ -409,7 +423,7 @@ impl Spec {
         let retainer = (std::f64::consts::PI * (self.retainer_od() * 0.5).powi(2)
             - self.retainer_square().powi(2))
             * self.retainer_h();
-        (hub + roots + wings + base + axle + bushing + cage + rollers + retainer) / 1000.0
+        (hub + wings + base + axle + bushing + cage + rollers + retainer) / 1000.0
     }
     fn estimated_print_mass_g(&self) -> f64 {
         self.estimated_solid_cm3() * self.filament.density_g_cm3 * self.filament.print_volume_factor
@@ -662,7 +676,7 @@ fn layout_print_plate(
     retainer_id: u64,
 ) -> Result<(), String> {
     let gap = 10.0;
-    let rotor_r = spec.rotor_d() * 0.5;
+    let rotor_r = spec.rotor_d().max(spec.hub_deck_od()) * 0.5;
     let base_r = spec.base_envelope() * 0.5;
     let axle_r = spec.axle_flange_d() * 0.5;
     let cart_r = spec.pcd() * 0.5 + spec.roller_d() * 0.5;
@@ -670,7 +684,7 @@ fn layout_print_plate(
     let ret_r = spec.retainer_od() * 0.5;
     let col_x = rotor_r + gap + base_r.max(axle_r);
     let small_x = col_x + base_r.max(axle_r) + gap + cart_r.max(ret_r).max(bush_r);
-    move_bodies(call, &[rotor_id], [-rotor_r - gap * 0.5, 0.0, -spec.hub_z()])?;
+    move_bodies(call, &[rotor_id], [-rotor_r - gap * 0.5, 0.0, -spec.plate_z()])?;
     move_bodies(call, &[base_id], [col_x, base_r + gap * 0.5, 0.0])?;
     move_bodies(
         call,
@@ -927,6 +941,14 @@ fn build_bushing(
         bushing_id,
         "bushing race bed lead-in",
     )?;
+    cut_circle(
+        call,
+        spec.bushing_z() + spec.bushing_h() - spec.bed_relief_h(),
+        spec.outer_race_id() + spec.bed_relief_d(),
+        spec.bed_relief_h(),
+        bushing_id,
+        "bushing race install lead-in",
+    )?;
     Ok(bushing_id)
 }
 
@@ -935,7 +957,7 @@ fn build_rotor(
     spec: &Spec,
     known: &[u64],
 ) -> Result<u64, String> {
-    let z0 = spec.hub_z();
+    let z0 = spec.plate_z();
     let deck = offset_xy(call, z0)?;
     begin_datum(call, deck.clone())?;
     add_circle(call, [0.0, 0.0], spec.hub_deck_od())?;
@@ -954,10 +976,19 @@ fn build_rotor(
                 "target_body_ids": []
             }),
         )?,
-        "rotor deck on bushing",
+        "rotor root plate",
     )?;
     let rotor_id = newest_body_id(&update, known)?;
-    begin_datum(call, deck.clone())?;
+    cut_circle(
+        call,
+        z0,
+        spec.hub_socket_od(),
+        spec.hub_socket_h(),
+        rotor_id,
+        "hub socket for bushing flange",
+    )?;
+    let hub_plane = offset_xy(call, spec.hub_z())?;
+    begin_datum(call, hub_plane)?;
     add_circle(call, [0.0, 0.0], spec.hub_od())?;
     add_circle(call, [0.0, 0.0], spec.hub_bore())?;
     let hub = finish_sketch(call)?;
@@ -978,82 +1009,6 @@ fn build_rotor(
     )?;
 
     for index in 0..spec.wing_count {
-        let [px, py] = spec.helix_center(index, 0.0);
-        begin_datum(call, deck.clone())?;
-        add_oriented_rect(
-            call,
-            [px * 0.5, py * 0.5],
-            spec.wing_radius() + spec.chord_root() * 0.5,
-            spec.blade_arm_w(),
-            spec.wing_angle_deg(index),
-        )?;
-        let arm = finish_sketch(call)?;
-        require_clean(
-            call(
-                "solid_extrude",
-                json!({
-                    "sketch_name": arm,
-                    "profile_indices": [0],
-                    "operation": "join",
-                    "extent": { "type": "distance", "distance": spec.hub_deck_h() },
-                    "taper_angle_deg": 0.0,
-                    "flip": false,
-                    "target_body_ids": [rotor_id]
-                }),
-            )?,
-            &format!("blade print arm {index}"),
-        )?;
-        begin_datum(call, deck.clone())?;
-        add_oriented_rect(
-            call,
-            [px * 0.5, py * 0.5],
-            spec.wing_radius() + spec.chord_root() * 0.5,
-            spec.wall() * 3.0,
-            spec.wing_angle_deg(index),
-        )?;
-        let spar = finish_sketch(call)?;
-        require_clean(
-            call(
-                "solid_extrude",
-                json!({
-                    "sketch_name": spar,
-                    "profile_indices": [0],
-                    "operation": "join",
-                    "extent": { "type": "distance", "distance": spec.hub_h() },
-                    "taper_angle_deg": 0.0,
-                    "flip": false,
-                    "target_body_ids": [rotor_id]
-                }),
-            )?,
-            &format!("blade spar {index}"),
-        )?;
-        begin_datum(call, deck.clone())?;
-        add_airfoil(
-            call,
-            spec.helix_center(index, 0.0),
-            spec.helix_azimuth_deg(index, 0.0) + 90.0,
-            spec.chord_root(),
-            spec.airfoil_t_c,
-            spec.airfoil_stations,
-            spec.te_min(),
-        )?;
-        let stump = finish_sketch(call)?;
-        require_clean(
-            call(
-                "solid_extrude",
-                json!({
-                    "sketch_name": stump,
-                    "profile_indices": [0],
-                    "operation": "join",
-                    "extent": { "type": "distance", "distance": spec.hub_deck_h() },
-                    "taper_angle_deg": 0.0,
-                    "flip": false,
-                    "target_body_ids": [rotor_id]
-                }),
-            )?,
-            &format!("blade root base {index}"),
-        )?;
-
         let stations = spec.helix_stations.max(2);
         let mut sections = Vec::new();
         for station in 0..stations {
@@ -1092,7 +1047,7 @@ fn build_rotor(
     cut_bed_relief_circle(
         call,
         spec,
-        z0,
+        spec.hub_z(),
         spec.hub_bore() + spec.bed_relief_d(),
         rotor_id,
         "hub bore bed lead-in",
@@ -1574,16 +1529,16 @@ fn make_assembly_drawing(
         ),
         (
             [18.0, 48.0],
-            "PRINT  one plate, laid out. Rotor STANDING on the deck (bushing seat). Others FLAT. Cartridge PIP. PLA Orange + PLA Glow (rotor).".to_string(),
+            "PRINT  one plate, laid out. Rotor STANDING on the root plate (flat blade cuts). Others FLAT. Cartridge PIP. PLA Orange + PLA Glow (rotor).".to_string(),
         ),
         (
             [18.0, 58.0],
-            "GDT  axle SITS on base. Hub deck SITS on bushing shoulder (friction on OD above bed lead-in). Blades grow from that deck. PIP pockets +0.80; do not nest bushing around rollers. 0.20 float at running lands.".to_string(),
+            "GDT  axle SITS on base. Root plate SOCKET drops over the bushing flange; bore friction on the OD. Blades end on the plate bottom (sit plane). Open-top race: drop cartridge, then the rotor. PIP +0.80.".to_string(),
         ),
         (
             [18.0, 68.0],
             format!(
-                "BOM  base (Y-frame + square post) · axle (inner-race puck) · bushing (outer race + shoulder) · rotor (deck+3×{} rooted on bushing) · roller cage + {} PIP rollers · retainer",
+                "BOM  base (Y-frame + square post) · axle (inner-race puck) · bushing (open-top outer race) · rotor (root plate+socket+3×{}) · roller cage + {} PIP rollers · retainer",
                 spec.airfoil, spec.roller_count
             ),
         ),
@@ -1864,7 +1819,7 @@ fn grade(
         rotor_faces >= spec.min_rotor_faces
             && rotor_span > spec.wing_h() * 0.7
             && spec.chord_root() > spec.chord_tip(),
-        format!("rotor faces={rotor_faces} span={rotor_span:.1} (deck on bushing + 3 rooted blades)"),
+        format!("rotor faces={rotor_faces} span={rotor_span:.1} (root plate + socket + 3 blades on the sit plane)"),
     );
     push_lesson(
         &mut lessons,
@@ -2044,6 +1999,36 @@ fn add_airfoil(
         .map(|[x, y]| [center[0] + cos * x - sin * y, center[1] + sin * x + cos * y])
         .collect();
     add_poly(call, &world, true)
+}
+
+fn cut_circle(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    z: f64,
+    diameter: f64,
+    depth: f64,
+    body_id: u64,
+    label: &str,
+) -> Result<(), String> {
+    let deck = offset_xy(call, z)?;
+    begin_datum(call, deck)?;
+    add_circle(call, [0.0, 0.0], diameter)?;
+    let sketch = finish_sketch(call)?;
+    require_clean(
+        call(
+            "solid_extrude",
+            json!({
+                "sketch_name": sketch,
+                "profile_indices": [0],
+                "operation": "cut",
+                "extent": { "type": "distance", "distance": depth },
+                "taper_angle_deg": 0.0,
+                "flip": false,
+                "target_body_ids": [body_id]
+            }),
+        )?,
+        label,
+    )?;
+    Ok(())
 }
 
 fn cut_bed_relief_circle(
@@ -2446,8 +2431,11 @@ mod spec_tests {
         assert!(spec.fit_pip_mm > spec.fit_running_mm);
         assert!((spec.bed_relief_mm - spec.nozzle_mm * 2.0).abs() < 1e-9);
         assert!(spec.cage_pocket() > spec.roller_d() + spec.fit_running_mm);
-        assert!(spec.hub_deck_od() >= spec.bushing_od());
+        assert!(spec.hub_deck_od() > spec.bushing_flange_od());
+        assert!(spec.hub_deck_od() >= spec.wing_radius() * 2.0);
         assert!(spec.hub_deck_h() < spec.hub_h());
-        assert!((spec.blade_root_z() - spec.hub_z() - spec.hub_deck_h()).abs() < 1e-9);
+        assert!(spec.hub_socket_od() > spec.bushing_flange_od());
+        assert!((spec.blade_root_z() - spec.plate_z()).abs() < 1e-9);
+        assert!((spec.plate_z() - spec.bushing_z()).abs() < 1e-9);
     }
 }

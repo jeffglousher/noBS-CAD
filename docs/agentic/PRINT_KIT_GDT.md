@@ -160,7 +160,7 @@ graded, but it was the wrong product for additive manufacturing:
 | Base | Flat (Y-frame + post) |
 | Axle | On the flange |
 | Bushing | Flat (shoulder on the bed) |
-| Rotor | Standing on the deck (bushing seat), tips up. Root stumps on the bed. |
+| Rotor | Standing on the root plate, tips up. Blade bottoms are the sit-plane cut. |
 | Roller cartridge | Flat, PIP |
 | Retainer | Flat |
 
@@ -169,7 +169,7 @@ graded, but it was the wrong product for additive manufacturing:
 1. Axle puck onto the square post (friction locate). Flange **sits** on the base.
 2. Bushing over the inner race, 0.20 above the flange. Outer race is the bushing ID.
 3. Roller cartridge inside the bushing. Cage and each roller are linked (revolute).
-4. Rotor **deck** **friction-mounts** on the bushing OD and **sits** on the shoulder. Blades grow from that deck — one body. That is the rotating mount.
+4. Drop the cartridge into the open-top bushing. Drop the rotor **root plate** on: socket over the flange, bore on the OD. Blades end on that plate. That is the rotating mount.
 5. Retainer washer **square-slip** on the post, floats 0.20 above the hub, and covers the open raceway.
 
 If those steps are not visible in the solid, the exam failed.
@@ -201,3 +201,4 @@ If those steps are not visible in the solid, the exam failed.
 | Fault | Why it failed | Correction |
 |-------|---------------|------------|
 | Overhung blade roots | Loft started mid-hub (`hub_h × 0.35`), out at wing radius. First layers of a standing print were air. Blades did not sit on the bushing seat. | Deck on the bushing shoulder (OD flush with the flange). Wide print arms + root stumps on the bed. Helical loft starts at `blade_root_z` = deck top. The deck is the rotating mount (`hub_mount` + `bushing_spin`). |
+| Tiny ring + blades from the surface above | Ø41 deck + skinny arms. Airfoils started from the arm top. No socket, no install path. | Root plate out to the blades. Socket drops over the bushing flange. Open-top bushing (cartridge first, then plate). Loft from `plate_z` so the draft ends on that flat. |

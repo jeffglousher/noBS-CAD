@@ -34,7 +34,9 @@ Do not ship any of these. They have already been built. They are not turbines.
 - PIP at assembled running clearance (cage pockets or rollers inside the bushing at +0.40). Same-plate gap must be **2 nozzles**
 - A friction or running bore on the print bed with no lead-in (elephant foot closes +0.16 and pinches a race)
 - Nesting the bushing around the PIP rollers on the plate (0.10 mm/side — they fuse)
-- Overhung blade roots / a loft that starts mid-hub (the standing print has no first-layer airfoil). Seat a **deck** on the bushing shoulder; put root stumps on the bed; loft from that deck so the rotor can print and rotate
+- Overhung blade roots / a loft that starts mid-hub or from the **top of an arm** (the standing print has no first-layer airfoil). The airfoil draft must continue down and **end on the sit-plane horizontal**
+- A tiny hub ring with skinny arms and blades hung off the ends. The rotating mount is a **root plate** out to the blades, with a **socket** that drops over the bushing flange
+- A closed race you cannot load. The bushing is an **open-top cup**: drop the cartridge in from above, then drop the rotor plate on. Retainer last
 - Press fits, same-angle lifted cones (parallel surfaces never touch)
 - A report that only says READY TO PRINT
 - A fat frame: base envelope > 1.55 × rotor tip diameter (the Ø90 cookie)
@@ -52,7 +54,7 @@ A **directionless vertical-axis wind turbine** (VAWT) sized to fill a Bambu Lab 
 
 Architecture (required): **helical / Gorlov H-Darrieus** with a **symmetric airfoil** section. Symmetric because the blade sees reversing α every revolution. Helical because a straight extrusion is idle for most of the rev. Directionless means: odd blade count, 120° spacing, chord tangent to the cylinder at every station, identical blades, no preferred wind azimuth.
 
-Helix rule: loft a **closed NACA** at ≥2 stations. Mid-chord stays on radius R. Chord stays tangent. Twist ≥45° over the span (spec: 60°). Root at 30°. Open drafted tips — no end cap. Print the rotor standing on the **deck** that sits on the bushing shoulder. Each blade root is an XY airfoil on the bed — not an overhang.
+Helix rule: loft a **closed NACA** at ≥2 stations. Mid-chord stays on radius R. Chord stays tangent. Twist ≥45° over the span (spec: 60°). Root at 30°. Open drafted tips — no end cap. First station is the **root plate** (the sit / print plane). Chord drafts toward the tip. The blade bottom is that flat horizontal — not a cut from a surface above.
 
 The center is **short**. Do not build a tall mast. A stout printed roller pack inside a distinct bushing takes the angular load from the blade tips. The stator is a square post on the Y-frame; the bushing freewheels on the rollers; the hub friction-mounts on the bushing OD.
 
@@ -78,7 +80,7 @@ Six **individual** functional parts, then an **assembly** (components + occurren
 | Base | **Y-frame** + short square stator post. One piece. No cookie. | Flat |
 | Axle | Flanged inner-race **puck**, square bore (friction on the post). Never a tall skinny shaft | On the flange |
 | Bushing | Outer-race ring + **external shoulder**. Hub seats on the OD. Not the cage. | Flat |
-| Rotor | **Deck** on the bushing shoulder + 3 helical drafted **NACA 0021** blades rooted on that deck, **one body**, open tips. Bore = bushing OD + friction | Standing on the deck |
+| Rotor | **Root plate** out to the blades, **socket** over the bushing flange, 3 helical drafted **NACA 0021** ending on that plate, **one body**, open tips. Bore = bushing OD + friction | Standing on the plate |
 | Roller cartridge | Cage + ≥6 PIP rollers, min Ø8, large PCD **inside the bushing ID** | Flat, PIP on the kit plate |
 | Retainer | Washer covering the open raceway, slip on the post | Flat |
 
@@ -138,10 +140,10 @@ Minimum wall 1.6 mm (4 nozzles). Functional holes are complete XY circles. Disab
 2. Base **Y-frame** + square stator post. One piece, print flat
 3. Axle: flange + inner-race cylinder, square bore, print on the flange
 4. Bushing: outer-race tube + external shoulder. Hub bore = bushing OD + friction
-5. Rotor: **deck** (sits on the bushing shoulder) JOIN print arms JOIN root stumps JOIN three helical **NACA 0021** lofts from the deck (not mid-hub), open drafted tips, print standing on the deck. The hub is **not** the outer race
+5. Rotor: **root plate** (out to the blades) with a **socket** over the bushing flange. Loft three helical **NACA 0021** from the plate bottom (sit plane), open drafted tips. Do not start the loft from a surface above the plate. The hub is **not** the outer race
 6. Roller cage + PIP rollers on a large PCD **inside the bushing**. Retainer washer over the raceway
 7. cad_set_workspace assembly. One `assembly_create_component` per moving body (base, axle, bushing, rotor, cage, each roller, retainer — no extra occurrence). Ground the base. Rigid axle_sit + hub_mount + retainer_sit; revolute bushing_spin / cage / rollers on axes (not a spar). cad_set_focus drawing. Sheet + auto-layout + notes
-8. cad_set_focus print. set_body_appearance to **PLA Orange** and **PLA Glow** only. solid_export_preflight. Save the assembled `.nbcad`. **Delete** any prior `Print-Kit-Tutor/` 3MFs (and `Print-Kit-Tutor.3mf`). `solid_move_copy` the parts onto one bed (rotor standing on the deck, others flat). Then `solid_export_3mf` **once** as `01-kit` with every kit body_id. The folder must contain exactly that file.
+8. cad_set_focus print. set_body_appearance to **PLA Orange** and **PLA Glow** only. solid_export_preflight. Save the assembled `.nbcad`. **Delete** any prior `Print-Kit-Tutor/` 3MFs (and `Print-Kit-Tutor.3mf`). `solid_move_copy` the parts onto one bed (rotor standing on the root plate, others flat). Then `solid_export_3mf` **once** as `01-kit` with every kit body_id. The folder must contain exactly that file.
 9. `cad_set_project_visibility`: hide every construction plane (`hidden_datum_plane_ids`) and finished loft sketches (`hidden_sketch_names`). The shipped `.nbcad` must read as the six-part kit, not orange datum stacks.
 10. Write the design report. Include role-based fits, scale vs X2D, roller PCD, bushing mount, and why the rotor is one piece
 

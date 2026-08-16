@@ -20,6 +20,7 @@ Contract: [PRINT_KIT_DESIGN.md](PRINT_KIT_DESIGN.md).
 | Uniform +0.40 on every hole | Easy parts stayed easy; tight locates were sloppy. Role-based running/slip/friction. |
 | Tenoned separate wings | Three blades plus a hub is one printed rotor, not a puzzle. |
 | Overhung blade roots | Loft started mid-hub. First layers of a standing print were air. Deck on the bushing; roots on the bed. |
+| Tiny ring + blades from the surface above | Skinny arms, loft from the arm top. Root plate + socket; loft from the sit plane. |
 | Tall skinny shaft + two-land sleeve | Cannot take blade-tip moment and needs a support tower. Short post + large-PCD roller pack. |
 
 ## 2. Design process
