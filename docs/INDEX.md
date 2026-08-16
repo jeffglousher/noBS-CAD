@@ -24,6 +24,7 @@
 | [agentic/INDEX.md](agentic/INDEX.md) | Agents + maintainers | Structure changes |
 | [agentic/INTEGRATION_TESTS.md](agentic/INTEGRATION_TESTS.md) | Agents + CI | Ordered MCP benchmarks (#1 print-kit tutor) |
 | [agentic/PRINT_KIT_TUTOR.md](agentic/PRINT_KIT_TUTOR.md) | Agents + CI | Curriculum / grader for benchmark #1 |
+| [agentic/ASSEMBLY.md](agentic/ASSEMBLY.md) | Agents + maintainers | Multi-body vs assemblies gap |
 | [agentic/STEERABLE_MCP.md](agentic/STEERABLE_MCP.md) | Agents | Disclosure invariants |
 | [agentic/MCP_2026.md](agentic/MCP_2026.md) | Agents | Recommended MCP 2026-07-28 success manual |
 | [agentic/MAINTENANCE.md](agentic/MAINTENANCE.md) | Agents + CI | Toolchain / test commands |

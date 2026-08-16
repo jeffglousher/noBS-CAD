@@ -2,6 +2,10 @@
 
 ## 2026-08-15
 
+- **Update**: Replaced the print-bed 608 coupon with a fully printed even
+  spinner (assembled stack, 45° cone thrust, printed sleeve, 3+2 even
+  layout). Documented the multi-body vs assembly gap in
+  [docs/agentic/ASSEMBLY.md](../docs/agentic/ASSEMBLY.md).
 - **Update**: Promoted the print-kit tutor to **benchmark #1** in
   [docs/agentic/INTEGRATION_TESTS.md](../docs/agentic/INTEGRATION_TESTS.md)
   (ordered MCP integration tests).

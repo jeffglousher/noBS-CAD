@@ -177,8 +177,8 @@ pub fn list_prompts() -> Value {
             ),
             prompt_desc(
                 "model_print_kit",
-                "Teach an FDM-tolerant print kit",
-                "Synthesis exam: journal + 608 bushing + housing + helical loft, modeled for a 0.4 mm Bambu nozzle.",
+                "Teach a fully printed spinner",
+                "Synthesis exam: assembled even spinner with printed cone thrust and sleeve bushing, modeled for a 0.4 mm Bambu nozzle.",
                 &[("nozzle_mm", "Nozzle diameter used as the diametral clearance (default 0.4)", false)]
             ),
             prompt_desc(
@@ -372,18 +372,19 @@ pub fn get_prompt(name: &str, arguments: &Value) -> Result<Value, String> {
                 .and_then(Value::as_f64)
                 .unwrap_or(0.4);
             format!(
-                "CAD synthesis tutor — build a real printable mechanical kit, then grade FDM tolerancing.\n\
-                 Spec: scripts/fixtures/print-kit-tutor.spec.json (id fdm-journal-kit). Rerun: npm run test:mcp-print-kit.\n\
+                "CAD synthesis tutor — build a fully printed even spinner as an assembled stack, then grade FDM tolerancing.\n\
+                 Spec: scripts/fixtures/print-kit-tutor.spec.json (id fdm-print-spinner). Rerun: npm run test:mcp-print-kit.\n\
                  Exam (headless is enough; cad_attach is optional live UI):\n\
                  1. prompts/get model_print_kit. cad_list_all_tools. cad_new_project. cad_set_document_name Print Kit Tutor.\n\
-                 2. Design input: nozzle={nozzle} mm. Every printed-to-printed running/slip fit is +{nozzle} mm diametral in CAD. Do not use FDM press fits. Leave slicer XY hole compensation at 0.\n\
-                 3. Journal shaft: revolve on XZ. Flange Ø16 × 1.6 on the bed with a 0.4 mm elephant-foot chamfer. Journal Ø8. 45° tip — no square barb, no horizontal holes.\n\
-                 4. 608 journal bearing (printed bushing): Ø8.4 ID × Ø22 OD × 7 H, standing ring so the bore is an XY circle. Housing seat Ø22.4 × 7.4 from the top face plus Ø10 through. Same seat accepts a metal 608ZZ.\n\
-                 5. Place every body on z=0 (print orientation, not the assembled stack). Functional holes only as complete XY circles.\n\
-                 6. Helical C loft (≥2 stations, 90° twist). This is not a 2D vane or a single origin-plane extrusion. Disable grid snap. Prefer locked circles for sized holes.\n\
-                 7. cad_set_focus print. set_body_appearance. solid_export_preflight. solid_export_3mf slicer_target=bambu_studio.\n\
-                 8. Grade: timeline ok, ≥4 bodies on the bed, 608 envelope, blade faces ≥6, 3MF is a PK zip. That is the manufacturing handoff.\n\
-                 Scale-up (same rules): helical Savonius rotor, double-D drive, thrust washers, C-clip, integrated bosses."
+                 2. Design input: nozzle={nozzle} mm. Every printed-to-printed running/slip fit is +{nozzle} mm diametral in CAD. No FDM press fits. Leave slicer XY hole compensation at 0.\n\
+                 3. Build the assembled mechanism on one axis — not a print-bed scatter. Assembly order: base → shaft → rotor → top plate → printed bushing → cap. noBS CAD has no mates; place bodies by construction. That gap is real.\n\
+                 4. Base: Ø64 × 6 plate. Cut a 45° conical thrust cup (easy-to-rotate contour) with a small relief hole at the apex. Join three Ø6 posts at 120° (circular pattern) so the frame is even.\n\
+                 5. Shaft: revolve on XZ. Matching 45° cone (tip lifted 0.3 mm so it seats on the face), Ø8 journal, Ø16 shoulder, upper journal through the plate. Print the bearings: cone thrust + Ø8.4/Ø14 sleeve. Do not require a metal 608.\n\
+                 6. Rotor: hub that slips onto the shaft (Ø8.4) sitting on the shoulder, plus two helical buckets at 180° joined to the hub. A lone C-loft coupon is not a rotor.\n\
+                 7. Top plate on the posts (Ø6.4 holes), printed bushing in a Ø14.4 seat, cap on the journal. Functional holes are XY circles. Disable grid snap. Prefer locked circles.\n\
+                 8. cad_set_focus print. set_body_appearance. solid_export_preflight. solid_export_3mf slicer_target=bambu_studio.\n\
+                 9. Grade: timeline ok, ≥6 coaxial bodies, printed cone + sleeve, even 3+2 layout, mounted rotor, 3MF is a PK zip.\n\
+                 Later: catalog metal bearings from a standard table at larger sizes. Not this exam."
             )
         }
         "import_step" => {
@@ -629,7 +630,7 @@ mod tests {
             get_prompt("model_print_kit", &json!({})).unwrap()["messages"][0]["content"]["text"]
                 .as_str()
                 .unwrap()
-                .contains("608")
+                .contains("thrust")
         );
         assert!(
             get_prompt("import_step", &json!({})).unwrap()["messages"][0]["content"]["text"]

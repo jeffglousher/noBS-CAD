@@ -4317,7 +4317,7 @@ mod tests {
                 .map(|lesson| format!("{}: {}", lesson.id, lesson.detail))
                 .collect::<Vec<_>>()
         );
-        assert!(report.body_count >= 4);
+        assert!(report.body_count >= 6);
         assert!(report.byte_length > 32);
     }
 

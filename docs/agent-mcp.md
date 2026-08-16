@@ -61,7 +61,7 @@ Prefer `prompts/get` for the same loops (`model_box`, `model_hole`,
 | Hole | box → hole on a face |
 | Solid | profiles → revolve / sweep / loft / rib |
 | Printable tool | locked sketches → face features → fillet/chamfer/hole → 3MF (`model_print_tool`) |
-| Print kit tutor | **Benchmark #1** — 0.4 mm FDM journal + 608 bushing + helical loft; `npm run test:mcp-print-kit` (`model_print_kit`). Catalog: [agentic/INTEGRATION_TESTS.md](agentic/INTEGRATION_TESTS.md) |
+| Print kit tutor | **Benchmark #1** — fully printed even spinner (cone thrust, printed bushing, assembled stack); `npm run test:mcp-print-kit` (`model_print_kit`). Catalog: [agentic/INTEGRATION_TESTS.md](agentic/INTEGRATION_TESTS.md). Gap: [agentic/ASSEMBLY.md](agentic/ASSEMBLY.md) |
 | STEP | `solid_import_step` / `solid_export_step` |
 | Drawing | sheet → HLR → DXF / SVG |
 | History | `cad_undo` / `cad_redo` / timeline tools |

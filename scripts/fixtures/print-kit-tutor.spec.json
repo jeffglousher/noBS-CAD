@@ -1,73 +1,86 @@
 {
-  "id": "fdm-journal-kit",
-  "title": "FDM print-tolerant journal kit",
+  "id": "fdm-print-spinner",
+  "title": "Fully printed even spinner",
   "document_name": "Print Kit Tutor",
   "slicer_target": "bambu_studio",
   "nozzle_mm": 0.4,
   "clearance_mm": 0.4,
   "journal_d": 8.0,
   "bush_id": 8.4,
-  "bush_od": 22.0,
-  "bush_h": 7.0,
-  "house_id": 22.4,
-  "house_h": 7.4,
-  "house_plate": 32.0,
-  "house_height": 10.0,
-  "thru_d": 10.0,
-  "flange_d": 16.0,
-  "flange_h": 1.6,
-  "shaft_h": 24.0,
-  "tip_chamfer": 1.2,
-  "bed_chamfer": 0.4,
-  "rotor_d": 50.0,
+  "bush_od": 14.0,
+  "bush_h": 4.0,
+  "bush_seat": 14.4,
+  "post_d": 6.0,
+  "post_hole": 6.4,
+  "post_circle_r": 24.0,
+  "post_count": 3,
+  "post_h": 28.0,
+  "base_d": 64.0,
+  "base_h": 6.0,
+  "cone_h": 5.0,
+  "cone_half_deg": 45.0,
+  "cone_relief_d": 3.0,
+  "cone_tip_lift": 0.3,
+  "shaft_lower_h": 12.0,
+  "shaft_shoulder_d": 16.0,
+  "shaft_shoulder_h": 2.0,
+  "shaft_upper_h": 20.0,
+  "hub_od": 20.0,
+  "hub_h": 12.0,
+  "rotor_d": 56.0,
   "overlap": 0.15,
   "blade_wall": 1.8,
-  "blade_h": 20.0,
-  "blade_twist_deg": 90.0,
-  "loft_stations": 4,
-  "min_bodies": 4,
-  "min_blade_faces": 6,
-  "placements": {
-    "shaft": [0.0, 0.0],
-    "bushing": [40.0, -40.0],
-    "housing": [90.0, 0.0],
-    "blade": [50.0, 55.0]
-  },
+  "blade_h": 12.0,
+  "blade_twist_deg": 25.0,
+  "loft_stations": 3,
+  "blade_count": 2,
+  "top_plate_d": 64.0,
+  "top_plate_h": 4.0,
+  "cap_d": 20.0,
+  "cap_h": 2.0,
+  "min_bodies": 6,
+  "min_rotor_faces": 10,
+  "assembly_order": ["base", "shaft", "rotor", "top_plate", "bushing", "cap"],
   "lessons": [
     {
       "id": "clearance",
       "title": "Clearance is a design input",
-      "teach": "A 0.4 mm Bambu nozzle cannot hold CNC fits. Model +0.40 mm diametral clearance in CAD for every printed-to-printed running or slip interface. Leave slicer XY hole compensation at 0 unless a later gauge print says otherwise."
+      "teach": "A 0.4 mm Bambu nozzle cannot hold CNC fits. Model +0.40 mm diametral clearance in CAD for every printed-to-printed running or slip interface (journal/bushing, posts/top plate, bushing/seat). Leave slicer XY hole compensation at 0 unless a gauge print says otherwise."
     },
     {
       "id": "no_press",
       "title": "No FDM press fits",
-      "teach": "Press fits fail from elephant foot and shrinkage. Use +0.40 slip and retain with a shoulder, flange, clip, or boss. Optional metal 608 bearings drop into the same 22.4 mm seat."
+      "teach": "Press fits fail from elephant foot and shrinkage. Use +0.40 slip and retain with a shoulder, cone, plate, or cap. Do not assume a metal bearing will appear later."
     },
     {
-      "id": "orientation",
-      "title": "Orient for the bed, not the assembly",
-      "teach": "Every body sits on z=0. Shaft stands on its flange with a 45° tip. Bushing stands as a ring so the bore is an XY circle. Housing prints flat with the 608 pocket from the top. No horizontal holes."
+      "id": "assemble",
+      "title": "Build the assembled stack",
+      "teach": "The exam is a mechanism, not a print-bed scatter. Place bodies on one axis in assembly order: shaft cone in the base cup, rotor on the shoulder, top plate on the three posts, printed bushing in the plate, cap on the journal. noBS CAD has no mates or assembly configs — this placement is manual and that gap is the point."
     },
     {
-      "id": "xy_holes",
-      "title": "Functional holes are XY circles",
-      "teach": "Bambu circle compensation only treats complete horizontal-plane circles as accurate. Put journals, seats, and sockets in faces parallel to the bed."
+      "id": "thrust",
+      "title": "Print a thrust bearing contour",
+      "teach": "A 45° cone-in-cup is an easy-to-rotate printed thrust. The shaft tip is lifted so it seats on the cone face, not the point. A small relief hole under the apex keeps the tip from bottoming."
     },
     {
-      "id": "mechanical",
-      "title": "Print real machine elements",
-      "teach": "The exam is a journal + 608-envelope bushing + housing seat — parts you can print and spin. That is the manufacturing example, not a decorative solid."
+      "id": "even",
+      "title": "Keep the machine even",
+      "teach": "Three posts at 120° and two rotor buckets at 180° so the spinner is balanced around the axis. An odd one-sided vane will not run true."
+    },
+    {
+      "id": "printed_bearings",
+      "title": "Print the bearings too",
+      "teach": "This kit is fully printable: conical thrust plus a printed sleeve bushing. Metal 608 / catalog bearings are a later option from a standard table, not a hidden part of the exam."
     },
     {
       "id": "not_2d",
-      "title": "Do not stop at a 2D extrusion",
-      "teach": "A single origin-plane extrusion is a cutaway, not a part. The blade coupon is a helical C loft (rotated stations) so the kit proves 3D feature depth."
+      "title": "The rotor is a part that mounts",
+      "teach": "A lone C-loft coupon is not a rotor. The even spinner has a hub that slips onto the shaft and two helical buckets joined to that hub."
     },
     {
       "id": "export",
       "title": "Export a printable package",
-      "teach": "Assign appearances, run solid_export_preflight, then solid_export_3mf for bambu_studio. 3MF is the manufacturing handoff; STL is geometry-only."
+      "teach": "Assign appearances, run solid_export_preflight, then solid_export_3mf for bambu_studio. Print each body in its own orientation (base/plate flat, shaft on the cone, bushing as a ring, rotor on the hub face). 3MF is the manufacturing handoff."
     }
   ]
 }

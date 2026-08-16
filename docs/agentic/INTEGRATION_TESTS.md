@@ -15,7 +15,7 @@ Spec: `scripts/fixtures/print-kit-tutor.spec.json`. Recipe: `model_print_kit`.
 
 | # | Benchmark | How to run | What it proves |
 |---|-----------|------------|----------------|
-| **1** | **Print-kit tutor** (FDM journal kit) | `cargo test --manifest-path mcp-server/Cargo.toml print_kit_tutor` then `npm run test:mcp-print-kit` | AI → printable parts: +0.40 mm diametral clearance, no press fits, XY holes, 608 seat, 4-station helical loft, 3MF |
+| **1** | **Print-kit tutor** (fully printed even spinner) | `cargo test --manifest-path mcp-server/Cargo.toml print_kit_tutor` then `npm run test:mcp-print-kit` | AI → assemblable printed mechanism: coaxial stack, 45° cone thrust, printed sleeve, even 3+2 layout, mounted rotor, 3MF |
 | 2 | Completeness gate | `npm run check:mcp-control` | Modeling / print / control tools and main prompts stay wired (`model_print_kit` included) |
 | 3 | CadServer goldens | `cargo test --manifest-path mcp-server/Cargo.toml` | Headless OCCT replay and MCP RPC (includes the #1 engine exam) |
 | 4 | Session bridge | `npm run test:session-bridge` | Live attach, writer lock, UI heartbeat must not clobber MCP revisions |
@@ -37,8 +37,9 @@ synthesis benchmarks. Do not insert them above #1.
 
 ## Why #1 is first
 
-Tool-count and RPC goldens can pass while an agent still emits a single
-side-view extrusion that will not print or assemble. The print-kit tutor
-fails that class of answer. Later kit scale-ups (helical Savonius, double-D
-drive, thrust washers) reuse the same spec rules; they do not replace this
-exam.
+Tool-count and RPC goldens can pass while an agent still emits a print-bed
+scatter that will not assemble or spin. The print-kit tutor fails that
+class of answer. It also records the product gap: we have multi-body parts,
+not assemblies ([ASSEMBLY.md](ASSEMBLY.md)). Later catalog bearings (608
+and up from a standard table) are optional hardware, not a hidden part of
+this exam.
