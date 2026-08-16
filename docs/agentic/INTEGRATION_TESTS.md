@@ -16,7 +16,7 @@ Spec: `scripts/fixtures/print-kit-tutor.spec.json`. Recipe: `model_print_kit`.
 
 | # | Benchmark | How to run | What it proves |
 |---|-----------|------------|----------------|
-| **1** | **Print-kit tutor** (printed VAWT) | `cargo test --manifest-path mcp-server/Cargo.toml print_kit_tutor` then `npm run test:mcp-print-kit` | AI → assemblable printed turbine: two-bearing frame, hub sockets, three wings, cone/land thrust, printed sleeve, 3MF |
+| **1** | **Print-kit tutor** (printed VAWT) | `cargo test --manifest-path mcp-server/Cargo.toml print_kit_tutor` then `npm run test:mcp-print-kit` | AI → assemblable printed turbine: 2026 symmetric airfoil, two-bearing frame, printed bushings, design report + plastic cost, 3MF |
 | 2 | Completeness gate | `npm run check:mcp-control` | Modeling / print / control tools and main prompts stay wired (`model_print_kit` included) |
 | 3 | CadServer goldens | `cargo test --manifest-path mcp-server/Cargo.toml` | Headless OCCT replay and MCP RPC (includes the #1 engine exam) |
 | 4 | Session bridge | `npm run test:session-bridge` | Live attach, writer lock, UI heartbeat must not clobber MCP revisions |

@@ -45,15 +45,25 @@
   "wing_h": 32.0,
   "wing_radius": 24.0,
   "wing_chord": 12.0,
-  "wing_thick": 2.4,
+  "wing_thick": 2.52,
   "wing_offset_deg": 60.0,
+  "airfoil": "NACA 0021",
+  "airfoil_t_c": 0.21,
+  "airfoil_te_min_mm": 0.8,
+  "airfoil_stations": 12,
   "window_d": 16.0,
   "top_plate_d": 90.0,
   "top_plate_h": 6.0,
   "cap_d": 20.0,
   "cap_h": 2.4,
   "min_bodies": 9,
-  "min_rotor_faces": 8,
+  "min_rotor_faces": 12,
+  "filament": {
+    "name": "Bambu PLA Basic",
+    "density_g_cm3": 1.24,
+    "price_usd_per_kg": 20.0,
+    "print_volume_factor": 0.42
+  },
   "assembly_order": ["base", "shaft", "hub", "wing", "wing", "wing", "top_plate", "bushing", "cap"],
   "gdt": {
     "datums": {
@@ -100,18 +110,28 @@
     },
     {
       "id": "printed_bearings",
-      "title": "Print the bearings too",
-      "teach": "Printed cone + land for thrust, printed sleeve in a shouldered top plate for radial. Plate thicker than the bushing so the seat has a land. Metal 608 / catalog bearings are a later table, not a hidden part."
+      "title": "Prefer printed bushings",
+      "teach": "Printed cone + land for thrust, printed sleeve in a shouldered top plate for radial. Plate thicker than the bushing so the seat has a land. Prefer bushings over roller/ball bearings at this size. Metal 608 / catalog bearings are a later table, not a hidden part."
     },
     {
       "id": "not_2d",
       "title": "The wing is a part that mounts",
-      "teach": "A leftover helical C-loft is not a wing. A concentric ring sector is not a wing either — its concave face points at the axis and cannot catch wind. The wing is a vertical blade (chord tangential, span up the bay) with a tenon into the hub. Windows in the top plate keep the blades visible."
+      "teach": "A leftover helical C-loft is not a wing. A concentric ring sector is not a wing. A flat plate is a vane, not an airfoil. The wing is a named symmetric section (NACA 0021 or the 2026 0024–4.5/3.5 family), chord tangential, span up the bay, tenon into the hub. Windows in the top plate keep the blades visible."
+    },
+    {
+      "id": "airfoil",
+      "title": "The section is a 2026-appropriate airfoil",
+      "teach": "Directionless VAWTs see reversing α. Build a thick symmetric airfoil (t/c 21–24%, blunt TE ≥ 2 nozzles). Cite the section. A hoop or a rectangle of the same bbox is a fail even if the stack spins."
+    },
+    {
+      "id": "report",
+      "title": "Publish the design report",
+      "teach": "Write the iteration log, the design process (airfoil, Re, fits, finish, bushings), the final BOM, and plastic/material cost (volume × density × $/kg). READY TO PRINT without a costed report is a fail."
     },
     {
       "id": "export",
       "title": "Export a printable package",
-      "teach": "Assign appearances, run solid_export_preflight, then solid_export_3mf for bambu_studio. Print each body in its own orientation (base/plate flat, shaft on the land, bushing as a ring, hub on its face, wings on the blade face). 3MF is the manufacturing handoff."
+      "teach": "Assign appearances, run solid_export_preflight, then solid_export_3mf for bambu_studio. Print each body in its own orientation (base/plate flat, shaft on the land, bushing as a ring, hub on its face, wings standing so layer lines run spanwise). 3MF is the manufacturing handoff."
     }
   ]
 }

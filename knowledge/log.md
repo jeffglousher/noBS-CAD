@@ -2,12 +2,11 @@
 
 ## 2026-08-16
 
-- **Update**: Print-kit tutor is a printed VAWT again (`fdm-print-vawt`).
-  The two-bearing frame stays. The wing is a vertical blade (chord
-  tangential, span up the bay) that drops a tenon into a hub socket.
-  A concentric ring sector is not a wing — it cannot make torque. A
-  turntable was the wrong product — the wing had nothing to use. Record:
-  [docs/agentic/PRINT_KIT_GDT.md](../docs/agentic/PRINT_KIT_GDT.md).
+- **Update**: `model_print_kit` is now an adversarial design contract:
+  directionless H-Darrieus, 2026 symmetric airfoil (NACA 0021 / 0024–4.5/3.5
+  family), printed bushings not rollers, service finish, and a design
+  report with iteration + plastic cost. Flat plates and hoop sectors fail.
+  Contract: [PRINT_KIT_DESIGN.md](../docs/agentic/PRINT_KIT_DESIGN.md).
 
 ## 2026-08-15
 

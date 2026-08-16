@@ -26,7 +26,8 @@ socket. Windows in the top plate keep the blades visible.
 |-------|---------------|------------|
 | Product (turntable) | Competent bearings, no wing. The frame had nothing to do. | **Printed VAWT.** Keep the two-bearing frame. Hub sockets. Three wings that drop on. |
 | Product (leftover loft) | Two helical C-buckets joined to a hub. Not a mount, not assemblable as a wing. | Separate wing bodies. Tenon in socket. No loft. |
-| Product (hoop sector) | “Scoop” was an 80° annulus at r20–r28. Concave faces the axis. Looks like a broken rim. Cannot make torque. | **Vertical blade.** Chord 12 mm along the path, 2.4 mm thick, 32 mm span, mid-chord at R24. |
+| Product (hoop sector) | “Scoop” was an 80° annulus at r20–r28. Concave faces the axis. Looks like a broken rim. Cannot make torque. | Named symmetric airfoil, chord tangential. |
+| Product (flat plate) | 12 × 2.4 × 32 rectangle. A vane, not a section. Directionless VAWT sees reversing α. | **NACA 0021** (t/c 0.21), blunt TE ≥ 0.8 mm. 2026 band is t/c 21–24%. |
 | Rotor vs posts | C-buckets sweep ~Ø56. Posts on R24 × Ø6 occupy R21–27. They collide. | Posts on **R38 × Ø8**. Inner wall R34. Blade tip ~**R25**. ≥9 mm air. Wings in the bays (60° offset). |
 | Posts vs plate | Posts stopped at the plate bottom. Holes did not locate. | Posts continue **through** the 6 mm plate and stand **2 mm proud**. |
 | Bushing seat | Plate and seat were both 4 mm. Seat was a through-hole. Bushing falls. | Plate **6 mm**. Seat **4 mm** from the top. **2 mm land** under the sleeve. |
@@ -69,7 +70,7 @@ contact is intentional.
 | Base | As assembled (A on the bed) | 45° cup needs no support. Posts print up. |
 | Shaft | Land / shoulder on the bed | Do not print on the cone tip. Double-D flats are vertical walls. |
 | Hub | Face on the bed | Sockets are complete XY pockets. |
-| Wing | Blade face on the bed | Tenon stands up. 2.4 mm thick plate. |
+| Wing | Standing, layer lines spanwise | NACA 0021. Blunt TE ≥ 0.8 mm. Sand skins. |
 | Top plate | Flat | All functional holes are complete XY circles. |
 | Bushing | Ring on the bed | Bore is an XY circle. |
 | Cap | Flat | Same. |
@@ -91,14 +92,13 @@ If those steps are not visible in the solid, the exam failed.
 ## Wings (hub off the lid)
 
 The top plate used to hide the rotor. These views are hub + three wings
-only. The blades are **flat plates**, not cambered airfoils — printable
-geometry that can make drag torque. A concentric C cannot.
+only. The section is **NACA 0021**, not a hoop and not a flat plate.
 
 ![Wings on the hub, isometric](images/wings-iso.png)
 
 ![Wings on the hub, top](images/wings-top.png)
 
-![One wing, blade and tenon](images/wings-one.png)
+![One wing, NACA 0021 and tenon](images/wings-one.png)
 
 ## Assembled park
 

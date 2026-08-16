@@ -44,6 +44,8 @@ const outProject =
   process.env.NBCAD_PROJECT_OUT || path.join(defaultKitDir, "Print-Kit-Tutor.nbcad");
 const outReport =
   process.env.NBCAD_TUTOR_OUT || path.join(defaultKitDir, "Print-Kit-Tutor-report.json");
+const outDesign =
+  process.env.NBCAD_DESIGN_OUT || path.join(defaultKitDir, "Print-Kit-Tutor-design.md");
 
 function writeNbcadArchive(modelJson, destination) {
   const model = JSON.parse(modelJson);
@@ -262,6 +264,80 @@ function bladeCenter(index) {
 function bladeAngleDeg(index) {
   return wingAngleDeg(index) + 90;
 }
+function naca00Thickness(x, thicknessRatio) {
+  const t = Math.min(1, Math.max(0, x));
+  return (
+    5 *
+    thicknessRatio *
+    (0.2969 * Math.sqrt(t) - 0.126 * t - 0.3516 * t * t + 0.2843 * t ** 3 - 0.1015 * t ** 4)
+  );
+}
+function nacaSymmetricLoop(chord, thicknessRatio, stations, teMin) {
+  const count = Math.max(6, stations);
+  const xs = [];
+  for (let i = 0; i < count; i++) {
+    const beta = (Math.PI * i) / (count - 1);
+    xs.push(0.5 * (1 - Math.cos(beta)));
+  }
+  const upper = [];
+  const lower = [];
+  for (const x of xs) {
+    let yt = naca00Thickness(x, thicknessRatio) * chord;
+    if (x > 0.85) yt = Math.max(yt, teMin / 2);
+    const xc = (x - 0.5) * chord;
+    upper.push([xc, yt]);
+    lower.push([xc, -yt]);
+  }
+  const points = [...upper];
+  for (let i = lower.length - 2; i >= 0; i--) points.push(lower[i]);
+  points.push(points[0]);
+  return points;
+}
+function addAirfoil(center, angleDeg, chord, thicknessRatio, stations, teMin) {
+  const angle = (angleDeg * Math.PI) / 180;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const world = nacaSymmetricLoop(chord, thicknessRatio, stations, teMin).map(([x, y]) => ({
+    x: center[0] + cos * x - sin * y,
+    y: center[1] + sin * x + cos * y,
+  }));
+  return addPoly(world, true);
+}
+function solidity() {
+  return (spec.wing_count * spec.wing_chord) / (Math.PI * spec.wing_radius * 2);
+}
+function airfoilOk() {
+  return (
+    /naca/i.test(spec.airfoil) &&
+    spec.airfoil_t_c >= 0.18 &&
+    spec.airfoil_t_c <= 0.26 &&
+    Math.abs(spec.wing_thick - spec.wing_chord * spec.airfoil_t_c) < 0.15 &&
+    spec.airfoil_te_min_mm + 1e-9 >= spec.nozzle_mm * 2
+  );
+}
+function estimatedSolidCm3() {
+  const base = Math.PI * (spec.base_d * 0.5) ** 2 * spec.base_h;
+  const posts =
+    spec.post_count * Math.PI * (spec.post_d * 0.5) ** 2 * postExtrudeH();
+  const shaft =
+    Math.PI * (spec.journal_d * 0.5) ** 2 * spec.shaft_upper_h +
+    Math.PI * (spec.shaft_shoulder_d * 0.5) ** 2 * spec.shaft_shoulder_h;
+  const hub =
+    Math.PI * ((spec.hub_od * 0.5) ** 2 - (spec.bush_id * 0.5) ** 2) * spec.hub_h;
+  const wing = spec.wing_count * 0.7 * spec.wing_chord * spec.wing_thick * spec.wing_h;
+  const plate = Math.PI * (spec.top_plate_d * 0.5) ** 2 * spec.top_plate_h;
+  const bush =
+    Math.PI * ((spec.bush_od * 0.5) ** 2 - (spec.bush_id * 0.5) ** 2) * spec.bush_h;
+  const cap =
+    Math.PI * ((spec.cap_d * 0.5) ** 2 - (spec.bush_id * 0.5) ** 2) * spec.cap_h;
+  return (base + posts + shaft + hub + wing + plate + bush + cap) / 1000;
+}
+function estimatedPrintMassG() {
+  return estimatedSolidCm3() * spec.filament.density_g_cm3 * spec.filament.print_volume_factor;
+}
+function estimatedFilamentUsd() {
+  return (estimatedPrintMassG() / 1000) * spec.filament.price_usd_per_kg;
+}
 function bladeInnerR() {
   return spec.wing_radius - spec.wing_thick / 2;
 }
@@ -389,6 +465,87 @@ function record(lessons, id, pass, detail) {
   lessons.push({ id, pass: !!pass, detail });
 }
 
+function writeDesignReport({
+  spec: kit,
+  bodies,
+  wingBox,
+  wingFaces,
+  solidCm3,
+  massG,
+  costUsd,
+  out3mf: kit3mf,
+  outProject: kitProject,
+}) {
+  const iterations = [
+    ["Print-bed scatter", "Parts did not assemble on one axis. Not a machine."],
+    ["Colliding spinner", "Rotor swept the posts. Could not rotate."],
+    ["Helical C-buckets", "Leftover loft, not a mount, not an airfoil."],
+    ["Hoop sector r20–r28", "Concentric C. Concave faces the axis. No net torque."],
+    ["Turntable / lazy Susan", "Competent bearings, no wing. The frame had nothing to do."],
+    ["Flat plate 12×2.4×32", "A vane, not a 2026 symmetric section. Directionless VAWT needs an airfoil."],
+    [
+      `${kit.airfoil} on the two-bearing stand`,
+      `Thick symmetric section (t/c ${kit.airfoil_t_c}), blunt TE ${kit.airfoil_te_min_mm} mm, tenon in hub socket.`,
+    ],
+  ];
+  const usd = costUsd.toFixed(2);
+  const markdown = `# Print Kit Tutor — design report
+
+Spec \`${kit.id}\` · ${kit.title} · nozzle ${kit.nozzle_mm} mm · clearance +${kit.clearance_mm} mm
+
+## 1. Iteration log
+
+| Iteration | Why it failed / what changed |
+|-----------|------------------------------|
+${iterations.map(([name, why]) => `| ${name} | ${why} |`).join("\n")}
+
+## 2. Design process
+
+- **Architecture:** H-Darrieus, directionless (no yaw). Symmetric section because α reverses each rev. Savonius-only is a drag toy. A HAWT section is the wrong physics.
+- **Airfoil:** ${kit.airfoil} (t/c ${kit.airfoil_t_c}). 2026 VAWT dynamic-stall work favors t/c 21–24%, xt/c 27.5–35%, reduced LE radius (NACA 0024–4.5/3.5 best in that study). ${kit.airfoil} is the printable stand-in; TE blunt to ${kit.airfoil_te_min_mm} mm (≥ 2 nozzles).
+- **Rotor:** N=${kit.wing_count}, c=${kit.wing_chord} mm, R=${kit.wing_radius} mm, span=${kit.wing_h} mm, σ=${solidity().toFixed(3)}. Desk Re ~5e3–1e4 at 3–5 m/s, TSR ~2. Tip must clear post inner wall.
+- **Fits:** every printed-to-printed running/slip interface is +${kit.clearance_mm} mm diametral, including the tenon. No press. No metal 608.
+- **Bushings:** printed 45° cup + land (thrust), printed sleeve Ø${kit.bush_id}/${kit.bush_od} (upper radial). Prefer bushings over rollers at this size. PLA-on-PLA is a demo spin.
+- **Service finish:** blades printed so layer lines run spanwise; sand PLA 400→1000 on skins (or ABS vapor, not immersion). Do not vapor-smooth a running fit and keep +${kit.clearance_mm}.
+- **Later, not this exam:** catalog bearings, higher AR, modified 0024–4.5/3.5, optional adaptive Darrieus–Savonius starter (*Flow* 2026).
+
+## 3. Final product
+
+Nine coaxial bodies, assembly order: ${kit.assembly_order.join(" → ")}.
+
+| Body | Count | Role |
+|------|------:|------|
+| Base + posts | 1 | Two-bearing stand. Cup + 3× Ø${kit.post_d} on R${kit.post_circle_r}. |
+| Shaft | 1 | Cone/land thrust, journal, shoulder, double-D. |
+| Hub | 1 | Sits on the shoulder. Three sockets. |
+| Wing (${kit.airfoil}) | ${kit.wing_count} | Mid-chord R${kit.wing_radius}, chord tangential, tenon drop-in. |
+| Top plate | 1 | Posts through, windows, bushing land. |
+| Bushing | 1 | Printed sleeve. |
+| Cap | 1 | 0.20 float retain. |
+
+Wing bbox (exam): ${wingBox ? `${wingBox.span.map((n) => n.toFixed(1)).join(" × ")} mm` : "n/a"}; faces=${wingFaces}. Bodies=${bodies.length}.
+
+## 4. Printing cost (plastic / material)
+
+Assumptions: ${kit.filament.name}, ${kit.filament.density_g_cm3} g/cm³, $${kit.filament.price_usd_per_kg}/kg, print-volume factor ${kit.filament.print_volume_factor} (3 walls + ~15% gyroid on bulky parts; blades nearer solid — factor is a kit average).
+
+| | Value |
+|--|------:|
+| CAD solid (estimate) | ${solidCm3.toFixed(1)} cm³ |
+| Estimated print mass | ${massG.toFixed(1)} g |
+| Filament cost | **$${usd}** |
+
+3MF: \`${kit3mf}\`  
+Project: \`${kitProject}\`
+
+Electricity and machine time are not priced. No additional hardware.
+`;
+  return {
+    ok: markdown.includes("Iteration log") && costUsd > 0.05 && /NACA/i.test(kit.airfoil),
+    markdown,
+  };
+}
+
 const report = { ok: false, spec: spec.id, lessons: [], steps };
 try {
   await request("server/discover", {});
@@ -396,6 +553,9 @@ try {
   const recipe = prompt?.messages?.[0]?.content?.text ?? "";
   if (!/thrust|cone|clearance|nozzle/i.test(recipe)) {
     throw new Error("model_print_kit prompt is missing the FDM curriculum");
+  }
+  if (!/airfoil|NACA 0021|directionless|bushing|design report|service finish/i.test(recipe)) {
+    throw new Error("model_print_kit prompt is missing the 2026 VAWT design contract");
   }
 
   if (live) {
@@ -580,7 +740,14 @@ try {
   for (let i = 0; i < spec.wing_count; i++) {
     const angle = wingAngleDeg(i);
     await beginDatum(await offsetXY(shoulderTop()));
-    await addOrientedRect(bladeCenter(i), spec.wing_chord, spec.wing_thick, bladeAngleDeg(i));
+    await addAirfoil(
+      bladeCenter(i),
+      bladeAngleDeg(i),
+      spec.wing_chord,
+      spec.airfoil_t_c,
+      spec.airfoil_stations,
+      spec.airfoil_te_min_mm,
+    );
     sketch = await finishSketch();
     update = requireClean(
       await call("solid_extrude", {
@@ -825,6 +992,36 @@ try {
       spec.wing_thick < spec.wing_chord / 3 &&
       spec.wing_h > spec.wing_chord * 2,
     { faces: wing?.faces?.length, bbox: wingBox, xy: wingXy },
+  );
+  record(
+    report.lessons,
+    "airfoil",
+    airfoilOk() && (wing?.faces?.length ?? 0) >= spec.min_rotor_faces,
+    `${spec.airfoil} t/c=${spec.airfoil_t_c} TE≥${spec.airfoil_te_min_mm} mm; solidity ${solidity().toFixed(2)}; faces=${wing?.faces?.length}`,
+  );
+  const design = writeDesignReport({
+    spec,
+    bodies,
+    wingBox,
+    wingFaces: wing?.faces?.length ?? 0,
+    solidCm3: estimatedSolidCm3(),
+    massG: estimatedPrintMassG(),
+    costUsd: estimatedFilamentUsd(),
+    out3mf,
+    outProject,
+  });
+  writeFileSync(outDesign, design.markdown);
+  record(
+    report.lessons,
+    "report",
+    design.ok && estimatedFilamentUsd() > 0.05 && airfoilOk(),
+    {
+      path: outDesign,
+      solid_cm3: +estimatedSolidCm3().toFixed(2),
+      print_mass_g: +estimatedPrintMassG().toFixed(1),
+      filament_usd: +estimatedFilamentUsd().toFixed(2),
+      filament: spec.filament.name,
+    },
   );
   record(
     report.lessons,

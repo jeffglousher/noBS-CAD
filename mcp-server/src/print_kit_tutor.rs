@@ -59,6 +59,10 @@ pub struct Spec {
     pub wing_chord: f64,
     pub wing_thick: f64,
     pub wing_offset_deg: f64,
+    pub airfoil: String,
+    pub airfoil_t_c: f64,
+    pub airfoil_te_min_mm: f64,
+    pub airfoil_stations: usize,
     pub window_d: f64,
     pub top_plate_d: f64,
     pub top_plate_h: f64,
@@ -66,6 +70,15 @@ pub struct Spec {
     pub cap_h: f64,
     pub min_bodies: usize,
     pub min_rotor_faces: usize,
+    pub filament: Filament,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Filament {
+    pub name: String,
+    pub density_g_cm3: f64,
+    pub price_usd_per_kg: f64,
+    pub print_volume_factor: f64,
 }
 
 impl Spec {
@@ -148,6 +161,48 @@ impl Spec {
     }
     fn socket_floor_z(&self) -> f64 {
         self.shoulder_top() + self.hub_h - self.socket_h
+    }
+    fn solidity(&self) -> f64 {
+        let diameter = self.wing_radius * 2.0;
+        (self.wing_count as f64) * self.wing_chord / (std::f64::consts::PI * diameter)
+    }
+    fn airfoil_ok(&self) -> bool {
+        self.airfoil.to_ascii_uppercase().contains("NACA")
+            && self.airfoil_t_c >= 0.18
+            && self.airfoil_t_c <= 0.26
+            && (self.wing_thick - self.wing_chord * self.airfoil_t_c).abs() < 0.15
+            && self.airfoil_te_min_mm + 1e-9 >= self.nozzle_mm * 2.0
+    }
+    fn estimated_solid_cm3(&self) -> f64 {
+        let base = std::f64::consts::PI * (self.base_d * 0.5).powi(2) * self.base_h;
+        let posts = (self.post_count as f64)
+            * std::f64::consts::PI
+            * (self.post_d * 0.5).powi(2)
+            * self.post_extrude_h();
+        let shaft = std::f64::consts::PI * (self.journal_d * 0.5).powi(2) * self.shaft_upper_h
+            + std::f64::consts::PI * (self.shaft_shoulder_d * 0.5).powi(2) * self.shaft_shoulder_h;
+        let hub = std::f64::consts::PI
+            * ((self.hub_od * 0.5).powi(2) - (self.bush_id * 0.5).powi(2))
+            * self.hub_h;
+        let wing = (self.wing_count as f64)
+            * 0.70
+            * self.wing_chord
+            * self.wing_thick
+            * self.wing_h;
+        let plate = std::f64::consts::PI * (self.top_plate_d * 0.5).powi(2) * self.top_plate_h;
+        let bush = std::f64::consts::PI
+            * ((self.bush_od * 0.5).powi(2) - (self.bush_id * 0.5).powi(2))
+            * self.bush_h;
+        let cap = std::f64::consts::PI
+            * ((self.cap_d * 0.5).powi(2) - (self.bush_id * 0.5).powi(2))
+            * self.cap_h;
+        (base + posts + shaft + hub + wing + plate + bush + cap) / 1000.0
+    }
+    fn estimated_print_mass_g(&self) -> f64 {
+        self.estimated_solid_cm3() * self.filament.density_g_cm3 * self.filament.print_volume_factor
+    }
+    fn estimated_filament_usd(&self) -> f64 {
+        self.estimated_print_mass_g() / 1000.0 * self.filament.price_usd_per_kg
     }
 }
 
@@ -505,12 +560,14 @@ fn build_wing(
     let angle = spec.wing_angle_deg(index);
     let deck = offset_xy(call, spec.shoulder_top())?;
     begin_datum(call, deck)?;
-    add_oriented_rect(
+    add_airfoil(
         call,
         spec.blade_center(index),
-        spec.wing_chord,
-        spec.wing_thick,
         spec.blade_angle_deg(index),
+        spec.wing_chord,
+        spec.airfoil_t_c,
+        spec.airfoil_stations,
+        spec.airfoil_te_min_mm,
     )?;
     let blade = finish_sketch(call)?;
     let update = require_clean(
@@ -799,6 +856,34 @@ fn grade(
             && spec.wing_h > spec.wing_chord * 2.0,
         format!("mounted blade faces={wing_faces} height={wing_span:.1} xy={wing_xy:.1}"),
     );
+    push_lesson(
+        &mut lessons,
+        "airfoil",
+        spec.airfoil_ok() && wing_faces >= spec.min_rotor_faces,
+        format!(
+            "{} t/c={:.2} TE≥{:.1} mm; solidity {:.2}; faces={wing_faces}",
+            spec.airfoil,
+            spec.airfoil_t_c,
+            spec.airfoil_te_min_mm,
+            spec.solidity()
+        ),
+    );
+    let cost = spec.estimated_filament_usd();
+    push_lesson(
+        &mut lessons,
+        "report",
+        spec.filament.price_usd_per_kg > 0.0
+            && spec.estimated_solid_cm3() > 1.0
+            && cost > 0.05
+            && spec.airfoil_ok(),
+        format!(
+            "{:.1} cm³ solid → {:.1} g {} → ${:.2}",
+            spec.estimated_solid_cm3(),
+            spec.estimated_print_mass_g(),
+            spec.filament.name,
+            cost
+        ),
+    );
 
     let timeline_ok = features.iter().all(|feature| {
         feature["status"]["state"]
@@ -862,6 +947,59 @@ fn shaft_profile(spec: &Spec) -> Vec<[f64; 2]> {
         [0.0, top],
         [0.0, tip_z],
     ]
+}
+
+fn naca_00_thickness(x: f64, thickness_ratio: f64) -> f64 {
+    let x = x.clamp(0.0, 1.0);
+    5.0 * thickness_ratio
+        * (0.2969 * x.sqrt() - 0.1260 * x - 0.3516 * x * x + 0.2843 * x.powi(3) - 0.1015 * x.powi(4))
+}
+
+fn naca_symmetric_loop(chord: f64, thickness_ratio: f64, stations: usize, te_min: f64) -> Vec<[f64; 2]> {
+    let count = stations.max(6);
+    let mut xs = Vec::with_capacity(count);
+    for i in 0..count {
+        let beta = std::f64::consts::PI * i as f64 / (count - 1) as f64;
+        xs.push(0.5 * (1.0 - beta.cos()));
+    }
+    let mut upper = Vec::with_capacity(count);
+    let mut lower = Vec::with_capacity(count);
+    for x in xs {
+        let mut yt = naca_00_thickness(x, thickness_ratio) * chord;
+        if x > 0.85 {
+            yt = yt.max(te_min / 2.0);
+        }
+        let xc = (x - 0.5) * chord;
+        upper.push([xc, yt]);
+        lower.push([xc, -yt]);
+    }
+    let mut points = upper;
+    for point in lower.iter().rev().skip(1) {
+        points.push(*point);
+    }
+    if let Some(first) = points.first().copied() {
+        points.push(first);
+    }
+    points
+}
+
+fn add_airfoil(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    center: [f64; 2],
+    angle_deg: f64,
+    chord: f64,
+    thickness_ratio: f64,
+    stations: usize,
+    te_min: f64,
+) -> Result<(), String> {
+    let angle = angle_deg.to_radians();
+    let (cos, sin) = (angle.cos(), angle.sin());
+    let local = naca_symmetric_loop(chord, thickness_ratio, stations, te_min);
+    let world: Vec<[f64; 2]> = local
+        .into_iter()
+        .map(|[x, y]| [center[0] + cos * x - sin * y, center[1] + sin * x + cos * y])
+        .collect();
+    add_poly(call, &world, true)
 }
 
 fn add_oriented_rect(
@@ -1188,6 +1326,8 @@ mod spec_tests {
         assert!(spec.blade_tip_r() + 1.0 < spec.post_inner_r());
         assert!(spec.wing_h > spec.wing_chord * 2.0);
         assert!(spec.wing_thick < spec.wing_chord / 3.0);
+        assert!(spec.airfoil_ok());
+        assert!(spec.estimated_filament_usd() > 0.05);
         assert!(spec.post_extrude_h() + spec.base_h > spec.plate_top());
         assert!(
             (spec.plate_z
