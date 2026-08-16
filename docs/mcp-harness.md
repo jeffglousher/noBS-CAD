@@ -39,9 +39,14 @@ Tags: `mcp-server/src/disclosure.rs` (`tags_for_tool`).
 ### Session bridge (read-only snapshot + live co-link)
 Headless goldens work **without** attach.
 UI publishes under:
-`<NBCAD_SESSION_DIR>/<uuid>/{model.json,focus.json,heartbeat.json,writer.json,window.json}`
+`<NBCAD_SESSION_DIR>/<uuid>/{model.json,active-sketch.json?,focus.json,heartbeat.json,writer.json,window.json}`
 (atomic writes, generation-guarded). Session ids are **UUID v8** (BLAKE3, nbcad
 layout 1); legacy v4 directories still attach. Document names are rejected.
+
+While a sketch transaction is active, project export keeps the last completed
+`model.json`; `active-sketch.json` carries the live entity/constraint snapshot
+so diagnostics can inspect the edit without admitting half-finished history
+into the project format.
 
 - **Desktop (Tauri):** `mcp_session_bridge_reserve|write|heartbeat|poll` (live writer.json + MCP-preserving heartbeat).
 - **Browser/WASM (Vite):** `/__nbcad_session/*` middleware (`scripts/session-http-bridge.mjs`).

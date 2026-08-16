@@ -42,7 +42,8 @@ readable state (`nbcad://…`) and a **prompt** when there is a recipe.
 `NBCAD_SESSION_DIR`:
 
 - session ids are **UUID v8** (BLAKE3, nbcad layout 1); legacy v4 dirs still attach;
-- UI publishes `<uuid>/{model,focus,heartbeat,writer,window}.json` (Tauri or Vite HTTP bridge);
+- UI publishes `<uuid>/{model.json,active-sketch.json?,focus,heartbeat,writer,window}.json` (Tauri or Vite HTTP bridge);
+- while a sketch transaction is open, `model.json` stays at the last completed export and `active-sketch.json` carries the live DTO;
 - `mode: "read_only"` (default) — load only; no writeback; no writer claim;
 - `mode: "live"` — fresh heartbeat required; MCP **takes** the lock from `ui`/`none` and writebacks
   `model.json` after mutating tools; UI polls `source: "mcp"` generations and must not clobber them;

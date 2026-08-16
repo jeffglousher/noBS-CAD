@@ -134,7 +134,8 @@ async function reserveGeneration(): Promise<PublishReservation> {
 
 async function writeSnapshot(payload: {
   focus: string;
-  model_json: string;
+  model_json: string | null;
+  active_sketch_json?: string | null;
   generation: number;
 }): Promise<void> {
   if (useHttpBridge()) {
@@ -193,12 +194,22 @@ async function publishNow(): Promise<void> {
   );
   try {
     const engine = await getEngine();
-    const model = await exportProjectModelWithVisibility(engine);
-    const modelJson = typeof model === 'string' ? model : JSON.stringify(model);
+    const activeSketch = await engine.activeSketch();
+    let modelJson: string | null = null;
+    try {
+      const model = await exportProjectModelWithVisibility(engine);
+      modelJson = typeof model === 'string' ? model : JSON.stringify(model);
+    } catch (error) {
+      // A half-finished sketch must not enter the persisted project format,
+      // but diagnostics still need the live entity/constraint snapshot. The
+      // native bridge keeps its previous completed model.json beside it.
+      if (activeSketch === null) throw error;
+    }
     const reservation = await reserveGeneration();
     await writeSnapshot({
       focus,
       model_json: modelJson,
+      active_sketch_json: activeSketch === null ? null : JSON.stringify(activeSketch),
       generation: reservation.generation,
     });
     knownSessionId = reservation.session_id;
@@ -306,6 +317,7 @@ export function startSessionBridge(): void {
       state.solidScene !== prev.solidScene ||
       state.drawingDocument !== prev.drawingDocument ||
       state.activeTab !== prev.activeTab ||
+      state.activeSketch !== prev.activeSketch ||
       state.mode !== prev.mode ||
       state.activeTool !== prev.activeTool ||
       activeSolidDialog(state) !== activeSolidDialog(prev)

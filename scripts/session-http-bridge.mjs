@@ -18,7 +18,14 @@ import path from 'node:path';
 import { Domain, isValidSessionId, mint } from './nbcad-id.mjs';
 
 export const PREFIX = '/__nbcad_session';
-const SESSION_FILES = ['model.json', 'focus.json', 'heartbeat.json', 'writer.json', 'window.json'];
+const SESSION_FILES = [
+  'model.json',
+  'active-sketch.json',
+  'focus.json',
+  'heartbeat.json',
+  'writer.json',
+  'window.json',
+];
 
 export function sessionRoot() {
   const custom = process.env.NBCAD_SESSION_DIR?.trim();
@@ -176,10 +183,17 @@ export async function dispatchSessionRequest(req, res, next, ctx = {}) {
       return true;
     }
     const focus = String(body.focus ?? 'document');
-    const modelJson =
-      typeof body.model_json === 'string'
-        ? body.model_json
-        : JSON.stringify(body.model_json ?? {});
+    if (typeof body.model_json === 'string') {
+      atomicWrite(path.join(dir, 'model.json'), body.model_json);
+    } else if (body.model_json != null) {
+      atomicWrite(path.join(dir, 'model.json'), JSON.stringify(body.model_json));
+    }
+    const activeSketchPath = path.join(dir, 'active-sketch.json');
+    if (typeof body.active_sketch_json === 'string') {
+      atomicWrite(activeSketchPath, body.active_sketch_json);
+    } else if (fs.existsSync(activeSketchPath)) {
+      fs.unlinkSync(activeSketchPath);
+    }
     atomicWrite(
       path.join(dir, 'focus.json'),
       JSON.stringify(
@@ -208,7 +222,6 @@ export async function dispatchSessionRequest(req, res, next, ctx = {}) {
         2,
       ),
     );
-    atomicWrite(path.join(dir, 'model.json'), modelJson);
     writeWriter(dir, 'ui', generation);
     atomicWrite(
       path.join(dir, 'window.json'),

@@ -4,7 +4,7 @@
 //! - **read-only snapshot** attach (MCP loads model/focus; never claims writer)
 //! - **live** attach (MCP claims `writer.json`, writebacks `model.json` after mutating tools)
 //!
-//! Layout: `<session_dir>/<uuid>/{model.json,focus.json,heartbeat.json,writer.json}`.
+//! Layout: `<session_dir>/<uuid>/{model.json,active-sketch.json?,focus.json,heartbeat.json,writer.json}`.
 //! Session ids are BLAKE3 UUID v8 (nbcad layout 1); legacy v4 dirs still attach.
 
 use std::fs;

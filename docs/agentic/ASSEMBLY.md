@@ -1,33 +1,45 @@
 # Assembly gap
 
-noBS CAD can keep **several solid bodies in one document**. That is a
-multi-body part, not an assembly.
+Jack’s engine on `main` now has a real assembly layer: components,
+occurrences, joints, positions, motion studies, and approximate
+interference / swept-collision checks. The host dispatch is
+`assembly_*` in `crates/sketch/src/host.rs`.
 
-## What exists
+The MCP process still does **not** wrap those methods. Agents can only
+build a **multi-body part** with `solid_*`. The print-kit tutor stays
+honest about that: nine printable VAWT bodies on one axis, no mates.
 
-- `solid_*` `operation: "new_body"` creates independent bodies
-- Browser **Bodies** folder, per-body appearance / 3MF materials
+## What the engine has (desktop / wasm)
+
+- Component definitions and occurrence tree
+- Joints, joint motion, mechanism drag, grounded bodies
+- Saved positions and motion studies
+- Approximate interference and swept-collision reports
+- Browser / viewport consume `assembly_solution` poses
+
+## What MCP still does not have
+
+| Missing MCP surface | Why it matters |
+|---------------------|----------------|
+| `assembly_document` / `assembly_solution` | Agents cannot read the occurrence tree or solved poses |
+| Create/update component or occurrence | No instance reuse from MCP |
+| Create/update/delete joint | Fits stay numbers in sketches |
+| Motion / positions / contact sets | No kinematics from the exam harness |
+| Interference / swept collision | No assemble-check tool for the print kit |
+
+Do **not** bump `MODELING_TOOL_COUNT` to paper over this. A later pack
+can wrap the existing host methods without rewriting Jack’s crate.
+
+## What MCP can do today
+
+- `solid_*` `operation: "new_body"` — independent bodies in one document
+- Per-body appearance / 3MF materials
 - Combine, split, mirror, rectangular / circular pattern
 - Manual placement by sketching on datums (no `solid_move`)
 
-## What does not exist
-
-| Missing | Why it matters |
-|---------|----------------|
-| Part instances / occurrence tree | You cannot reuse one part file in many places |
-| Mates / joints | Fits are numbers in sketches, not constraints |
-| Assembled vs exploded vs print layouts | One placement only; the tutor builds the **assembled stack** by construction |
-| Catalog hardware | A metal 608 (or any standard bearing) is not a first-class component. Larger / better bearings can be modeled later from a table — they are not hidden parts of the print-kit exam |
-| Kinematics | `docs/goals.md` lists motion as needing assemblies and joints |
-
-The print-kit tutor (benchmark #1) is honest about this: it places nine
-printable VAWT bodies on one axis so a human can see how the wings drop
-onto the hub. That placement is brittle on purpose. Closing the gap is a
-product project, not a prompt tweak.
-
 ## Fully printable first
 
-Until assemblies and catalog hardware exist, kits must **print every
-bearing surface** they need (cone thrust, sleeve bushing, printed rollers).
-Do not design a mechanism that only works if a metal bearing appears off
-camera.
+Until catalog hardware exists, kits must **print every bearing surface**
+they need (cone thrust, sleeve bushing, printed rollers). Do not design
+a mechanism that only works if a metal bearing appears off camera.
+The engine joints do not invent hardware.
