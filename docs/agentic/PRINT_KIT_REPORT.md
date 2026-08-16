@@ -36,6 +36,16 @@ Wing bbox (exam): 33.2 × 24.8 × 48.0 mm; faces=24.
 
 Open in CAD: `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor.nbcad`
 
+Print plates (not print-in-place) under `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor\`:
+
+- `01-base.3mf`
+- `02-shaft.3mf`
+- `03-hub.3mf`
+- `04-wings.3mf`
+- `05-plate.3mf`
+- `06-bushing.3mf`
+- `07-cap.3mf`
+
 ## 4. Printing cost (plastic / material)
 
 Assumptions: Bambu PLA Basic, 1.24 g/cm³, $20/kg, print-volume factor 0.42.

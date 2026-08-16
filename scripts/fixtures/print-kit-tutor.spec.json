@@ -150,7 +150,7 @@
     {
       "id": "export",
       "title": "Export a printable package",
-      "teach": "Assign appearances, run solid_export_preflight, then solid_export_3mf for bambu_studio. Print each body in its own orientation (base/plate flat, shaft on the land, bushing as a ring, hub on its face, wings standing so layer lines run spanwise). 3MF is the manufacturing handoff."
+      "teach": "Assign appearances, run solid_export_preflight, then solid_export_3mf once per print plate (body_ids). Do not hand the slicer the assembled nest — this is not print-in-place. Seven plates: base, shaft, hub, wings, plate, bushing, cap. Print each in its own orientation (base/plate/cap/bushing flat, shaft on the land, hub on its face, wings standing so layer lines run spanwise)."
     }
   ]
 }

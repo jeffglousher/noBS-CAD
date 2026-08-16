@@ -92,6 +92,7 @@ PLA-on-PLA is a demo spin. Say so. No glue-as-fit.
 
 ## Report
 
-The exam writes `Print-Kit-Tutor-design.md` next to the 3MF. Required
+The exam writes `Print-Kit-Tutor-design.md` next to the project and
+seven print-plate 3MFs (not one assembled nest). Required
 sections: iteration log, design process, final product, plastic/material
 cost. Sample: [PRINT_KIT_REPORT.md](PRINT_KIT_REPORT.md).

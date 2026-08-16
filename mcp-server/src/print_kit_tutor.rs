@@ -372,9 +372,16 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
         )?;
     }
     let preflight = call("solid_export_preflight", json!({}))?;
-    let exported = call(
-        "solid_export_3mf",
-        json!({ "slicer_target": spec.slicer_target, "include_appearance": true }),
+    let plate_exports = export_print_plates(
+        &mut call,
+        &spec,
+        base_id,
+        shaft_id,
+        hub_id,
+        &wing_ids,
+        plate_id,
+        bush_id,
+        cap_id,
     )?;
     let scene = call("solid_scene", json!({}))?;
     let document = call("cad_document", json!({}))?;
@@ -383,9 +390,57 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
         &scene,
         &document,
         &preflight,
-        &exported,
+        &plate_exports,
         wing_ids.first().copied().unwrap_or(hub_id),
     ))
+}
+
+fn print_plate_jobs(
+    base_id: u64,
+    shaft_id: u64,
+    hub_id: u64,
+    wing_ids: &[u64],
+    plate_id: u64,
+    bush_id: u64,
+    cap_id: u64,
+) -> Vec<(&'static str, Vec<u64>)> {
+    vec![
+        ("01-base", vec![base_id]),
+        ("02-shaft", vec![shaft_id]),
+        ("03-hub", vec![hub_id]),
+        ("04-wings", wing_ids.to_vec()),
+        ("05-plate", vec![plate_id]),
+        ("06-bushing", vec![bush_id]),
+        ("07-cap", vec![cap_id]),
+    ]
+}
+
+fn export_print_plates(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    spec: &Spec,
+    base_id: u64,
+    shaft_id: u64,
+    hub_id: u64,
+    wing_ids: &[u64],
+    plate_id: u64,
+    bush_id: u64,
+    cap_id: u64,
+) -> Result<Vec<(String, Value)>, String> {
+    let mut plates = Vec::new();
+    for (name, body_ids) in print_plate_jobs(
+        base_id, shaft_id, hub_id, wing_ids, plate_id, bush_id, cap_id,
+    ) {
+        let exported = call(
+            "solid_export_3mf",
+            json!({
+                "slicer_target": spec.slicer_target,
+                "include_appearance": true,
+                "body_ids": body_ids
+            }),
+        )?;
+        plates.push((name.to_string(), exported));
+    }
+    Ok(plates)
 }
 
 fn build_y_frame(
@@ -899,12 +954,22 @@ fn build_cap(
     newest_body_id(&update, &[])
 }
 
+fn decode_3mf_bytes(exported: &Value) -> Vec<u8> {
+    exported["bytes_base64"]
+        .as_str()
+        .and_then(|b64| {
+            use base64::{engine::general_purpose::STANDARD, Engine as _};
+            STANDARD.decode(b64).ok()
+        })
+        .unwrap_or_default()
+}
+
 fn grade(
     spec: &Spec,
     scene: &Value,
     document: &Value,
     preflight: &Value,
-    exported: &Value,
+    plate_exports: &[(String, Value)],
     wing_id: u64,
 ) -> Report {
     let bodies = scene["bodies"].as_array().cloned().unwrap_or_default();
@@ -912,13 +977,11 @@ fn grade(
     let wing = bodies
         .iter()
         .find(|body| body["id"].as_u64() == Some(wing_id));
-    let bytes = exported["bytes_base64"]
-        .as_str()
-        .and_then(|b64| {
-            use base64::{engine::general_purpose::STANDARD, Engine as _};
-            STANDARD.decode(b64).ok()
-        })
-        .unwrap_or_default();
+    let plate_bytes: Vec<Vec<u8>> = plate_exports
+        .iter()
+        .map(|(_, exported)| decode_3mf_bytes(exported))
+        .collect();
+    let bytes_len: usize = plate_bytes.iter().map(Vec::len).sum();
 
     let mut lessons = Vec::new();
     push_lesson(
@@ -1082,12 +1145,19 @@ fn grade(
         || preflight["timeline_errors"]
             .as_array()
             .is_some_and(Vec::is_empty);
-    let zip_ok = bytes.len() > 32 && bytes.starts_with(b"PK");
+    let plates_ok = plate_bytes.len() >= 7
+        && plate_bytes
+            .iter()
+            .all(|bytes| bytes.len() > 32 && bytes.starts_with(b"PK"));
     push_lesson(
         &mut lessons,
         "export",
-        timeline_ok && preflight_ok && zip_ok,
-        format!("3MF {} bytes, timeline clean", bytes.len()),
+        timeline_ok && preflight_ok && plates_ok,
+        format!(
+            "{} print-plate 3MFs, {} bytes, timeline clean; not print-in-place",
+            plate_exports.len(),
+            bytes_len
+        ),
     );
 
     Report {
@@ -1095,7 +1165,7 @@ fn grade(
         spec_id: spec.id.clone(),
         lessons,
         body_count: bodies.len(),
-        byte_length: bytes.len(),
+        byte_length: bytes_len,
     }
 }
 

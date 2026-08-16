@@ -31,7 +31,8 @@ $env:Path = "$env:OCCT_ROOT\bin;$env:Path"
 CI (`.github/workflows/mcp-server.yml`) runs #2, then #3, then the Node half
 of #1. Optional live desktop for #1: `node scripts/mcp-print-kit-tutor.mjs --live`.
 The Node exam also writes `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor.nbcad`
-and a matching 3MF (override with `NBCAD_PROJECT_OUT` / `NBCAD_3MF_OUT`).
+and seven print-plate 3MFs under `Print-Kit-Tutor\` (override with
+`NBCAD_PROJECT_OUT` / `NBCAD_3MF_DIR`). Do not print the assembled nest.
 
 Supporting crate jobs (export, xtask `install-mcp`) are packaging checks, not
 synthesis benchmarks. Do not insert them above #1.

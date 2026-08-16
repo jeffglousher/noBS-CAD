@@ -26,6 +26,7 @@ Do not ship any of these. They have already been built. They are not turbines.
 - A short sleeve (L/D < 1) that rubs a full cylinder. Two-land + relief is required
 - Posts thicker than 0.40 × chord
 - Straight prismatic airfoils (a fence). Helix is required
+- A single assembled 3MF sold as the print job (print-in-place nest). Separate print plates.
 
 If the solid looks like a broken rim, a fence slat, or a lid, start over.
 
@@ -107,7 +108,7 @@ base → shaft → hub → three wings → top plate → bushing → cap
 
 noBS CAD has no mates, instances, or configs. Place bodies by construction. That gap is real (docs/agentic/ASSEMBLY.md).
 
-Print each body in its own orientation. The exam shows the assembled park so the mechanism is readable. The project file cannot store a second print layout — the report must list print orientation.
+Print each body in its own orientation. The exam shows the assembled park so the mechanism is readable. **This is not print-in-place.** Export seven print-plate 3MFs (`solid_export_3mf` + `body_ids`). The project file cannot store a second print layout — the report must list the plate files and orientation.
 
 Minimum wall 1.6 mm (4 nozzles). Functional holes are complete XY circles. Disable grid snap. Prefer locked circles. Draw airfoil, socket, and tenon polylines with **ctrl held** or ortho-snap will square the section into a plate.
 
@@ -121,12 +122,12 @@ The two-bearing idea stays. The cookie plate does not.
 4. Hub Ø28 × 8 **sits on** the shoulder. Ø8.4 bore, double-D 6.4, three sockets at the **root** azimuths (30°/150°/270°)
 5. Each wing: loft **NACA 0021** at 3 stations, 60° helix on the R24 cylinder, chord tangent, blunt TE, tenon into the root socket. The Y-frame is already open — no window cuts
 6. Top **Y-frame** 4 mm at z=67 + hanging Ø20 × 6 boss. Post holes that locate. Seat 8 mm from the top (2 mm land in the boss). Two-land sleeve. Cap
-7. cad_set_focus print. set_body_appearance. solid_export_preflight. solid_export_3mf slicer_target=bambu_studio
+7. cad_set_focus print. set_body_appearance. solid_export_preflight. solid_export_3mf **once per print plate** with body_ids (base, shaft, hub, wings, plate, bushing, cap). Do not export the assembled nest as the print job.
 8. Write the design report. Include the girth ratios, L/D, and why helix. A green export with a cookie plate or a short full-cylinder sleeve is still a fail
 
 ## Design report (required deliverable)
 
-Write `%USERPROFILE%/Documents/noBS-CAD/Print-Kit-Tutor-design.md` (and the JSON report beside the 3MF). The exam fails if this is missing, empty, or cost-free.
+Write `%USERPROFILE%/Documents/noBS-CAD/Print-Kit-Tutor-design.md` (and the JSON report beside the project). List the seven print-plate 3MFs. The exam fails if this is missing, empty, or cost-free.
 
 The report must include:
 

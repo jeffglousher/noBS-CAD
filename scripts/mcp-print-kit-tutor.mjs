@@ -14,7 +14,7 @@
  */
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,8 +38,10 @@ function defaultBin() {
 const bin = defaultBin();
 const live = process.argv.includes("--live");
 const defaultKitDir = path.join(os.homedir(), "Documents", "noBS-CAD");
-const out3mf =
+const out3mfLegacy =
   process.env.NBCAD_3MF_OUT || path.join(defaultKitDir, "Print-Kit-Tutor.3mf");
+const out3mfDir =
+  process.env.NBCAD_3MF_DIR || out3mfLegacy.replace(/\.3mf$/i, "");
 const outProject =
   process.env.NBCAD_PROJECT_OUT || path.join(defaultKitDir, "Print-Kit-Tutor.nbcad");
 const outReport =
@@ -598,7 +600,8 @@ function writeDesignReport({
   solidCm3,
   massG,
   costUsd,
-  out3mf: kit3mf,
+  out3mfDir: kit3mfDir,
+  plateFiles,
   outProject: kitProject,
 }) {
   const iterations = [
@@ -665,13 +668,22 @@ Assumptions: ${kit.filament.name}, ${kit.filament.density_g_cm3} g/cm³, $${kit.
 | Estimated print mass | ${massG.toFixed(1)} g |
 | Filament cost | **$${usd}** |
 
-3MF: \`${kit3mf}\`  
+Print plates in \`${kit3mfDir}\` (not print-in-place — the assembled nest is CAD-only):
+
+${plateFiles.map((file) => `- \`${file}\``).join("\n")}
+
+Slicer: drop each plate to the bed. Base/plate/cap/bushing flat (bushing as a ring). Shaft on the land, not the cone tip. Hub on its face. Wings standing so layer lines run spanwise.
+
 Project: \`${kitProject}\`
 
 Electricity and machine time are not priced. No additional hardware.
 `;
   return {
-    ok: markdown.includes("Iteration log") && costUsd > 0.05 && /NACA/i.test(kit.airfoil),
+    ok:
+      markdown.includes("Iteration log") &&
+      costUsd > 0.05 &&
+      /NACA/i.test(kit.airfoil) &&
+      plateFiles.length >= 7,
     markdown,
   };
 }
@@ -684,7 +696,7 @@ try {
   if (!/thrust|cone|clearance|nozzle/i.test(recipe)) {
     throw new Error("model_print_kit prompt is missing the FDM curriculum");
   }
-  if (!/airfoil|NACA 0021|directionless|bushing|design report|service finish|helical|girth|two-land|Y-frame/i.test(recipe)) {
+  if (!/airfoil|NACA 0021|directionless|bushing|design report|service finish|helical|girth|two-land|Y-frame|print plate/i.test(recipe)) {
     throw new Error("model_print_kit prompt is missing the 2026 VAWT design contract");
   }
 
@@ -1021,13 +1033,37 @@ try {
     await call("set_body_appearance", { body_id: id, preset_id: preset });
   }
   const preflight = await call("solid_export_preflight");
-  const exported = await call("solid_export_3mf", {
-    slicer_target: spec.slicer_target,
-    include_appearance: true,
-  });
-  const bytes = Buffer.from(exported.bytes_base64, "base64");
-  mkdirSync(path.dirname(out3mf), { recursive: true });
-  writeFileSync(out3mf, bytes);
+  const plateJobs = [
+    ["01-base", [baseId]],
+    ["02-shaft", [shaftId]],
+    ["03-hub", [hubId]],
+    ["04-wings", wingIds],
+    ["05-plate", [plateId]],
+    ["06-bushing", [bushId]],
+    ["07-cap", [capId]],
+  ];
+  mkdirSync(out3mfDir, { recursive: true });
+  const plateFiles = [];
+  const plateBytes = [];
+  for (const [name, bodyIds] of plateJobs) {
+    const exported = await call("solid_export_3mf", {
+      slicer_target: spec.slicer_target,
+      include_appearance: true,
+      body_ids: bodyIds,
+    });
+    const bytes = Buffer.from(exported.bytes_base64, "base64");
+    const dest = path.join(out3mfDir, `${name}.3mf`);
+    writeFileSync(dest, bytes);
+    plateFiles.push(dest);
+    plateBytes.push(bytes);
+  }
+  if (existsSync(out3mfLegacy)) {
+    try {
+      unlinkSync(out3mfLegacy);
+    } catch {
+      /* ignore locked assembled nest */
+    }
+  }
   const scene = await call("solid_scene");
   const document = await call("cad_document");
   const project = await call("cad_project_model");
@@ -1037,7 +1073,7 @@ try {
       : typeof project?.model_json === "string"
         ? project.model_json
         : JSON.stringify(project);
-  mkdirSync(path.dirname(out3mf), { recursive: true });
+  mkdirSync(path.dirname(outProject), { recursive: true });
   const projectBytes = writeNbcadArchive(modelJson, outProject);
   if (live) {
     try {
@@ -1152,7 +1188,8 @@ try {
     solidCm3: estimatedSolidCm3(),
     massG: estimatedPrintMassG(),
     costUsd: estimatedFilamentUsd(),
-    out3mf,
+    out3mfDir,
+    plateFiles,
     outProject,
   });
   writeFileSync(outDesign, design.markdown);
@@ -1168,15 +1205,21 @@ try {
       filament: spec.filament.name,
     },
   );
+  const platesOk =
+    plateBytes.length >= 7 &&
+    plateBytes.every((bytes) => bytes[0] === 0x50 && bytes[1] === 0x4b && bytes.length > 32);
   record(
     report.lessons,
     "export",
     features.every((feature) => feature.status?.state === "ok") &&
       (preflight.ok === true || (preflight.timeline_errors ?? []).length === 0) &&
-      bytes[0] === 0x50 &&
-      bytes[1] === 0x4b &&
-      bytes.length > 32,
-    { bytes: bytes.length, preflight: preflight.ok, path: out3mf },
+      platesOk,
+    {
+      plates: plateFiles.length,
+      bytes: plateBytes.reduce((sum, bytes) => sum + bytes.length, 0),
+      preflight: preflight.ok,
+      dir: out3mfDir,
+    },
   );
   report.bodies = bodies.map((body) => ({
     id: body.id,
@@ -1184,8 +1227,9 @@ try {
     bbox: bboxOf(body),
   }));
   report.export = {
-    path: out3mf,
-    byte_length: bytes.length,
+    dir: out3mfDir,
+    plates: plateFiles,
+    byte_length: plateBytes.reduce((sum, bytes) => sum + bytes.length, 0),
     project: outProject,
     project_bytes: projectBytes,
   };

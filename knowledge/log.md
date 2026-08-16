@@ -2,6 +2,9 @@
 
 ## 2026-08-16
 
+- **Update**: Print-kit export is seven print-plate 3MFs
+  (`Documents/noBS-CAD/Print-Kit-Tutor/`), not one assembled nest.
+  This stack is not print-in-place.
 - **Update**: Print-kit slim / low-friction pass: Y-frame stand (no
   cookie plate), two-land printed sleeve L/D 1.0 with a mid-groove
   relief, narrow Ø12 thrust land. Fits stay +0.40 — tight FDM binds.

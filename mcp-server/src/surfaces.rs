@@ -637,6 +637,7 @@ mod tests {
             "girth",
             "two-land",
             "Y-frame",
+            "print plate",
         ] {
             assert!(
                 print_kit.contains(needle),

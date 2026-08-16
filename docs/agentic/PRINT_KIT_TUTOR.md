@@ -39,9 +39,10 @@ Assembly order: **base → shaft → hub → three wings → top plate → bushi
 
 Print each body in its own orientation (base/plate flat, shaft on the
 land, bushing as a ring, hub on its face, wings standing so layer lines
-run spanwise). The exam shows the assembled stack so the mechanism is
-readable. noBS CAD cannot store a second print layout. The exam also
-writes a design report (iteration + plastic cost) next to the 3MF.
+run spanwise). **This is not print-in-place.** The exam writes seven
+print-plate 3MFs under `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor\`
+and keeps the assembled nest in the `.nbcad` only. The exam also writes
+a design report (iteration + plastic cost) next to the project.
 
 ## How to rerun
 
