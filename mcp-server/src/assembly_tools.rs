@@ -5,7 +5,7 @@
 
 use serde_json::{json, Value};
 
-pub const ASSEMBLY_TOOL_COUNT: usize = 37;
+pub const ASSEMBLY_TOOL_COUNT: usize = 38;
 
 pub enum AssemblyPayload {
     Empty,

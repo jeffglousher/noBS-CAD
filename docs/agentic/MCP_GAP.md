@@ -11,10 +11,10 @@ remains a **multi-body nest** — do not add joints there.
 
 | Bucket | Count | Notes |
 |--------|------:|-------|
-| Modeling | **205** | 166 prior + 37 `assembly_*` + 2 move/copy |
+| Modeling | **206** | 166 prior + 38 `assembly_*` + 2 move/copy |
 | Print helpers | 8 | Outside modeling |
 | Control | 12 | Focus, workspace, sessions, disclosure |
-| **Total** | **225** | |
+| **Total** | **226** | |
 
 ## Pack matrix (modeling; print excluded)
 
@@ -29,7 +29,7 @@ remains a **multi-body nest** — do not add joints there.
 | history | ≥5 | Timeline edits; `cad_undo` / `cad_redo` stay History pack **and** spine |
 | inspect | 3 | `solid_scene`, `solid_recompute` (spine), `solid_tessellate` |
 | drawing | 55 | Commands, HLR, DXF/SVG/profile |
-| assembly | 37 | Every `assembly_*` host method |
+| assembly | 38 | Every `assembly_*` host method |
 
 Soft LRU is **3**. Spine still includes `cad_invoke`, `solid_scene`,
 `solid_recompute`, and application undo/redo.

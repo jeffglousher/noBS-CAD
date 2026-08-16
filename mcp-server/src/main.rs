@@ -40,7 +40,7 @@ const META_CLIENT_INFO: &str = "io.modelcontextprotocol/clientInfo";
 const META_CLIENT_CAPABILITIES: &str = "io.modelcontextprotocol/clientCapabilities";
 const META_SERVER_INFO: &str = "io.modelcontextprotocol/serverInfo";
 const UNSUPPORTED_PROTOCOL_VERSION: i64 = -32022;
-const MODELING_TOOL_COUNT: usize = 205;
+const MODELING_TOOL_COUNT: usize = 206;
 const CONTROL_TOOL_COUNT: usize = 12;
 const PRINT_HELPER_COUNT: usize = 8;
 
@@ -4390,7 +4390,7 @@ mod tests {
         assert_eq!(
             all_tools.len(),
             MODELING_TOOL_COUNT + PRINT_HELPER_COUNT + CONTROL_TOOL_COUNT,
-            "205 modeling tools plus 8 print helpers and 12 control tools"
+            "206 modeling tools plus 8 print helpers and 12 control tools"
         );
         let modeling_count = all_tools
             .iter()

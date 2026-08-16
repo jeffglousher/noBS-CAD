@@ -17,7 +17,7 @@ machine (or CI runner).
 |-------|----------------|
 | Transport | **stdio** JSON-RPC (`nbcad-mcp`) — logs on **stderr**; optional **`bus-jsonl`** envelope for Kafka/MQTT/NATS connectors ([mcp-message-bus.md](mcp-message-bus.md)) |
 | Protocol | **Recommended `2026-07-28`:** `server/discover` + per-request `_meta`. `initialize` (`2025-06-18`) is a compatibility pathway only — first reply includes the runtime-upgrade manual. Unsupported versions return JSON-RPC `-32022`. Main-surface resources (`nbcad://document`, `scene`, `sketch`, `profiles`, `features`, `drawing`, `assembly`, `assembly_solution`, `workspace`, …) and prompts (`model_box`, `model_solid`, `model_print_tool`, `model_print_kit`, `import_step`, `drawing_export`, `assemble_joint`, `check_interference`, `undo_history`, `invoke`, …) are advertised. |
-| Tools | **205** modeling tools + 8 print helpers + 12 control tools (includes 55 drawing-pack tools and 37 named `assembly_*` tools). Mechanical escape hatches: `cad_invoke`, `cad_drawing_command`. Application history: `cad_undo` / `cad_redo` (spine). |
+| Tools | **206** modeling tools + 8 print helpers + 12 control tools (includes 55 drawing-pack tools and 38 named `assembly_*` tools). Mechanical escape hatches: `cad_invoke`, `cad_drawing_command`. Application history: `cad_undo` / `cad_redo` (spine). |
 | Disclosure | Soft focus-scoped; `tools.listChanged: true`; ~300 ms throttle |
 | Notify worker | Stdin reader thread + timed wake — `list_changed` / soft-TTL flush **without** a later client ping |
 | Document | One persistent feature history **per MCP process** |
