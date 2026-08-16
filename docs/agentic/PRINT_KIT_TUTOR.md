@@ -32,10 +32,10 @@ floors (roller Ø8, TE 0.8, 4-nozzle walls) are clamped.
 | Part | Role | How it mates |
 |------|------|----------------|
 | Base | Y-frame + short square stator post, one piece | Post is the grounded axis. Print flat. |
-| Axle | Flanged inner-race puck, square bore | Friction on the post (+0.16). Hub sits on the flange land (0.20 float). Print on the flange. |
-| Rotor | Hub + 3 helical **NACA 0021** blades, **one body**, open drafted tips | Hub bore is the outer race. Freewheels on the rollers. Print standing on the hub. |
-| Roller cartridge | Cage + 6 PIP rollers, min Ø8, large PCD | Running +0.40 on rollers/races. One print plate. |
-| Retainer | Flat ring | Slip +0.28 on the post. Keeps the hub on the land. |
+| Axle | Flanged inner-race puck, square bore | Friction on the post (+0.16). Hub floats 0.20 above the flange land. Print on the flange. |
+| Rotor | Hub + 3 helical **NACA 0021** blades, **one body**, open drafted tips | Hub bore is the outer race. Freewheels on the rollers. Print standing on the hub. PLA Glow. |
+| Roller cartridge | Cage + 6 PIP rollers, min Ø8, large PCD | Running +0.40 on rollers/races. PIP on the kit plate. |
+| Retainer | Washer (OD < hub OD) | Slip +0.28 on the post. Floats 0.20 above the hub. |
 
 Fits are **per role** (running / slip / friction). Do not use +0.40 on
 every hole. Slicer XY hole compensation stays 0. No metal 608s. No FDM
@@ -48,11 +48,13 @@ inserts the root occurrence — a second `assembly_create_occurrence`
 duplicates every part). Ground the base. Revolute on the **axis**
 (hub/race faces, not a blade spar). Ship an A3 assembly drawing with notes.
 
-Print each functional part in its own orientation. The cartridge is
-print-in-place. The exam **wipes** `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor\`
-first (retired `02-shaft` / `03-hub` / `04-wings` / `05-plate` /
-`06-bushing` / `07-cap` and any assembled `Print-Kit-Tutor.3mf`), then
-writes the five current plates and a design report next to the project.
+Print each functional part in its own orientation on **one** plate.
+The cartridge is print-in-place. The exam **wipes**
+`%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor\` first (retired
+five-plate names plus `02-shaft` / `03-hub` / `04-wings` / `05-plate` /
+`06-bushing` / `07-cap` and any assembled `Print-Kit-Tutor.3mf`), saves
+the assembled `.nbcad`, lays the parts out, then writes `01-kit.3mf`
+(PLA Orange + PLA Glow) and a design report next to the project.
 
 ## How to rerun
 
@@ -76,9 +78,10 @@ The exam also writes a reusable project next to the 3MF (override with
 
 Desktop crash recovery can reopen an older nest (tan base, red disc,
 orange helix planes). That is not this kit. **File → New**, then
-**File → Open** the path above. The current kit is a black Y-frame,
-jade-white axle puck, green one-piece rotor, orange rollers, red
-retainer ring.
+**File → Open** the path above. The current kit is an orange Y-frame /
+axle / cage / retainer and a glow-green one-piece rotor, with 0.20 mm
+axial float at every running land. Switch workspace to **Assembly** to
+see the five parts.
 
 Agents start with `prompts/get model_print_kit`.
 
@@ -97,7 +100,7 @@ Agents start with `prompts/get model_print_kit`.
 11. Helical blades, not a straight fence
 12. Ship an assembly drawing
 13. Publish the design report (iteration + plastic cost)
-14. Export one plate per functional part (cartridge is PIP)
+14. Export one laid-out plate (`01-kit`) in PLA Orange + PLA Glow (cartridge is PIP)
 
 Later (not this exam): catalog metal bearings from a standard table at
 larger sizes.

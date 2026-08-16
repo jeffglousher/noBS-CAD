@@ -2,6 +2,10 @@
 
 ## 2026-08-16
 
+- **Update**: Print-kit fits now model 0.20 axial float at every running
+  land (base↔flange, flange↔hub/cage, hub↔retainer). The retainer is a
+  washer (OD < hub OD). Export is one laid-out `01-kit.3mf` in PLA Orange
+  and PLA Glow only — not the assembled nest and not five colored plates.
 - **Update**: Print-kit assembly is five parts / five occurrences.
   `assembly_create_component` already inserts the root instance; a
   second `assembly_create_occurrence` duplicated every part. The

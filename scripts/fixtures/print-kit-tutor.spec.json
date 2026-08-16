@@ -16,10 +16,14 @@
   "fit_slip_mm": 0.28,
   "fit_friction_mm": 0.16,
   "filament": {
-    "name": "Bambu PLA Basic",
+    "name": "Bambu PLA Basic Orange + Bambu PLA Glow",
     "density_g_cm3": 1.24,
     "price_usd_per_kg": 20.0,
     "print_volume_factor": 0.42
+  },
+  "materials": {
+    "orange": "bambu.pla.basic.orange",
+    "glow": "bambu.pla.glow.green"
   },
   "wing_count": 3,
   "wing_h": 220.0,
@@ -55,9 +59,21 @@
   "thrust_float": 0.2,
   "min_bodies": 8,
   "min_rotor_faces": 16,
-  "min_print_plates": 5,
-  "print_plates": ["01-base", "02-axle", "03-rotor", "04-roller-cartridge", "05-retainer"],
-  "retired_print_plates": ["02-shaft", "03-hub", "04-wings", "05-plate", "06-bushing", "07-cap"],
+  "min_print_plates": 1,
+  "print_plates": ["01-kit"],
+  "retired_print_plates": [
+    "01-base",
+    "02-axle",
+    "02-shaft",
+    "03-hub",
+    "03-rotor",
+    "04-roller-cartridge",
+    "04-wings",
+    "05-plate",
+    "05-retainer",
+    "06-bushing",
+    "07-cap"
+  ],
   "assembly_order": ["base", "axle", "roller_cage", "rotor", "retainer"],
   "gdt": {
     "datums": {
@@ -69,7 +85,7 @@
       "running_rollers": "+0.40 diametral PLA-on-PLA (spin). Slicer XY hole compensation stays 0.",
       "slip_axle_retainer": "+0.28 diametral — drops together, not sloppy.",
       "friction_square_drive_and_cage": "+0.16 diametral — tap-in locate, not a press. PLA holes shrink; bosses grow.",
-      "thrust_land": "0.20 axial float on the base land. Running faces do not occupy the same volume."
+      "thrust_land": "0.20 axial float at every running land (base↔flange, flange↔hub/cage, hub↔retainer). Running faces do not occupy the same volume. Retainer is a washer (OD < hub OD), not a cap through the hub."
     }
   },
   "lessons": [
@@ -81,7 +97,7 @@
     {
       "id": "fits",
       "title": "Fits are per role and material",
-      "teach": "Do not use one clearance for every hole. Running (rollers) is +0.40. Slip (axle / retainer) is +0.28. Friction locate (square drive, cage in base) is +0.16. That is PLA + 0.4 mm nozzle at design time. Slicer XY hole compensation stays 0 unless a gauge print says otherwise."
+      "teach": "Do not use one clearance for every hole. Running (rollers) is +0.40. Slip (axle / retainer) is +0.28. Friction locate (square drive, cage in base) is +0.16. Model 0.20 axial float at every running land — coincident planes fuse in FDM. That is PLA + 0.4 mm nozzle at design time. Slicer XY hole compensation stays 0 unless a gauge print says otherwise."
     },
     {
       "id": "no_press",
@@ -140,8 +156,8 @@
     },
     {
       "id": "export",
-      "title": "Export one plate per part",
-      "teach": "Wipe Print-Kit-Tutor/ first so leftover shaft/hub/wings/plate/bushing/cap plates are gone. Then solid_export_3mf per functional part. The roller cartridge is one plate (cage + PIP rollers). Do not export the assembled nest as the print job."
+      "title": "Export one laid-out plate",
+      "teach": "Wipe Print-Kit-Tutor/ first so leftover five-plate and shaft/hub/wings names are gone. Save the assembled .nbcad, then solid_move_copy parts onto the bed (rotor standing on the hub, others flat) and solid_export_3mf once as 01-kit. Two materials only: PLA Orange and PLA Glow. Do not export the assembled nest as the print job."
     }
   ]
 }

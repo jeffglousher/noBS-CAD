@@ -145,7 +145,8 @@ graded, but it was the wrong product for additive manufacturing:
 | Rollers ↔ pockets / races | Running | +0.40 diametral |
 | Retainer ↔ square post | Slip | +0.28 |
 | Axle square bore ↔ post | Friction locate | +0.16 |
-| Hub ↔ flange land | Thrust | 0.20 axial float |
+| Hub / cage ↔ flange land | Thrust | 0.20 axial float |
+| Hub ↔ retainer washer | Thrust | 0.20 axial float; retainer OD < hub OD |
 
 ### Print (current)
 
@@ -159,9 +160,17 @@ graded, but it was the wrong product for additive manufacturing:
 
 ### Assembly (current)
 
-1. Axle puck onto the square post (friction). Flange sits on the base.
-2. Roller cartridge over the inner race, onto the flange.
-3. Rotor hub over the cartridge (outer race). Hub sits on the flange land.
-4. Retainer slip-fits the post and keeps the hub down.
+1. Axle puck onto the square post (friction). Flange floats 0.20 above the base.
+2. Roller cartridge over the inner race, 0.20 above the flange.
+3. Rotor hub over the cartridge (outer race). Hub floats 0.20 above the flange land.
+4. Retainer washer slip-fits the post, floats 0.20 above the hub, and keeps the hub down.
 
 If those steps are not visible in the solid, the exam failed.
+
+### 2026-08-16 fit / plate pass (closed)
+
+| Fault | Why it failed | Correction |
+|-------|---------------|------------|
+| Coincident running faces | Hub sat on the flange; retainer sat on the hub. Zero axial play looks fused and binds in FDM. | 0.20 float at every running land. Inner race grows by the same float so rollers stay on the race. |
+| Retainer cap | Retainer OD covered the hub, so the washer looked like a disc through the rotor. | Washer OD is between hub bore and hub OD. |
+| Five colors / five plates | Assembled nest exported per part; materials did not match the two-filament print. | One laid-out `01-kit.3mf`. PLA Orange + PLA Glow only. |

@@ -16,6 +16,7 @@
   {"id":"bambu.pla.basic.orange","brand":"Bambu Lab","filament_type":"PLA","material_name":"Bambu PLA Basic","color_name":"Orange","r":240,"g":120,"b":40,"filament_id":"GFA00","density_g_cm3":1.24,"diameter_mm":1.75},
   {"id":"bambu.pla.basic.green","brand":"Bambu Lab","filament_type":"PLA","material_name":"Bambu PLA Basic","color_name":"Green","r":40,"g":160,"b":70,"filament_id":"GFA00","density_g_cm3":1.24,"diameter_mm":1.75},
   {"id":"bambu.pla.basic.yellow","brand":"Bambu Lab","filament_type":"PLA","material_name":"Bambu PLA Basic","color_name":"Yellow","r":240,"g":210,"b":40,"filament_id":"GFA00","density_g_cm3":1.24,"diameter_mm":1.75},
+  {"id":"bambu.pla.glow.green","brand":"Bambu Lab","filament_type":"PLA","material_name":"Bambu PLA Glow","color_name":"Green","r":196,"g":220,"b":96,"filament_id":"GFA12","density_g_cm3":1.26,"diameter_mm":1.75},
   {"id":"bambu.pla.matte.ivory_white","brand":"Bambu Lab","filament_type":"PLA","material_name":"Bambu PLA Matte","color_name":"Ivory White","r":236,"g":232,"b":220,"filament_id":"GFA01","density_g_cm3":1.24,"diameter_mm":1.75},
   {"id":"bambu.pla.matte.dark_gray","brand":"Bambu Lab","filament_type":"PLA","material_name":"Bambu PLA Matte","color_name":"Dark Gray","r":70,"g":70,"b":72,"filament_id":"GFA01","density_g_cm3":1.24,"diameter_mm":1.75},
   {"id":"bambu.pla.silk.gold","brand":"Bambu Lab","filament_type":"PLA","material_name":"Bambu PLA Silk","color_name":"Gold","r":212,"g":175,"b":55,"filament_id":"GFA05","density_g_cm3":1.24,"diameter_mm":1.75},

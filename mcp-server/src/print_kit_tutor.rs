@@ -24,6 +24,7 @@ pub struct Spec {
     pub fit_slip_mm: f64,
     pub fit_friction_mm: f64,
     pub filament: Filament,
+    pub materials: PrintMaterials,
     pub wing_count: usize,
     pub wing_h: f64,
     pub wing_radius: f64,
@@ -76,6 +77,12 @@ pub struct Filament {
     pub density_g_cm3: f64,
     pub price_usd_per_kg: f64,
     pub print_volume_factor: f64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct PrintMaterials {
+    pub orange: String,
+    pub glow: String,
 }
 
 impl Spec {
@@ -169,9 +176,9 @@ impl Spec {
         self.roller_d() + self.fit_running_mm
     }
     fn retainer_od(&self) -> f64 {
-        self.axle_flange_d()
-            .min(self.hub_od() + 4.0)
-            .max(self.hub_bore() + 4.0)
+        (self.hub_bore() + 4.0)
+            .min(self.hub_od() - 1.0)
+            .max(self.hub_bore() + 2.0)
     }
     fn retainer_id(&self) -> f64 {
         self.axle_square() + self.fit_slip_mm
@@ -213,11 +220,14 @@ impl Spec {
     fn race_z(&self) -> f64 {
         self.flange_z() + self.axle_flange_h()
     }
+    fn race_h(&self) -> f64 {
+        self.cage_h() + self.thrust_float
+    }
     fn hub_z(&self) -> f64 {
-        self.race_z()
+        self.race_z() + self.thrust_float
     }
     fn retainer_z(&self) -> f64 {
-        self.hub_z() + self.hub_h()
+        self.hub_z() + self.hub_h() + self.thrust_float
     }
     fn post_h(&self) -> f64 {
         self.retainer_z() + self.retainer_h() + self.thrust_float
@@ -278,8 +288,15 @@ impl Spec {
             && self.printer.bed_mm[2] >= 260.0
     }
     fn print_flat_ok(&self) -> bool {
-        let axle_h = self.axle_flange_h() + self.cage_h();
+        let axle_h = self.axle_flange_h() + self.race_h();
         axle_h <= self.axle_flange_d() && self.rotor_print_h() > axle_h * 3.0
+    }
+    fn stack_ok(&self) -> bool {
+        self.hub_z() + 1e-9 >= self.race_z() + self.thrust_float
+            && self.retainer_z() + 1e-9 >= self.hub_z() + self.hub_h() + self.thrust_float
+            && self.retainer_od() + 1e-9 < self.hub_od()
+            && self.retainer_od() + 1e-9 > self.hub_bore()
+            && self.race_h() + 1e-9 >= self.cage_h() + self.thrust_float
     }
     fn sanity_ok(&self) -> bool {
         self.base_envelope() / self.rotor_d() <= 1.55
@@ -377,11 +394,11 @@ struct Built {
 
 pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Result<Report, String> {
     let spec = load_spec()?;
-    if !spec.fits_ok() {
+    if !spec.fits_ok() || !spec.stack_ok() {
         return Ok(Report::fail(
             &spec.id,
             "fits",
-            "running/slip/friction stack is not a 0.4 mm PLA set",
+            "running/slip/friction stack or axial float is not a 0.4 mm PLA set",
         ));
     }
 
@@ -430,11 +447,11 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
         json!({ "focus": "print", "explicit": true }),
     )?;
     for (id, preset) in [
-        (base_id, "bambu.pla.basic.black"),
-        (axle_id, "bambu.pla.basic.jade_white"),
-        (rotor_id, "bambu.pla.basic.green"),
-        (cage_id, "bambu.pla.matte.dark_gray"),
-        (retainer_id, "bambu.pla.basic.red"),
+        (base_id, spec.materials.orange.as_str()),
+        (axle_id, spec.materials.orange.as_str()),
+        (rotor_id, spec.materials.glow.as_str()),
+        (cage_id, spec.materials.orange.as_str()),
+        (retainer_id, spec.materials.orange.as_str()),
     ] {
         call(
             "set_body_appearance",
@@ -444,11 +461,14 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
     for id in &roller_ids {
         call(
             "set_body_appearance",
-            json!({ "body_id": id, "preset_id": "bambu.pla.basic.orange" }),
+            json!({ "body_id": id, "preset_id": spec.materials.orange }),
         )?;
     }
     let hide_detail = hide_construction(&mut call)?;
     let preflight = call("solid_export_preflight", json!({}))?;
+    let scene = call("solid_scene", json!({}))?;
+    let document = call("cad_document", json!({}))?;
+    let assembly = call("assembly_document", json!({})).unwrap_or(json!({}));
     let plate_exports = export_print_plates(
         &mut call,
         &spec,
@@ -459,9 +479,6 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
         &roller_ids,
         retainer_id,
     )?;
-    let scene = call("solid_scene", json!({}))?;
-    let document = call("cad_document", json!({}))?;
-    let assembly = call("assembly_document", json!({})).unwrap_or(json!({}));
     Ok(grade(
         &spec,
         &scene,
@@ -496,28 +513,93 @@ fn export_print_plates(
     roller_ids: &[u64],
     retainer_id: u64,
 ) -> Result<Vec<(String, Value)>, String> {
+    layout_print_plate(
+        call,
+        spec,
+        base_id,
+        axle_id,
+        rotor_id,
+        cage_id,
+        roller_ids,
+        retainer_id,
+    )?;
+    let mut body_ids = vec![base_id, axle_id, rotor_id, cage_id, retainer_id];
+    body_ids.extend(roller_ids.iter().copied());
+    let name = spec
+        .print_plates
+        .first()
+        .map(String::as_str)
+        .unwrap_or("01-kit");
+    let exported = call(
+        "solid_export_3mf",
+        json!({
+            "slicer_target": spec.slicer_target,
+            "include_appearance": true,
+            "body_ids": body_ids
+        }),
+    )?;
+    Ok(vec![(name.to_string(), exported)])
+}
+
+fn move_bodies(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    body_ids: &[u64],
+    translation: [f64; 3],
+) -> Result<(), String> {
+    if body_ids.is_empty() {
+        return Ok(());
+    }
+    call(
+        "solid_move_copy",
+        json!({
+            "body_ids": body_ids,
+            "translation": translation,
+            "rotation": [0.0, 0.0, 0.0, 1.0],
+            "pivot": [0.0, 0.0, 0.0],
+            "copy": false
+        }),
+    )?;
+    Ok(())
+}
+
+fn layout_print_plate(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    spec: &Spec,
+    base_id: u64,
+    axle_id: u64,
+    rotor_id: u64,
+    cage_id: u64,
+    roller_ids: &[u64],
+    retainer_id: u64,
+) -> Result<(), String> {
+    let gap = 10.0;
+    let rotor_r = spec.rotor_d() * 0.5;
+    let base_r = spec.base_envelope() * 0.5;
+    let axle_r = spec.axle_flange_d() * 0.5;
+    let cart_r = spec.pcd() * 0.5 + spec.roller_d() * 0.5;
+    let ret_r = spec.retainer_od() * 0.5;
+    let col_x = rotor_r + gap + base_r.max(axle_r);
+    let small_x = col_x + base_r.max(axle_r) + gap + cart_r.max(ret_r);
+    move_bodies(call, &[rotor_id], [-rotor_r - gap * 0.5, 0.0, -spec.hub_z()])?;
+    move_bodies(call, &[base_id], [col_x, base_r + gap * 0.5, 0.0])?;
+    move_bodies(
+        call,
+        &[axle_id],
+        [col_x, -(axle_r + gap * 0.5), -spec.flange_z()],
+    )?;
     let mut cartridge = vec![cage_id];
     cartridge.extend(roller_ids.iter().copied());
-    let jobs = [
-        ("01-base", vec![base_id]),
-        ("02-axle", vec![axle_id]),
-        ("03-rotor", vec![rotor_id]),
-        ("04-roller-cartridge", cartridge),
-        ("05-retainer", vec![retainer_id]),
-    ];
-    let mut plates = Vec::new();
-    for (name, body_ids) in jobs {
-        let exported = call(
-            "solid_export_3mf",
-            json!({
-                "slicer_target": spec.slicer_target,
-                "include_appearance": true,
-                "body_ids": body_ids
-            }),
-        )?;
-        plates.push((name.to_string(), exported));
-    }
-    Ok(plates)
+    move_bodies(
+        call,
+        &cartridge,
+        [small_x, -(axle_r + gap * 0.5), -spec.hub_z()],
+    )?;
+    move_bodies(
+        call,
+        &[retainer_id],
+        [small_x, ret_r + gap, -spec.retainer_z()],
+    )?;
+    Ok(())
 }
 
 fn build_base(
@@ -652,7 +734,7 @@ fn build_axle(
                 "sketch_name": race,
                 "profile_indices": [0],
                 "operation": "join",
-                "extent": { "type": "distance", "distance": spec.cage_h() },
+                "extent": { "type": "distance", "distance": spec.race_h() },
                 "taper_angle_deg": 0.0,
                 "flip": false,
                 "target_body_ids": [axle_id]
@@ -676,7 +758,7 @@ fn build_axle(
                 "sketch_name": bore,
                 "profile_indices": [0],
                 "operation": "cut",
-                "extent": { "type": "distance", "distance": spec.axle_flange_h() + spec.cage_h() },
+                "extent": { "type": "distance", "distance": spec.axle_flange_h() + spec.race_h() },
                 "taper_angle_deg": 0.0,
                 "flip": false,
                 "target_body_ids": [axle_id]
@@ -786,7 +868,7 @@ fn build_cartridge(
     spec: &Spec,
     known: &[u64],
 ) -> Result<(u64, Vec<u64>), String> {
-    let deck = offset_xy(call, spec.race_z())?;
+    let deck = offset_xy(call, spec.hub_z())?;
     begin_datum(call, deck.clone())?;
     add_circle(call, [0.0, 0.0], spec.cage_od())?;
     add_circle(call, [0.0, 0.0], spec.cage_id())?;
@@ -944,7 +1026,7 @@ fn form_assembly(
     let axle_axis = axis_revolute_connector(
         &scene,
         axle_id,
-        spec.race_z() + spec.cage_h(),
+        spec.race_z() + spec.race_h(),
         spec.inner_race_d() * 0.5,
     )
     .ok_or_else(|| "no on-axis axle race circle or cylinder for the revolute".to_string())?;
@@ -1019,23 +1101,27 @@ fn make_assembly_drawing(
         (
             [18.0, 38.0],
             format!(
-                "FITS  running +{:.2}  slip +{:.2}  friction +{:.2}  (slicer XY hole comp = 0)",
-                spec.fit_running_mm, spec.fit_slip_mm, spec.fit_friction_mm
+                "FITS  running +{:.2}  slip +{:.2}  friction +{:.2}  thrust float {:.2}  (slicer XY hole comp = 0)",
+                spec.fit_running_mm, spec.fit_slip_mm, spec.fit_friction_mm, spec.thrust_float
             ),
         ),
         (
             [18.0, 48.0],
-            "PRINT  base/axle/cage/retainer FLAT. Rotor STANDING on hub, open drafted tips. Cartridge is PIP.".to_string(),
+            "PRINT  one plate, laid out. Rotor STANDING. Others FLAT. Cartridge PIP. PLA Orange + PLA Glow (rotor).".to_string(),
         ),
         (
             [18.0, 58.0],
+            "GDT  0.20 axial float at base/flange, flange/hub, hub/retainer. Retainer washer OD < hub OD.".to_string(),
+        ),
+        (
+            [18.0, 68.0],
             format!(
                 "BOM  base (Y-frame + square post) · axle (inner-race puck) · rotor (hub+3×{}) · roller cage + {} PIP rollers · retainer",
                 spec.airfoil, spec.roller_count
             ),
         ),
         (
-            [18.0, 68.0],
+            [18.0, 78.0],
             format!(
                 "ROLLERS  Ø{:.1} × {:.1}  PCD {:.1}  for blade-tip moment. No metal 608.",
                 spec.roller_d(),
@@ -1243,10 +1329,10 @@ fn grade(
     push_lesson(
         &mut lessons,
         "fits",
-        spec.fits_ok(),
+        spec.fits_ok() && spec.stack_ok(),
         format!(
-            "running +{:.2}  slip +{:.2}  friction +{:.2}",
-            spec.fit_running_mm, spec.fit_slip_mm, spec.fit_friction_mm
+            "running +{:.2}  slip +{:.2}  friction +{:.2}  thrust float {:.2}",
+            spec.fit_running_mm, spec.fit_slip_mm, spec.fit_friction_mm, spec.thrust_float
         ),
     );
     push_lesson(
@@ -1343,7 +1429,7 @@ fn grade(
         spec.print_flat_ok(),
         format!(
             "axle puck h{:.1} on flange Ø{:.1}; rotor stands {:.0}",
-            spec.axle_flange_h() + spec.cage_h(),
+            spec.axle_flange_h() + spec.race_h(),
             spec.axle_flange_d(),
             spec.rotor_print_h()
         ),
@@ -1802,10 +1888,16 @@ mod spec_tests {
         assert!(spec.chord_root() > spec.chord_tip());
         assert!(spec.estimated_filament_usd() > 0.05);
         assert!(spec.min_bodies >= 8);
-        assert!(spec.min_print_plates >= 5);
-        assert_eq!(spec.print_plates.len(), 5);
+        assert!(spec.min_print_plates >= 1);
+        assert_eq!(spec.print_plates.len(), 1);
+        assert_eq!(spec.print_plates[0], "01-kit");
         assert!(spec.retired_print_plates.iter().any(|name| name == "02-shaft"));
+        assert!(spec.retired_print_plates.iter().any(|name| name == "01-base"));
         assert!(spec.retired_print_plates.iter().any(|name| name == "06-bushing"));
+        assert_eq!(spec.materials.orange, "bambu.pla.basic.orange");
+        assert_eq!(spec.materials.glow, "bambu.pla.glow.green");
+        assert!(spec.stack_ok());
+        assert!(spec.retainer_od() < spec.hub_od());
         assert!((spec.wing_offset_deg + spec.helix_deg * 0.5 - 60.0).abs() < 1e-9);
         assert!(spec.rotor_print_h() / spec.scale <= spec.usable_bed()[2] + 1e-6);
         assert!(spec.cage_od() < spec.hub_bore());

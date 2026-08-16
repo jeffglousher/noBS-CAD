@@ -97,7 +97,8 @@ PLA-on-PLA is a demo spin. Say so. No glue-as-fit.
 ## Report
 
 The exam writes `Print-Kit-Tutor-design.md` next to the project and
-five print-plate 3MFs (cartridge is PIP; not one assembled nest). It
-deletes retired plates from earlier kits before writing. Required
-sections: iteration log, design process, final product, plastic/material
-cost. Sample: [PRINT_KIT_REPORT.md](PRINT_KIT_REPORT.md).
+one laid-out `01-kit.3mf` (cartridge is PIP; not the assembled nest).
+Materials are **PLA Orange** and **PLA Glow** only. It deletes retired
+plates from earlier kits before writing. Required sections: iteration
+log, design process, final product, plastic/material cost. Sample:
+[PRINT_KIT_REPORT.md](PRINT_KIT_REPORT.md).

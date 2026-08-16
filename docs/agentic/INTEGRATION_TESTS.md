@@ -7,7 +7,7 @@ tools exist.
 **#1 is the print-kit tutor.** It is the first synthesis exam: an agent
 must design an FDM-tolerant mechanical **assembly**, then a grader checks
 role-based fits, a one-piece helical rotor, a printed roller pack, an
-assembly drawing, and per-part 3MF plates.
+assembly drawing, and one laid-out 3MF plate.
 
 Curriculum and grader detail: [PRINT_KIT_TUTOR.md](PRINT_KIT_TUTOR.md).
 GD&T / printability corrections: [PRINT_KIT_GDT.md](PRINT_KIT_GDT.md).
@@ -17,7 +17,7 @@ Spec: `scripts/fixtures/print-kit-tutor.spec.json`. Recipe: `model_print_kit`.
 
 | # | Benchmark | How to run | What it proves |
 |---|-----------|------------|----------------|
-| **1** | **Print-kit tutor** (printed VAWT assembly) | `cargo test --manifest-path mcp-server/Cargo.toml print_kit_tutor` then `npm run test:mcp-print-kit` | AI → assemblable printed turbine: one-piece helical NACA, role-based fits, printed roller pack, assembly drawing, design report + plastic cost, 5 print plates |
+| **1** | **Print-kit tutor** (printed VAWT assembly) | `cargo test --manifest-path mcp-server/Cargo.toml print_kit_tutor` then `npm run test:mcp-print-kit` | AI → assemblable printed turbine: one-piece helical NACA, role-based fits, printed roller pack, assembly drawing, design report + plastic cost, one laid-out plate (PLA Orange + PLA Glow) |
 | 2 | Completeness gate | `npm run check:mcp-control` | Modeling / print / control tools and main prompts stay wired (`model_print_kit` included) |
 | 3 | CadServer goldens | `cargo test --manifest-path mcp-server/Cargo.toml` | Headless OCCT replay and MCP RPC (includes the #1 engine exam) |
 | 4 | Session bridge | `npm run test:session-bridge` | Live attach, writer lock, UI heartbeat must not clobber MCP revisions |
@@ -32,7 +32,7 @@ $env:Path = "$env:OCCT_ROOT\bin;$env:Path"
 CI (`.github/workflows/mcp-server.yml`) runs #2, then #3, then the Node half
 of #1. Optional live desktop for #1: `node scripts/mcp-print-kit-tutor.mjs --live`.
 The Node exam also writes `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor.nbcad`
-and five print-plate 3MFs under `Print-Kit-Tutor\` (override with
+and one laid-out `01-kit.3mf` under `Print-Kit-Tutor\` (override with
 `NBCAD_PROJECT_OUT` / `NBCAD_3MF_DIR`). The exam deletes retired plates
 from earlier kits before writing. The roller cartridge is PIP.
 Do not print the assembled nest.

@@ -307,15 +307,19 @@ if (spec.fit_running_mm !== 0.4) {
 if (!(spec.fit_friction_mm < spec.fit_slip_mm && spec.fit_slip_mm < spec.fit_running_mm)) {
   fail('print-kit tutor spec must keep friction < slip < running fits');
 }
-if (!Array.isArray(spec.print_plates) || spec.print_plates.length !== 5) {
-  fail('print-kit tutor spec must list the five current print plates');
+if (!Array.isArray(spec.print_plates) || spec.print_plates.length !== 1 || spec.print_plates[0] !== '01-kit') {
+  fail('print-kit tutor spec must list the one current print plate (01-kit)');
 }
 if (
   !Array.isArray(spec.retired_print_plates) ||
   !spec.retired_print_plates.includes('02-shaft') ||
+  !spec.retired_print_plates.includes('01-base') ||
   !spec.retired_print_plates.includes('06-bushing')
 ) {
   fail('print-kit tutor spec must list retired plates so the exam can wipe them');
+}
+if (spec.materials?.orange !== 'bambu.pla.basic.orange' || spec.materials?.glow !== 'bambu.pla.glow.green') {
+  fail('print-kit tutor spec must print only PLA orange and PLA glow');
 }
 const tutorSrc = await read('scripts/mcp-print-kit-tutor.mjs');
 if (!tutorSrc.includes('cleanKitOutputs') || !tutorSrc.includes('retired_print_plates')) {
@@ -330,6 +334,12 @@ if (tutorSrc.includes('name: `${name}_1`') || /assembly_create_occurrence/.test(
 if (!tutorSrc.includes('axisRevoluteConnector') || !tutorSrc.includes('circularEdgeOnAxis')) {
   fail('print-kit Node exam must mate the revolute on an on-axis circle or cylinder');
 }
+if (!tutorSrc.includes('solid_move_copy') || !tutorSrc.includes('layoutPrintPlate')) {
+  fail('print-kit Node exam must lay the kit out on one plate before export');
+}
+if (!tutorSrc.includes('bambu.pla.glow') || !tutorSrc.includes('bambu.pla.basic.orange')) {
+  fail('print-kit Node exam must assign PLA orange and PLA glow only');
+}
 const rustTutor = await read('mcp-server/src/print_kit_tutor.rs');
 if (!rustTutor.includes('require_blank_document') || !rustTutor.includes('hide_construction')) {
   fail('print-kit cargo exam must start from a blank document and hide construction planes');
@@ -339,6 +349,9 @@ if (rustTutor.includes('assembly_create_occurrence')) {
 }
 if (!rustTutor.includes('axis_revolute_connector') || !rustTutor.includes('circular_edge_on_axis')) {
   fail('print-kit cargo exam must mate the revolute on an on-axis circle or cylinder');
+}
+if (!rustTutor.includes('solid_move_copy') || !rustTutor.includes('layout_print_plate')) {
+  fail('print-kit cargo exam must lay the kit out on one plate before export');
 }
 const printKitPrompt = await read('mcp-server/src/prompts/model_print_kit.md');
 if (!/blank document|0 bodies|recovered/i.test(printKitPrompt)) {

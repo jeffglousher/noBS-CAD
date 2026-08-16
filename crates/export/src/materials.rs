@@ -123,6 +123,7 @@ mod tests {
         assert!(brands().contains(&"eSun"));
         assert!(brands().contains(&"Anycubic"));
         assert!(find_preset("bambu.pla.basic.red").is_some());
+        assert!(find_preset("bambu.pla.glow.green").is_some());
         assert!(find_preset("bambu.paht.cf.black").is_some());
         assert!(find_preset("prusa.pla.msasaki_orange").is_some());
         assert!(material_catalog().len() >= 40);

@@ -11,7 +11,7 @@ Nozzle = {nozzle} mm. Fits are **per role**, not one clearance for every hole:
 - slip (retainer on the post): +0.28 mm
 - friction locate (axle on the square post): +0.16 mm
 
-No FDM press fits. Slicer XY hole compensation stays 0. Thrust is a flat land with 0.20 mm float.
+No FDM press fits. Slicer XY hole compensation stays 0. Thrust is a flat land with 0.20 mm float at **every** running land (base↔flange, flange↔hub/cage, hub↔retainer). The retainer is a washer (OD < hub OD), not a cap through the hub.
 
 This prompt is adversarial. A kit that spins in the grader and fails as a turbine is a FAIL. Read the reject list before you sketch.
 
@@ -35,8 +35,9 @@ Do not ship any of these. They have already been built. They are not turbines.
 - A fat frame: base envelope > 1.55 × rotor tip diameter (the Ø90 cookie)
 - A full cookie plate when a Y-frame (hub + ribs + pads) will hold the stand
 - Straight prismatic airfoils (a fence). Helix is required
-- A single assembled 3MF sold as the print job. Separate print plates (the roller cartridge is one PIP plate)
-- Leftover plates from a previous kit (`02-shaft`, `03-hub`, `04-wings`, `05-plate`, `06-bushing`, `07-cap`, or `Print-Kit-Tutor.3mf`). Wipe `Print-Kit-Tutor/` before you write the five current plates
+- The assembled nest exported as the print job (parts still stacked). Layout the kit on one plate first (`solid_move_copy`), then export
+- Leftover plates from a previous kit (`01-base` … `05-retainer`, `02-shaft`, `03-hub`, `04-wings`, `05-plate`, `06-bushing`, `07-cap`, or `Print-Kit-Tutor.3mf`). Wipe `Print-Kit-Tutor/` before you write `01-kit.3mf`
+- More than two print materials. This kit is **PLA Orange** and **PLA Glow** only
 
 If the solid looks like a broken rim, a fence slat, or a lid, start over.
 
@@ -72,8 +73,8 @@ Five **individual** functional parts, then an **assembly** (components + occurre
 | Base | **Y-frame** + short square stator post. One piece. No cookie. | Flat |
 | Axle | Flanged inner-race **puck**, square bore (friction on the post). Never a tall skinny shaft | On the flange |
 | Rotor | Hub + 3 helical drafted **NACA 0021** blades, **one body**, open tips | Standing on the hub |
-| Roller cartridge | Cage + ≥6 PIP rollers, min Ø8, large PCD under/in the hub | Flat, one print plate |
-| Retainer | Flat ring, slip on the post | Flat |
+| Roller cartridge | Cage + ≥6 PIP rollers, min Ø8, large PCD under/in the hub | Flat, PIP on the kit plate |
+| Retainer | Washer (OD < hub OD), slip on the post | Flat |
 
 Girth gates: envelope/rotor D ≤ 1.55; span/chord ≥ 2.5; solidity 0.24–0.45. Scale 1.0 must fit the X2D usable bed (240×240×244).
 
@@ -111,7 +112,7 @@ Assembly order: **base → axle → roller cartridge → rotor → retainer**.
 
 Then form the CAD assembly: `cad_set_focus assembly` (or `cad_set_workspace assembly`). `assembly_create_component` per part — that call already inserts the one root occurrence. **Do not** `assembly_create_occurrence` again or you get two copies of every part and the solver yanks one off-axis. Ground the base occurrence. `assembly_create_joint` revolute on the **turbine axis** using on-axis circular edges (axle race + hub bore). Do not pick a blade-spar face — the engine uses face centroids and that yanks the rotor off-axis. Ship an assembly drawing: `cad_drawing_create_sheet` + `cad_drawing_auto_layout` + notes for fits, scale, print orientation, and BOM.
 
-Print each functional part in its own orientation. The roller cartridge is print-in-place (cage + rollers, one plate). Export five print-plate 3MFs (`solid_export_3mf` + `body_ids`). Do not export the assembled nest as the print job.
+Print each functional part in its own orientation on **one** plate. The roller cartridge is print-in-place (cage + rollers stay together). Save the assembled `.nbcad`, then `solid_move_copy` parts onto the bed and `solid_export_3mf` once as `01-kit`. Appearances: PLA Orange (base, axle, cage, rollers, retainer) and PLA Glow (rotor). Do not export the assembled nest as the print job.
 
 Minimum wall 1.6 mm (4 nozzles). Functional holes are complete XY circles. Disable grid snap. Prefer locked circles. Draw airfoil polylines with **ctrl held** or ortho-snap will square the section into a plate.
 
@@ -123,13 +124,13 @@ Minimum wall 1.6 mm (4 nozzles). Functional holes are complete XY circles. Disab
 4. Rotor: hub ring (outer race) JOIN three helical **NACA 0021** lofts, open drafted tips, print standing
 5. Roller cage + PIP rollers on a large PCD. Retainer ring
 6. cad_set_workspace assembly. One `assembly_create_component` per part (no extra occurrence). Ground the base. Revolute on the axis (hub/race, not a spar). cad_set_focus drawing. Sheet + auto-layout + notes
-7. cad_set_focus print. set_body_appearance. solid_export_preflight. **Delete** any prior `Print-Kit-Tutor/` 3MFs (and `Print-Kit-Tutor.3mf`). Then `solid_export_3mf` **once per print plate** with body_ids (base, axle, rotor, cartridge, retainer) only. The folder must contain exactly those five files.
+7. cad_set_focus print. set_body_appearance to **PLA Orange** and **PLA Glow** only. solid_export_preflight. Save the assembled `.nbcad`. **Delete** any prior `Print-Kit-Tutor/` 3MFs (and `Print-Kit-Tutor.3mf`). `solid_move_copy` the parts onto one bed (rotor standing on the hub, others flat). Then `solid_export_3mf` **once** as `01-kit` with every kit body_id. The folder must contain exactly that file.
 8. `cad_set_project_visibility`: hide every construction plane (`hidden_datum_plane_ids`) and finished loft sketches (`hidden_sketch_names`). The shipped `.nbcad` must read as the five-part kit, not orange datum stacks.
 9. Write the design report. Include role-based fits, scale vs X2D, roller PCD, and why the rotor is one piece
 
 ## Design report (required deliverable)
 
-Write `%USERPROFILE%/Documents/noBS-CAD/Print-Kit-Tutor-design.md` (and the JSON report beside the project). List the five print-plate 3MFs. The exam fails if this is missing, empty, or cost-free, or if retired plates are still on disk.
+Write `%USERPROFILE%/Documents/noBS-CAD/Print-Kit-Tutor-design.md` (and the JSON report beside the project). List the one laid-out `01-kit.3mf`. The exam fails if this is missing, empty, or cost-free, or if retired plates are still on disk.
 
 The report must include:
 
@@ -154,7 +155,7 @@ BOM of the five parts, stack, assembly order, how the hub freewheels.
 
 ### 4. Printing cost — plastic and material
 
-CAD solid volume, estimated print mass (Bambu PLA Basic 1.24 g/cm³ × print-volume factor 0.42), filament cost at the spec $/kg. Do not invent a $0 kit.
+CAD solid volume, estimated print mass (PLA Orange + PLA Glow, 1.24 g/cm³ × print-volume factor 0.42), filament cost at the spec $/kg. Do not invent a $0 kit.
 
 ## Grade
 

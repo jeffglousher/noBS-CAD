@@ -38,18 +38,15 @@ Five functional parts: base → axle → roller cartridge → rotor → retainer
 
 Open in CAD: `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor.nbcad`
 
-Print plates under `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor\`
-(the exam wipes this folder first — no leftover shaft/hub/wings/plate/bushing/cap):
+Print plate under `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor\`
+(the exam wipes this folder first — no leftover five-plate or
+shaft/hub/wings/plate/bushing/cap names):
 
-- `01-base.3mf`
-- `02-axle.3mf`
-- `03-rotor.3mf`
-- `04-roller-cartridge.3mf`
-- `05-retainer.3mf`
+- `01-kit.3mf` — one plate, laid out. PLA Orange + PLA Glow.
 
 ## 4. Printing cost (plastic / material)
 
-Assumptions: Bambu PLA Basic, 1.24 g/cm³, $20/kg, print-volume factor 0.42.
+Assumptions: Bambu PLA Basic Orange + Bambu PLA Glow, 1.24 g/cm³, $20/kg, print-volume factor 0.42.
 
 At exam scale 0.4 the last green run was ~40.9 cm³ CAD solid, **21.3 g**,
 **$0.43** PLA. The exam writes the live figures next to the project.
