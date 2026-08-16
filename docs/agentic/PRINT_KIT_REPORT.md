@@ -17,15 +17,15 @@ Contract: [PRINT_KIT_DESIGN.md](PRINT_KIT_DESIGN.md).
 | Turntable / lazy Susan | Competent bearings, no wing. The frame had nothing to do. |
 | Flat plate 12×2.4×32 | A vane, not a 2026 symmetric section. Directionless VAWT needs an airfoil. |
 | Straight NACA in a Ø90 cage | Section was right; girth was wrong. Posts Ø8 vs chord 12. Prismatic blades idle most of the rev. |
-| Helical NACA 0021 on a Ø72 cookie | 60° helix, chord 16 mm, span 48 mm, posts Ø5 on R32. Short sleeve L/D 0.5. |
+| Helical NACA 0021 on a Ø74 cookie | Section and helix were right; the stand was still a full plate. Short sleeve L/D 0.5 rubbed a full cylinder. |
 | Y-frame + two-land sleeve L/D 1.0 | Hub Ø32 + 5 mm ribs + Ø10 pads. Sleeve 8 mm with Ø9.2 relief. Fits stay +0.40. |
 
 ## 2. Design process
 
 - **Architecture:** Helical H-Darrieus, directionless (no yaw). Symmetric section because α reverses each rev. Straight extrusion is idle for most of the rev at this Re.
 - **Airfoil:** NACA 0021 (t/c 0.21). 2026 band is t/c 21–24%. TE blunt to 0.8 mm.
-- **Rotor:** N=3, c=16 mm, R=24 mm, span=48 mm, helix 60°, σ=0.318. Envelope/rotor **~1.46**, post/chord **0.31**.
-- **Fits:** +0.40 mm every printed running/slip interface. Do not tighten. Printed cup + narrow land + two-land sleeve (L/D 1.0). No 608.
+- **Rotor:** N=3, c=16 mm, R=24 mm, span=48 mm, helix 60°, σ=0.318. Envelope/rotor **1.46**, post/chord **0.31**.
+- **Fits:** +0.40 mm every printed running/slip interface. Do not tighten. Printed cup + narrow Ø12 land + two-land sleeve (L/D 1.0, relief Ø9.2). No 608.
 - **Service finish:** layer lines spanwise; sand PLA 400→1000 on skins. Bushing printed as a ring.
 
 ## 3. Final product
@@ -42,8 +42,8 @@ Assumptions: Bambu PLA Basic, 1.24 g/cm³, $20/kg, print-volume factor 0.42.
 
 | | Value |
 |--|------:|
-| CAD solid (estimate) | ~33 cm³ |
-| Estimated print mass | ~17 g |
-| Filament cost | **~$0.35** |
+| CAD solid (estimate) | 31.6 cm³ |
+| Estimated print mass | 16.5 g |
+| Filament cost | **$0.33** |
 
 Electricity and machine time are not priced. No additional hardware.
