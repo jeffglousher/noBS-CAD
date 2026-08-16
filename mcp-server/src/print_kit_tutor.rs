@@ -161,18 +161,24 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
         ));
     }
 
+    let mut step = 0u32;
+    let mut call = |name: &str, arguments: Value| {
+        step += 1;
+        call(name, arguments).map_err(|error| format!("step {step} {name}: {error}"))
+    };
+
     call("cad_new_project", json!({}))?;
     call(
         "cad_set_document_name",
         json!({ "name": spec.document_name }),
     )?;
 
-    let base_id = build_base(call, &spec)?;
-    let shaft_id = build_shaft(call, &spec)?;
-    let rotor_id = build_rotor(call, &spec, &[base_id, shaft_id])?;
-    let plate_id = build_top_plate(call, &spec)?;
-    let bush_id = build_bushing(call, &spec)?;
-    let cap_id = build_cap(call, &spec)?;
+    let base_id = build_base(&mut call, &spec)?;
+    let shaft_id = build_shaft(&mut call, &spec)?;
+    let rotor_id = build_rotor(&mut call, &spec, &[base_id, shaft_id])?;
+    let plate_id = build_top_plate(&mut call, &spec)?;
+    let bush_id = build_bushing(&mut call, &spec)?;
+    let cap_id = build_cap(&mut call, &spec)?;
 
     call(
         "cad_set_focus",
@@ -392,14 +398,6 @@ fn build_rotor(
         "rotor hub",
     )?;
     let hub_id = newest_body_id(&update, known)?;
-    cut_flats(
-        call,
-        hub_id,
-        spec.shoulder_top(),
-        spec.hub_h + 0.2,
-        spec.drive_across_hub / 2.0,
-        spec.bush_id / 2.0 + 1.0,
-    )?;
 
     let stations = spec.loft_stations.max(2);
     let mut section_names = Vec::new();
@@ -410,6 +408,20 @@ fn build_rotor(
         begin_datum(call, station)?;
         add_c(call, spec, ang, [0.0, 0.0])?;
         section_names.push(finish_sketch(call)?);
+    }
+    let catalog = call("sketch_profiles", json!({}))?;
+    let entries = catalog.as_array().cloned().unwrap_or_default();
+    for name in &section_names {
+        let entry = entries.iter().find(|item| item["sketch_name"] == *name);
+        let profile_count = entry
+            .and_then(|item| item["profiles"].as_array())
+            .map(Vec::len)
+            .unwrap_or(0);
+        if profile_count == 0 {
+            return Err(format!(
+                "loft section {name} has no closed profile — hold ctrl on radial bucket walls so they do not ortho-snap"
+            ));
+        }
     }
     let update = require_clean(
         call(
@@ -470,6 +482,14 @@ fn build_rotor(
             }),
         )?,
         "join rotor",
+    )?;
+    cut_flats(
+        call,
+        hub_id,
+        spec.shoulder_top(),
+        spec.hub_h + 0.2,
+        spec.drive_across_hub / 2.0,
+        spec.bush_id / 2.0 + 1.0,
     )?;
     Ok(hub_id)
 }
@@ -847,19 +867,19 @@ fn add_c(
     let ei = p(cx - inner * vx, cy - inner * vy);
     call(
         "sketch_add_arc_3pt",
-        json!({ "p1": s, "p2": f, "p3": ept, "ctrl_held": false }),
+        json!({ "p1": s, "p2": f, "p3": ept, "ctrl_held": true }),
     )?;
     call(
         "sketch_add_line",
-        json!({ "from": ept, "to_raw": ei, "ctrl_held": false }),
+        json!({ "from": ept, "to_raw": ei, "ctrl_held": true }),
     )?;
     call(
         "sketch_add_arc_3pt",
-        json!({ "p1": ei, "p2": fi, "p3": si, "ctrl_held": false }),
+        json!({ "p1": ei, "p2": fi, "p3": si, "ctrl_held": true }),
     )?;
     call(
         "sketch_add_line",
-        json!({ "from": si, "to_raw": s, "ctrl_held": false }),
+        json!({ "from": si, "to_raw": s, "ctrl_held": true }),
     )?;
     Ok(())
 }

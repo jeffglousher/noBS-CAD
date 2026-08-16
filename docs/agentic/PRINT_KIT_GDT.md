@@ -17,6 +17,7 @@ record. Numbers live in `scripts/fixtures/print-kit-tutor.spec.json`.
 | Cap grind | Cap sat on the plate with 0 gap. | **0.20 mm cap float** above the plate. |
 | Frame size | Ø64 plate could not hold a cleared post circle. | **Ø90** base and plate. |
 | Hub vs shoulder | Hub started at the shoulder plane with an Ø8.4 bore around the Ø16 shoulder. They occupy the same volume. | Hub **sits on the shoulder top**. `plate_z` includes the 2 mm shoulder. |
+| Twisted buckets | Radial C-walls at 10°/20° ortho-snapped (`ctrl_held: false`). Loft stations had no closed profile. | Draw bucket walls with **ctrl held** so the helical stations stay closed. |
 
 ## Datum scheme
 

@@ -358,10 +358,10 @@ async function addC(deg, ox, oy) {
   const Si = point(cx + inner * vx, cy + inner * vy);
   const Fi = point(cx + inner * ux, cy + inner * uy);
   const Ei = point(cx - inner * vx, cy - inner * vy);
-  await call("sketch_add_arc_3pt", { p1: S, p2: F, p3: E, ctrl_held: false });
-  await call("sketch_add_line", { from: E, to_raw: Ei, ctrl_held: false });
-  await call("sketch_add_arc_3pt", { p1: Ei, p2: Fi, p3: Si, ctrl_held: false });
-  await call("sketch_add_line", { from: Si, to_raw: S, ctrl_held: false });
+  await call("sketch_add_arc_3pt", { p1: S, p2: F, p3: E, ctrl_held: true });
+  await call("sketch_add_line", { from: E, to_raw: Ei, ctrl_held: true });
+  await call("sketch_add_arc_3pt", { p1: Ei, p2: Fi, p3: Si, ctrl_held: true });
+  await call("sketch_add_line", { from: Si, to_raw: S, ctrl_held: true });
 }
 
 function record(lessons, id, pass, detail) {
@@ -521,13 +521,6 @@ try {
     "rotor hub",
   );
   const hubId = newestBody(update, [baseId, shaftId]);
-  await cutFlats(
-    hubId,
-    shoulderTop(),
-    spec.hub_h + 0.2,
-    spec.drive_across_hub / 2,
-    spec.bush_id / 2 + 1,
-  );
 
   const sectionNames = [];
   for (let i = 0; i < spec.loft_stations; i++) {
@@ -571,6 +564,13 @@ try {
       keep_tools: false,
     }),
     "join rotor",
+  );
+  await cutFlats(
+    hubId,
+    shoulderTop(),
+    spec.hub_h + 0.2,
+    spec.drive_across_hub / 2,
+    spec.bush_id / 2 + 1,
   );
 
   await beginDatum(await offsetXY(spec.plate_z));
