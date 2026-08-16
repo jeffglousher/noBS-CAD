@@ -300,10 +300,13 @@ function hubH() {
   return Math.max(mmMin(spec.hub_h, 8), rollerH());
 }
 function hubDeckH() {
-  return Math.max(mmMin(10, 4), hubSocketH() + bedReliefH());
+  return Math.max(mmMin(6, 2.4), bedReliefH());
 }
 function hubDeckOd() {
   return (wingRadius() + chordRoot() * 0.18) * 2;
+}
+function bladeLoftZ() {
+  return hubZ() + hubDeckH();
 }
 function hubSocketOd() {
   return bushingFlangeOd() + spec.fit_slip_mm;
@@ -312,13 +315,13 @@ function hubSocketH() {
   return bushingFlangeH();
 }
 function plateZ() {
-  return bushingZ();
+  return hubZ();
 }
 function bladeArmW() {
   return Math.max(chordRoot() * 0.4, wall() * 6);
 }
 function bladeRootZ() {
-  return plateZ();
+  return hubZ() + hubDeckH();
 }
 function hubSquare() {
   return mm(spec.axle_square) + spec.fit_friction_mm;
@@ -528,8 +531,8 @@ function stackOk() {
     hubDeckOd() + 1e-9 >= wingRadius() * 2 &&
     hubSocketOd() + 1e-9 > bushingFlangeOd() &&
     hubDeckH() + 1e-9 > hubSocketH() &&
-    Math.abs(plateZ() - bushingZ()) < 1e-9 &&
-    Math.abs(bladeRootZ() - plateZ()) < 1e-9
+    Math.abs(plateZ() - hubZ()) < 1e-9 &&
+    Math.abs(bladeRootZ() - (hubZ() + hubDeckH())) < 1e-9
   );
 }
 function assemblyComponentCount() {
@@ -549,8 +552,7 @@ function sanityOk() {
 function estimatedSolidCm3() {
   const hub =
     Math.PI * ((hubOd() * 0.5) ** 2 - (hubBore() * 0.5) ** 2) * hubH() +
-    Math.PI * ((hubDeckOd() * 0.5) ** 2 - (hubBore() * 0.5) ** 2) * hubDeckH() -
-    Math.PI * ((hubSocketOd() * 0.5) ** 2 - (hubBore() * 0.5) ** 2) * hubSocketH();
+    Math.PI * ((hubDeckOd() * 0.5) ** 2 - (hubBore() * 0.5) ** 2) * hubDeckH();
   const wings =
     spec.wing_count * 0.62 * ((chordRoot() + chordTip()) * 0.5) * wingThick() * wingH();
   const base =
@@ -630,24 +632,6 @@ async function addOrientedRect(center, length, width, angleDeg) {
   await addPoly(
     [corner(hl, hw), corner(hl, -hw), corner(-hl, -hw), corner(-hl, hw), corner(hl, hw)],
     true,
-  );
-}
-async function cutCircle(z, diameter, depth, bodyId, label) {
-  const deck = await offsetXY(z);
-  await beginDatum(deck);
-  await addCircle(0, 0, diameter);
-  const sketch = await finishSketch();
-  requireClean(
-    await call("solid_extrude", {
-      sketch_name: sketch,
-      profile_indices: [0],
-      operation: "cut",
-      extent: { type: "distance", distance: depth },
-      taper_angle_deg: 0,
-      flip: false,
-      target_body_ids: [bodyId],
-    }),
-    label,
   );
 }
 async function cutBedReliefCircle(z, diameter, bodyId, label) {
@@ -888,13 +872,6 @@ async function buildBushing(known) {
     bushingId,
     "bushing race bed lead-in",
   );
-  await cutCircle(
-    bushingZ() + bushingH() - bedReliefH(),
-    outerRaceId() + bedReliefD(),
-    bedReliefH(),
-    bushingId,
-    "bushing race install lead-in",
-  );
   return bushingId;
 }
 
@@ -915,11 +892,10 @@ async function buildRotor(known) {
       flip: false,
       target_body_ids: [],
     }),
-    "rotor root plate",
+    "rotor root plate hub socket",
   );
   const rotorId = newestBody(update, known);
-  await cutCircle(z0, hubSocketOd(), hubSocketH(), rotorId, "hub socket for bushing flange");
-  await beginDatum(await offsetXY(hubZ()));
+  await beginDatum(deck);
   await addCircle(0, 0, hubOd());
   await addCircle(0, 0, hubBore());
   sketch = await finishSketch();
@@ -936,12 +912,75 @@ async function buildRotor(known) {
     "rotor hub",
   );
   for (let index = 0; index < spec.wing_count; index++) {
+    const [px, py] = helixCenter(index, 0);
+    await beginDatum(deck);
+    await addOrientedRect(
+      [px * 0.5, py * 0.5],
+      wingRadius() + chordRoot() * 0.5,
+      bladeArmW(),
+      wingAngleDeg(index),
+    );
+    sketch = await finishSketch();
+    requireClean(
+      await call("solid_extrude", {
+        sketch_name: sketch,
+        profile_indices: [0],
+        operation: "join",
+        extent: { type: "distance", distance: hubDeckH() },
+        taper_angle_deg: 0,
+        flip: false,
+        target_body_ids: [rotorId],
+      }),
+      `blade print arm ${index}`,
+    );
+    await beginDatum(deck);
+    await addOrientedRect(
+      [px * 0.5, py * 0.5],
+      wingRadius() + chordRoot() * 0.5,
+      wall() * 3,
+      wingAngleDeg(index),
+    );
+    sketch = await finishSketch();
+    requireClean(
+      await call("solid_extrude", {
+        sketch_name: sketch,
+        profile_indices: [0],
+        operation: "join",
+        extent: { type: "distance", distance: hubH() },
+        taper_angle_deg: 0,
+        flip: false,
+        target_body_ids: [rotorId],
+      }),
+      `blade spar ${index}`,
+    );
+    await beginDatum(deck);
+    await addAirfoil(
+      helixCenter(index, 0),
+      helixAzimuthDeg(index, 0) + 90,
+      chordRoot(),
+      spec.airfoil_t_c,
+      spec.airfoil_stations,
+      teMin(),
+    );
+    sketch = await finishSketch();
+    requireClean(
+      await call("solid_extrude", {
+        sketch_name: sketch,
+        profile_indices: [0],
+        operation: "join",
+        extent: { type: "distance", distance: hubDeckH() },
+        taper_angle_deg: 0,
+        flip: false,
+        target_body_ids: [rotorId],
+      }),
+      `blade root base ${index}`,
+    );
     const stations = Math.max(spec.helix_stations, 2);
     const sections = [];
     for (let station = 0; station < stations; station++) {
       const t = station / (stations - 1);
       const chord = chordRoot() * (1 - t) + chordTip() * t;
-      await beginDatum(await offsetXY(bladeRootZ() + wingH() * t));
+      await beginDatum(await offsetXY(bladeLoftZ() + wingH() * t));
       await addAirfoil(
         helixCenter(index, t),
         helixAzimuthDeg(index, t) + 90,
@@ -963,7 +1002,7 @@ async function buildRotor(known) {
       `helical blade ${index}`,
     );
   }
-  await cutBedReliefCircle(hubZ(), hubBore() + bedReliefD(), rotorId, "hub bore bed lead-in");
+  await cutBedReliefCircle(z0, hubBore() + bedReliefD(), rotorId, "hub bore bed lead-in");
   return rotorId;
 }
 
@@ -1407,7 +1446,7 @@ async function makeAssemblyDrawing() {
     ],
     [
       [18, 58],
-      "GDT  axle SITS on base. Root plate SOCKET drops over the bushing flange; bore friction on the OD. Blades end on the plate bottom (sit plane). Open-top race: drop cartridge, then the rotor. PIP +0.80.",
+      "GDT  axle SITS on base. Root plate SITS on the bushing flange; bore friction on the OD. Blade roots cut flat on that plate. Open-top race: drop cartridge, then the rotor. PIP +0.80.",
     ],
     [
       [18, 68],
