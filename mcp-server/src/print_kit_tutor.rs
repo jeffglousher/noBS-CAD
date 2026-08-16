@@ -180,7 +180,7 @@ impl Spec {
             .min(self.hub_od() - 1.0)
             .max(self.hub_bore() + 2.0)
     }
-    fn retainer_id(&self) -> f64 {
+    fn retainer_square(&self) -> f64 {
         self.axle_square() + self.fit_slip_mm
     }
     fn retainer_h(&self) -> f64 {
@@ -215,7 +215,7 @@ impl Spec {
             && self.base_envelope() / self.scale <= bed[0]
     }
     fn flange_z(&self) -> f64 {
-        self.base_h() + self.thrust_float
+        self.base_h()
     }
     fn race_z(&self) -> f64 {
         self.flange_z() + self.axle_flange_h()
@@ -292,11 +292,18 @@ impl Spec {
         axle_h <= self.axle_flange_d() && self.rotor_print_h() > axle_h * 3.0
     }
     fn stack_ok(&self) -> bool {
-        self.hub_z() + 1e-9 >= self.race_z() + self.thrust_float
+        (self.flange_z() - self.base_h()).abs() < 1e-9
+            && self.hub_z() + 1e-9 >= self.race_z() + self.thrust_float
             && self.retainer_z() + 1e-9 >= self.hub_z() + self.hub_h() + self.thrust_float
             && self.retainer_od() + 1e-9 < self.hub_od()
             && self.retainer_od() + 1e-9 > self.hub_bore()
             && self.race_h() + 1e-9 >= self.cage_h() + self.thrust_float
+    }
+    fn assembly_component_count(&self) -> usize {
+        5 + self.roller_count
+    }
+    fn assembly_joint_count(&self) -> usize {
+        4 + self.roller_count
     }
     fn sanity_ok(&self) -> bool {
         self.base_envelope() / self.rotor_d() <= 1.55
@@ -326,8 +333,8 @@ impl Spec {
             * std::f64::consts::PI
             * (self.roller_d() * 0.5).powi(2)
             * self.roller_h();
-        let retainer = std::f64::consts::PI
-            * ((self.retainer_od() * 0.5).powi(2) - (self.retainer_id() * 0.5).powi(2))
+        let retainer = (std::f64::consts::PI * (self.retainer_od() * 0.5).powi(2)
+            - self.retainer_square().powi(2))
             * self.retainer_h();
         (hub + wings + base + axle + cage + rollers + retainer) / 1000.0
     }
@@ -434,7 +441,7 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
         &roller_ids,
         retainer_id,
     ) {
-        Ok(()) => (true, "5 components; hub freewheels on the fixed post".to_string()),
+        Ok(detail) => (true, detail),
         Err(error) => (false, error),
     };
     let (drawing_ok, drawing_detail) = match make_assembly_drawing(&mut call, &spec) {
@@ -946,9 +953,8 @@ fn build_retainer(
     known: &[u64],
 ) -> Result<u64, String> {
     let deck = offset_xy(call, spec.retainer_z())?;
-    begin_datum(call, deck)?;
+    begin_datum(call, deck.clone())?;
     add_circle(call, [0.0, 0.0], spec.retainer_od())?;
-    add_circle(call, [0.0, 0.0], spec.retainer_id())?;
     let sketch = finish_sketch(call)?;
     let update = require_clean(
         call(
@@ -965,7 +971,32 @@ fn build_retainer(
         )?,
         "retainer",
     )?;
-    newest_body_id(&update, known)
+    let retainer_id = newest_body_id(&update, known)?;
+    begin_datum(call, deck)?;
+    add_oriented_rect(
+        call,
+        [0.0, 0.0],
+        spec.retainer_square(),
+        spec.retainer_square(),
+        0.0,
+    )?;
+    let bore = finish_sketch(call)?;
+    require_clean(
+        call(
+            "solid_extrude",
+            json!({
+                "sketch_name": bore,
+                "profile_indices": [0],
+                "operation": "cut",
+                "extent": { "type": "distance", "distance": spec.retainer_h() },
+                "taper_angle_deg": 0.0,
+                "flip": false,
+                "target_body_ids": [retainer_id]
+            }),
+        )?,
+        "retainer square slip",
+    )?;
+    Ok(retainer_id)
 }
 
 fn form_assembly(
@@ -977,22 +1008,24 @@ fn form_assembly(
     cage_id: u64,
     roller_ids: &[u64],
     retainer_id: u64,
-) -> Result<(), String> {
+) -> Result<String, String> {
     call(
         "cad_set_focus",
         json!({ "focus": "assembly", "explicit": true }),
     )?;
     let _ = call("cad_set_workspace", json!({ "workspace": "assembly" }));
-    let mut cartridge = vec![cage_id];
-    cartridge.extend(roller_ids.iter().copied());
+    let mut parts: Vec<(String, Vec<u64>)> = vec![
+        ("base".to_string(), vec![base_id]),
+        ("axle".to_string(), vec![axle_id]),
+        ("rotor".to_string(), vec![rotor_id]),
+        ("cage".to_string(), vec![cage_id]),
+    ];
+    for (index, roller_id) in roller_ids.iter().enumerate() {
+        parts.push((format!("roller_{index}"), vec![*roller_id]));
+    }
+    parts.push(("retainer".to_string(), vec![retainer_id]));
     let mut base_occurrence_id = None;
-    for (name, body_ids) in [
-        ("base", vec![base_id]),
-        ("axle", vec![axle_id]),
-        ("rotor", vec![rotor_id]),
-        ("roller_cage", cartridge),
-        ("retainer", vec![retainer_id]),
-    ] {
+    for (name, body_ids) in &parts {
         let created = call(
             "assembly_create_component",
             json!({
@@ -1023,29 +1056,101 @@ fn form_assembly(
         json!({ "body_id": base_id }),
     );
     let scene = call("solid_scene", json!({}))?;
-    let axle_axis = axis_revolute_connector(
-        &scene,
+    create_stable_joint(
+        call,
+        "axle_sit",
+        "rigid",
+        axis_connector_at(&scene, base_id, [0.0, 0.0], spec.base_h(), spec.base_boss_d() * 0.5)
+            .ok_or_else(|| "no on-axis base land circle for axle_sit".to_string())?,
+        axis_connector_at(
+            &scene,
+            axle_id,
+            [0.0, 0.0],
+            spec.flange_z(),
+            spec.axle_flange_d() * 0.5,
+        )
+        .ok_or_else(|| "no on-axis axle flange circle for axle_sit".to_string())?,
+        base_id,
+    )?;
+    create_stable_joint(
+        call,
+        "rotor_spin",
+        "revolute",
+        axis_connector_at(
+            &scene,
+            axle_id,
+            [0.0, 0.0],
+            spec.race_z() + spec.race_h(),
+            spec.inner_race_d() * 0.5,
+        )
+        .ok_or_else(|| "no on-axis axle race for rotor_spin".to_string())?,
+        axis_connector_at(
+            &scene,
+            rotor_id,
+            [0.0, 0.0],
+            spec.hub_z() + spec.hub_h(),
+            spec.hub_bore() * 0.5,
+        )
+        .ok_or_else(|| "no on-axis hub bore for rotor_spin".to_string())?,
         axle_id,
-        spec.race_z() + spec.race_h(),
-        spec.inner_race_d() * 0.5,
-    )
-    .ok_or_else(|| "no on-axis axle race circle or cylinder for the revolute".to_string())?;
-    let rotor_axis = axis_revolute_connector(
-        &scene,
-        rotor_id,
-        spec.hub_z() + spec.hub_h(),
-        spec.hub_bore() * 0.5,
-    )
-    .ok_or_else(|| "no on-axis hub bore circle or cylinder for the revolute".to_string())?;
-    call(
-        "assembly_create_joint",
-        json!({
-            "name": "rotor_spin",
-            "kind": "revolute",
-            "connector_a": axle_axis,
-            "connector_b": rotor_axis,
-            "grounded_body_id": axle_id
-        }),
+    )?;
+    create_stable_joint(
+        call,
+        "cage_spin",
+        "revolute",
+        axis_connector_at(
+            &scene,
+            axle_id,
+            [0.0, 0.0],
+            spec.hub_z() + spec.cage_h(),
+            spec.inner_race_d() * 0.5,
+        )
+        .ok_or_else(|| "no on-axis axle race for cage_spin".to_string())?,
+        axis_connector_at(
+            &scene,
+            cage_id,
+            [0.0, 0.0],
+            spec.hub_z() + spec.cage_h(),
+            spec.cage_od() * 0.5,
+        )
+        .ok_or_else(|| "no on-axis cage circle for cage_spin".to_string())?,
+        axle_id,
+    )?;
+    for (index, roller_id) in roller_ids.iter().enumerate() {
+        let [x, y] = spec.roller_xy(index);
+        let z = spec.hub_z() + spec.roller_h();
+        create_stable_joint(
+            call,
+            &format!("roller_{index}_spin"),
+            "revolute",
+            axis_connector_at(&scene, cage_id, [x, y], z, spec.cage_pocket() * 0.5)
+                .ok_or_else(|| format!("no cage pocket axis for roller {index}"))?,
+            axis_connector_at(&scene, *roller_id, [x, y], z, spec.roller_d() * 0.5)
+                .ok_or_else(|| format!("no roller axis for roller {index}"))?,
+            cage_id,
+        )?;
+    }
+    create_stable_joint(
+        call,
+        "retainer_sit",
+        "rigid",
+        axis_connector_at(
+            &scene,
+            axle_id,
+            [0.0, 0.0],
+            spec.retainer_z(),
+            spec.inner_race_d() * 0.5,
+        )
+        .ok_or_else(|| "no on-axis axle axis for retainer_sit".to_string())?,
+        axis_connector_at(
+            &scene,
+            retainer_id,
+            [0.0, 0.0],
+            spec.retainer_z(),
+            spec.retainer_od() * 0.5,
+        )
+        .ok_or_else(|| "no on-axis retainer washer for retainer_sit".to_string())?,
+        axle_id,
     )?;
     if let Some(occurrence_id) = base_occurrence_id {
         let _ = call(
@@ -1062,10 +1167,89 @@ fn form_assembly(
         .as_array()
         .map(|items| items.len())
         .unwrap_or(0);
-    if defs != 5 || occs != 5 {
+    let joints = document["joints"]
+        .as_array()
+        .map(|items| items.len())
+        .unwrap_or(0);
+    if defs != spec.assembly_component_count() || occs != spec.assembly_component_count() {
         return Err(format!(
-            "expected 5 parts / 5 occurrences, got {defs} components / {occs} occurrences"
+            "expected {} linked parts / occurrences, got {defs} components / {occs} occurrences",
+            spec.assembly_component_count()
         ));
+    }
+    if joints < spec.assembly_joint_count() {
+        return Err(format!(
+            "expected ≥{} joints (stator rigid + rotor/cage/rollers), got {joints}",
+            spec.assembly_joint_count()
+        ));
+    }
+    require_linked_solution(call)?;
+    Ok(format!(
+        "{defs} linked parts, {joints} joints; axle sits on base; hub and cage freewheel; rollers spin in the cage"
+    ))
+}
+
+fn create_stable_joint(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    name: &str,
+    kind: &str,
+    connector_a: Value,
+    connector_b: Value,
+    grounded_body_id: u64,
+) -> Result<(), String> {
+    let mut last_error = String::new();
+    for flipped in [false, true] {
+        let created = call(
+            "assembly_create_joint",
+            json!({
+                "name": name,
+                "kind": kind,
+                "connector_a": connector_a,
+                "connector_b": connector_b,
+                "flipped": flipped,
+                "grounded_body_id": grounded_body_id
+            }),
+        );
+        match created {
+            Ok(joint) => {
+                if let Ok(()) = require_linked_solution(call) {
+                    return Ok(());
+                }
+                if let Some(joint_id) = joint["id"].as_u64().or_else(|| joint["joint"]["id"].as_u64())
+                {
+                    let _ = call("assembly_delete_joint", json!({ "joint_id": joint_id }));
+                }
+                last_error = format!("{name} yanked or failed to solve (flipped={flipped})");
+            }
+            Err(error) => last_error = format!("{name} (flipped={flipped}): {error}"),
+        }
+    }
+    Err(last_error)
+}
+
+fn require_linked_solution(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+) -> Result<(), String> {
+    let solution = call("assembly_solution", json!({}))?;
+    if solution["solved"] != true {
+        return Err(format!(
+            "assembly_solution not solved: {}",
+            solution["diagnostics"]
+        ));
+    }
+    let poses = solution["occurrence_poses"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    for pose in poses {
+        let translation = xyz(&pose["translation"]).unwrap_or([0.0, 0.0, 0.0]);
+        let yank = translation[0].hypot(translation[1]).hypot(translation[2]);
+        if yank > 8.0 {
+            return Err(format!(
+                "occurrence {} yanked {:.1} mm — connectors are off-axis or flipped",
+                pose["occurrence_id"], yank
+            ));
+        }
     }
     Ok(())
 }
@@ -1111,7 +1295,7 @@ fn make_assembly_drawing(
         ),
         (
             [18.0, 58.0],
-            "GDT  0.20 axial float at base/flange, flange/hub, hub/retainer. Retainer washer OD < hub OD.".to_string(),
+            "GDT  axle SITS on base (stator). 0.20 float at flange/hub and hub/retainer. Hub-on-rollers is RUNNING, not friction.".to_string(),
         ),
         (
             [18.0, 68.0],
@@ -1170,19 +1354,21 @@ fn authored_occurrence_id(document: &Value, component_id: u64) -> Option<u64> {
         .and_then(|occurrence| occurrence["id"].as_u64())
 }
 
-fn axis_revolute_connector(
+fn axis_connector_at(
     scene: &Value,
     body_id: u64,
+    xy: [f64; 2],
     z: f64,
     want_radius: f64,
 ) -> Option<Value> {
-    circular_edge_on_axis(scene, body_id, z, want_radius)
-        .or_else(|| cylindrical_face_on_axis(scene, body_id, z, want_radius))
+    circular_edge_at(scene, body_id, xy, z, want_radius)
+        .or_else(|| cylindrical_face_at(scene, body_id, xy, z, want_radius))
 }
 
-fn cylindrical_face_on_axis(
+fn cylindrical_face_at(
     scene: &Value,
     body_id: u64,
+    xy: [f64; 2],
     z: f64,
     want_radius: f64,
 ) -> Option<Value> {
@@ -1204,7 +1390,7 @@ fn cylindrical_face_on_axis(
         if axis[2].abs() < 0.85 {
             continue;
         }
-        if origin[0].hypot(origin[1]) > 3.0 {
+        if (origin[0] - xy[0]).hypot(origin[1] - xy[1]) > 3.0 {
             continue;
         }
         let Some(radius) = cylinder["radius"].as_f64() else {
@@ -1217,7 +1403,7 @@ fn cylindrical_face_on_axis(
     }
     let (face, _) = best?;
     let frame = json!({
-        "origin": [0.0, 0.0, z],
+        "origin": [xy[0], xy[1], z],
         "primary_axis": [0.0, 0.0, 1.0],
         "secondary_axis": [1.0, 0.0, 0.0]
     });
@@ -1232,9 +1418,10 @@ fn cylindrical_face_on_axis(
     }))
 }
 
-fn circular_edge_on_axis(
+fn circular_edge_at(
     scene: &Value,
     body_id: u64,
+    xy: [f64; 2],
     z: f64,
     want_radius: f64,
 ) -> Option<Value> {
@@ -1259,7 +1446,7 @@ fn circular_edge_on_axis(
         if normal[2].abs() < 0.85 {
             continue;
         }
-        if center[0].hypot(center[1]) > 2.0 {
+        if (center[0] - xy[0]).hypot(center[1] - xy[1]) > 2.0 {
             continue;
         }
         let Some(radius) = circle["radius"].as_f64() else {
@@ -1280,7 +1467,7 @@ fn circular_edge_on_axis(
         "kind": "circular_edge",
         "radius": radius,
         "frame": {
-            "origin": [0.0, 0.0, center[2]],
+            "origin": [xy[0], xy[1], center[2]],
             "primary_axis": [0.0, 0.0, 1.0],
             "secondary_axis": [1.0, 0.0, 0.0]
         }
@@ -1345,8 +1532,9 @@ fn grade(
         &mut lessons,
         "assemble",
         built.assembly_ok
-            && component_count == 5
-            && occurrence_count == 5
+            && component_count == spec.assembly_component_count()
+            && occurrence_count == spec.assembly_component_count()
+            && joint_count >= spec.assembly_joint_count()
             && bodies.len() >= spec.min_bodies
             && built.roller_ids.len() == spec.roller_count,
         format!(
@@ -1898,6 +2086,9 @@ mod spec_tests {
         assert_eq!(spec.materials.glow, "bambu.pla.glow.green");
         assert!(spec.stack_ok());
         assert!(spec.retainer_od() < spec.hub_od());
+        assert_eq!(spec.assembly_component_count(), 11);
+        assert_eq!(spec.assembly_joint_count(), 10);
+        assert!((spec.flange_z() - spec.base_h()).abs() < 1e-9);
         assert!((spec.wing_offset_deg + spec.helix_deg * 0.5 - 60.0).abs() < 1e-9);
         assert!(spec.rotor_print_h() / spec.scale <= spec.usable_bed()[2] + 1e-6);
         assert!(spec.cage_od() < spec.hub_bore());

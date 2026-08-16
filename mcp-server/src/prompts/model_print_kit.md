@@ -110,7 +110,15 @@ No screws, nuts, heat-set inserts, metal shafts, metal bearings, glue as a fit, 
 
 Assembly order: **base → axle → roller cartridge → rotor → retainer**.
 
-Then form the CAD assembly: `cad_set_focus assembly` (or `cad_set_workspace assembly`). `assembly_create_component` per part — that call already inserts the one root occurrence. **Do not** `assembly_create_occurrence` again or you get two copies of every part and the solver yanks one off-axis. Ground the base occurrence. `assembly_create_joint` revolute on the **turbine axis** using on-axis circular edges (axle race + hub bore). Do not pick a blade-spar face — the engine uses face centroids and that yanks the rotor off-axis. Ship an assembly drawing: `cad_drawing_create_sheet` + `cad_drawing_auto_layout` + notes for fits, scale, print orientation, and BOM.
+Then form a **linked** CAD assembly: `cad_set_focus assembly` (or `cad_set_workspace assembly`). `assembly_create_component` per body that moves — that call already inserts the one root occurrence. **Do not** `assembly_create_occurrence` again. Ground the base. Joints:
+
+- `rigid` axle_sit — axle sits on the base (stator). Square post is friction locate (+0.16), not a press
+- `revolute` rotor_spin — hub freewheels on the axle axis. Hub-on-rollers is **running +0.40**, never a friction fit
+- `revolute` cage_spin — cage can turn on the same axis
+- `revolute` per roller — each PIP roller spins in its pocket
+- `rigid` retainer_sit — washer with a **square slip** hole on the post
+
+Pick on-axis circular edges / cylinders (hub bore, axle race, roller axes). Do not pick a blade-spar face — planar centroids yank parts off-axis. `assembly_solution` must be solved without occurrence yanks. Blades stay **one printed body** with the hub (centrifugal + cyclic root bending). Ship an assembly drawing: `cad_drawing_create_sheet` + `cad_drawing_auto_layout` + notes for fits, loads, print orientation, and BOM.
 
 Print each functional part in its own orientation on **one** plate. The roller cartridge is print-in-place (cage + rollers stay together). Save the assembled `.nbcad`, then `solid_move_copy` parts onto the bed and `solid_export_3mf` once as `01-kit`. Appearances: PLA Orange (base, axle, cage, rollers, retainer) and PLA Glow (rotor). Do not export the assembled nest as the print job.
 
@@ -123,7 +131,7 @@ Minimum wall 1.6 mm (4 nozzles). Functional holes are complete XY circles. Disab
 3. Axle: flange + inner-race cylinder, square bore, print on the flange
 4. Rotor: hub ring (outer race) JOIN three helical **NACA 0021** lofts, open drafted tips, print standing
 5. Roller cage + PIP rollers on a large PCD. Retainer ring
-6. cad_set_workspace assembly. One `assembly_create_component` per part (no extra occurrence). Ground the base. Revolute on the axis (hub/race, not a spar). cad_set_focus drawing. Sheet + auto-layout + notes
+6. cad_set_workspace assembly. One `assembly_create_component` per moving body (base, axle, rotor, cage, each roller, retainer — no extra occurrence). Ground the base. Rigid stator joints + revolute rotor/cage/rollers on axes (not a spar). cad_set_focus drawing. Sheet + auto-layout + notes
 7. cad_set_focus print. set_body_appearance to **PLA Orange** and **PLA Glow** only. solid_export_preflight. Save the assembled `.nbcad`. **Delete** any prior `Print-Kit-Tutor/` 3MFs (and `Print-Kit-Tutor.3mf`). `solid_move_copy` the parts onto one bed (rotor standing on the hub, others flat). Then `solid_export_3mf` **once** as `01-kit` with every kit body_id. The folder must contain exactly that file.
 8. `cad_set_project_visibility`: hide every construction plane (`hidden_datum_plane_ids`) and finished loft sketches (`hidden_sketch_names`). The shipped `.nbcad` must read as the five-part kit, not orange datum stacks.
 9. Write the design report. Include role-based fits, scale vs X2D, roller PCD, and why the rotor is one piece

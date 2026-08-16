@@ -84,8 +84,8 @@
     "fits_mm": {
       "running_rollers": "+0.40 diametral PLA-on-PLA (spin). Slicer XY hole compensation stays 0.",
       "slip_axle_retainer": "+0.28 diametral — drops together, not sloppy.",
-      "friction_square_drive_and_cage": "+0.16 diametral — tap-in locate, not a press. PLA holes shrink; bosses grow.",
-      "thrust_land": "0.20 axial float at every running land (base↔flange, flange↔hub/cage, hub↔retainer). Running faces do not occupy the same volume. Retainer is a washer (OD < hub OD), not a cap through the hub."
+      "friction_square_drive_and_cage": "+0.16 diametral — tap-in locate of the axle on the square post only, not a press. The hub must NOT friction-fit the rollers.",
+      "thrust_land": "Axle sits on the base (stator, no relative spin). 0.20 axial float at running lands (flange↔hub/cage, hub↔retainer). Retainer is a washer with a square slip hole (OD < hub OD)."
     }
   },
   "lessons": [
@@ -107,7 +107,7 @@
     {
       "id": "assemble",
       "title": "Individual parts, then an assembly",
-      "teach": "Each functional part is its own component with exactly one occurrence. assembly_create_component already inserts the root instance — do not create a second copy. Mate the revolute on on-axis circular edges (hub bore / axle race), not a blade-spar face. Five parts, five occurrences, one spin joint."
+      "teach": "Each body that moves is its own component with exactly one occurrence. assembly_create_component already inserts the root instance — do not create a second copy. Link the stator with rigid joints (axle sits on the base; retainer sits on the post). Revolute the rotor, cage, and each roller on circular edges / cylinders — never a blade-spar face. Hub-on-rollers is a running fit, not friction. Blades stay one printed body with the hub."
     },
     {
       "id": "rollers",

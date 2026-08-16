@@ -2,6 +2,12 @@
 
 ## 2026-08-16
 
+- **Update**: Print-kit is a linked assembly, not a nest that happens to
+  spin. Rigid `axle_sit` / `retainer_sit`; revolute `rotor_spin`,
+  `cage_spin`, and each `roller_*_spin`. Hub-on-rollers stays running
+  (+0.40) — a friction fit would lock the bearing. Axle sits on the
+  base. Retainer has a square slip hole. Blades stay one body with the
+  hub (centrifugal + cyclic root bending).
 - **Update**: Print-kit fits now model 0.20 axial float at every running
   land (base↔flange, flange↔hub/cage, hub↔retainer). The retainer is a
   washer (OD < hub OD). Export is one laid-out `01-kit.3mf` in PLA Orange

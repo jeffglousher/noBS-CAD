@@ -147,6 +147,8 @@ graded, but it was the wrong product for additive manufacturing:
 | Axle square bore ↔ post | Friction locate | +0.16 |
 | Hub / cage ↔ flange land | Thrust | 0.20 axial float |
 | Hub ↔ retainer washer | Thrust | 0.20 axial float; retainer OD < hub OD |
+| Axle ↔ base | Sitting stator | Coincident land. They do not spin relative to each other. |
+| Hub ↔ rollers | Running | **Not a friction fit.** Friction here locks the bearing. |
 
 ### Print (current)
 
@@ -160,10 +162,10 @@ graded, but it was the wrong product for additive manufacturing:
 
 ### Assembly (current)
 
-1. Axle puck onto the square post (friction). Flange floats 0.20 above the base.
-2. Roller cartridge over the inner race, 0.20 above the flange.
-3. Rotor hub over the cartridge (outer race). Hub floats 0.20 above the flange land.
-4. Retainer washer slip-fits the post, floats 0.20 above the hub, and keeps the hub down.
+1. Axle puck onto the square post (friction locate). Flange **sits** on the base.
+2. Roller cartridge over the inner race, 0.20 above the flange. Cage and each roller are linked (revolute).
+3. Rotor hub over the cartridge (outer race, running). Hub floats 0.20 above the flange land. Blades are one body with the hub.
+4. Retainer washer **square-slip** on the post, floats 0.20 above the hub, and keeps the hub down.
 
 If those steps are not visible in the solid, the exam failed.
 

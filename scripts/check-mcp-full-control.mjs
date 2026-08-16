@@ -331,8 +331,11 @@ if (!tutorSrc.includes('requireBlankDocument') || !tutorSrc.includes('hideConstr
 if (tutorSrc.includes('name: `${name}_1`') || /assembly_create_occurrence/.test(tutorSrc)) {
   fail('print-kit Node exam must not create a second occurrence of each part');
 }
-if (!tutorSrc.includes('axisRevoluteConnector') || !tutorSrc.includes('circularEdgeOnAxis')) {
-  fail('print-kit Node exam must mate the revolute on an on-axis circle or cylinder');
+if (!tutorSrc.includes('axisConnectorAt') || !tutorSrc.includes('circularEdgeAt')) {
+  fail('print-kit Node exam must mate joints on circular edges or cylinders');
+}
+if (!tutorSrc.includes('axle_sit') || !tutorSrc.includes('cage_spin') || !tutorSrc.includes('createStableJoint')) {
+  fail('print-kit Node exam must link the stator, rotor, cage, and rollers');
 }
 if (!tutorSrc.includes('solid_move_copy') || !tutorSrc.includes('layoutPrintPlate')) {
   fail('print-kit Node exam must lay the kit out on one plate before export');
@@ -347,8 +350,11 @@ if (!rustTutor.includes('require_blank_document') || !rustTutor.includes('hide_c
 if (rustTutor.includes('assembly_create_occurrence')) {
   fail('print-kit cargo exam must not create a second occurrence of each part');
 }
-if (!rustTutor.includes('axis_revolute_connector') || !rustTutor.includes('circular_edge_on_axis')) {
-  fail('print-kit cargo exam must mate the revolute on an on-axis circle or cylinder');
+if (!rustTutor.includes('axis_connector_at') || !rustTutor.includes('circular_edge_at')) {
+  fail('print-kit cargo exam must mate joints on circular edges or cylinders');
+}
+if (!rustTutor.includes('axle_sit') || !rustTutor.includes('cage_spin') || !rustTutor.includes('create_stable_joint')) {
+  fail('print-kit cargo exam must link the stator, rotor, cage, and rollers');
 }
 if (!rustTutor.includes('solid_move_copy') || !rustTutor.includes('layout_print_plate')) {
   fail('print-kit cargo exam must lay the kit out on one plate before export');

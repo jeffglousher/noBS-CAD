@@ -344,6 +344,9 @@ function retainerOd() {
 function retainerId() {
   return axleSquare() + spec.fit_slip_mm;
 }
+function retainerSquare() {
+  return axleSquare() + spec.fit_slip_mm;
+}
 function retainerH() {
   return mmMin(spec.retainer_h, 2);
 }
@@ -366,7 +369,7 @@ function rotorPrintH() {
   return hubH() + wingH();
 }
 function flangeZ() {
-  return baseH() + spec.thrust_float;
+  return baseH();
 }
 function raceZ() {
   return flangeZ() + axleFlangeH();
@@ -453,12 +456,19 @@ function printFlatOk() {
 }
 function stackOk() {
   return (
+    Math.abs(flangeZ() - baseH()) < 1e-9 &&
     hubZ() + 1e-9 >= raceZ() + spec.thrust_float &&
     retainerZ() + 1e-9 >= hubZ() + hubH() + spec.thrust_float &&
     retainerOd() + 1e-9 < hubOd() &&
     retainerOd() + 1e-9 > hubBore() &&
     raceH() + 1e-9 >= cageH() + spec.thrust_float
   );
+}
+function assemblyComponentCount() {
+  return 5 + spec.roller_count;
+}
+function assemblyJointCount() {
+  return 4 + spec.roller_count;
 }
 function sanityOk() {
   return (
@@ -479,7 +489,7 @@ function estimatedSolidCm3() {
     Math.PI * (innerRaceD() * 0.5) ** 2 * raceH();
   const cage = Math.PI * ((cageOd() * 0.5) ** 2 - (cageId() * 0.5) ** 2) * cageH();
   const rollers = spec.roller_count * Math.PI * (rollerD() * 0.5) ** 2 * rollerH();
-  const retainer = Math.PI * ((retainerOd() * 0.5) ** 2 - (retainerId() * 0.5) ** 2) * retainerH();
+  const retainer = (Math.PI * (retainerOd() * 0.5) ** 2 - retainerSquare() ** 2) * retainerH();
   return (hub + wings + base + axle + cage + rollers + retainer) / 1000;
 }
 function estimatedPrintMassG() {
@@ -844,10 +854,10 @@ async function buildCartridge(known) {
 }
 
 async function buildRetainer(known) {
-  await beginDatum(await offsetXY(retainerZ()));
+  const deck = await offsetXY(retainerZ());
+  await beginDatum(deck);
   await addCircle(0, 0, retainerOd());
-  await addCircle(0, 0, retainerId());
-  const sketch = await finishSketch();
+  let sketch = await finishSketch();
   const update = requireClean(
     await call("solid_extrude", {
       sketch_name: sketch,
@@ -860,14 +870,30 @@ async function buildRetainer(known) {
     }),
     "retainer",
   );
-  return newestBody(update, known);
+  const retainerIdBody = newestBody(update, known);
+  await beginDatum(deck);
+  await addOrientedRect([0, 0], retainerSquare(), retainerSquare(), 0);
+  sketch = await finishSketch();
+  requireClean(
+    await call("solid_extrude", {
+      sketch_name: sketch,
+      profile_indices: [0],
+      operation: "cut",
+      extent: { type: "distance", distance: retainerH() },
+      taper_angle_deg: 0,
+      flip: false,
+      target_body_ids: [retainerIdBody],
+    }),
+    "retainer square slip",
+  );
+  return retainerIdBody;
 }
 
-function axisRevoluteConnector(scene, bodyId, z, wantRadius) {
-  return circularEdgeOnAxis(scene, bodyId, z, wantRadius) ?? cylindricalFaceOnAxis(scene, bodyId, z, wantRadius);
+function axisConnectorAt(scene, bodyId, xy, z, wantRadius) {
+  return circularEdgeAt(scene, bodyId, xy, z, wantRadius) ?? cylindricalFaceAt(scene, bodyId, xy, z, wantRadius);
 }
 
-function cylindricalFaceOnAxis(scene, bodyId, z, wantRadius) {
+function cylindricalFaceAt(scene, bodyId, xy, z, wantRadius) {
   const body = (scene.bodies ?? []).find((item) => item.id === bodyId);
   if (!body) return null;
   let best = null;
@@ -877,7 +903,7 @@ function cylindricalFaceOnAxis(scene, bodyId, z, wantRadius) {
     const origin = xyz(cylinder.origin);
     const axis = xyz(cylinder.axis);
     if (!origin || !axis || Math.abs(axis[2]) < 0.85) continue;
-    if (Math.hypot(origin[0], origin[1]) > 3) continue;
+    if (Math.hypot(origin[0] - xy[0], origin[1] - xy[1]) > 3) continue;
     const radius = Number(cylinder.radius);
     if (!Number.isFinite(radius)) continue;
     const score = Math.abs(radius - wantRadius);
@@ -885,7 +911,7 @@ function cylindricalFaceOnAxis(scene, bodyId, z, wantRadius) {
   }
   if (!best) return null;
   const frame = {
-    origin: [0, 0, z],
+    origin: [xy[0], xy[1], z],
     primary_axis: [0, 0, 1],
     secondary_axis: [1, 0, 0],
   };
@@ -900,7 +926,7 @@ function cylindricalFaceOnAxis(scene, bodyId, z, wantRadius) {
   };
 }
 
-function circularEdgeOnAxis(scene, bodyId, z, wantRadius) {
+function circularEdgeAt(scene, bodyId, xy, z, wantRadius) {
   const body = (scene.bodies ?? []).find((item) => item.id === bodyId);
   if (!body) return null;
   let best = null;
@@ -910,7 +936,7 @@ function circularEdgeOnAxis(scene, bodyId, z, wantRadius) {
     const center = xyz(circle.center);
     const normal = xyz(circle.normal);
     if (!center || !normal || Math.abs(normal[2]) < 0.85) continue;
-    if (Math.hypot(center[0], center[1]) > 2) continue;
+    if (Math.hypot(center[0] - xy[0], center[1] - xy[1]) > 2) continue;
     const radius = Number(circle.radius);
     if (!Number.isFinite(radius)) continue;
     const score = Math.abs(center[2] - z) + Math.abs(radius - wantRadius);
@@ -926,7 +952,7 @@ function circularEdgeOnAxis(scene, bodyId, z, wantRadius) {
     kind: "circular_edge",
     radius: best.radius,
     frame: {
-      origin: [0, 0, best.center[2]],
+      origin: [xy[0], xy[1], best.center[2]],
       primary_axis: [0, 0, 1],
       secondary_axis: [1, 0, 0],
     },
@@ -943,6 +969,55 @@ function authoredOccurrenceId(document, componentId) {
   )?.id;
 }
 
+async function requireLinkedSolution() {
+  const solution = await call("assembly_solution");
+  if (solution.solved !== true) {
+    throw new Error(`assembly_solution not solved: ${JSON.stringify(solution.diagnostics ?? [])}`);
+  }
+  for (const pose of solution.occurrence_poses ?? []) {
+    const translation = xyz(pose.translation) ?? [0, 0, 0];
+    const yank = Math.hypot(translation[0], translation[1], translation[2]);
+    if (yank > 8) {
+      throw new Error(
+        `occurrence ${pose.occurrence_id} yanked ${yank.toFixed(1)} mm — connectors are off-axis or flipped`,
+      );
+    }
+  }
+}
+
+async function createStableJoint(name, kind, connectorA, connectorB, groundedBodyId) {
+  let lastError = `${name} failed`;
+  for (const flipped of [false, true]) {
+    try {
+      const joint = await call("assembly_create_joint", {
+        name,
+        kind,
+        connector_a: connectorA,
+        connector_b: connectorB,
+        flipped,
+        grounded_body_id: groundedBodyId,
+      });
+      try {
+        await requireLinkedSolution();
+        return;
+      } catch (error) {
+        const jointId = joint.id ?? joint.joint?.id;
+        if (jointId) {
+          try {
+            await call("assembly_delete_joint", { joint_id: jointId });
+          } catch {
+            /* retry the other flip */
+          }
+        }
+        lastError = `${name} yanked or failed to solve (flipped=${flipped}): ${error.message ?? error}`;
+      }
+    } catch (error) {
+      lastError = `${name} (flipped=${flipped}): ${error.message ?? error}`;
+    }
+  }
+  throw new Error(lastError);
+}
+
 async function formAssembly(ids) {
   await call("cad_set_focus", { focus: "assembly", explicit: true });
   try {
@@ -950,14 +1025,16 @@ async function formAssembly(ids) {
   } catch {
     /* workspace follow is optional in headless */
   }
-  let baseOccurrenceId = null;
-  for (const [name, bodyIds] of [
+  const parts = [
     ["base", [ids.baseId]],
     ["axle", [ids.axleId]],
     ["rotor", [ids.rotorId]],
-    ["roller_cage", [ids.cageId, ...ids.rollerIds]],
+    ["cage", [ids.cageId]],
+    ...ids.rollerIds.map((rollerId, index) => [`roller_${index}`, [rollerId]]),
     ["retainer", [ids.retainerId]],
-  ]) {
+  ];
+  let baseOccurrenceId = null;
+  for (const [name, bodyIds] of parts) {
     const created = await call("assembly_create_component", {
       name,
       body_ids: bodyIds,
@@ -982,17 +1059,73 @@ async function formAssembly(ids) {
     /* optional on some hosts */
   }
   const scene = await call("solid_scene");
-  const axleAxis = axisRevoluteConnector(scene, ids.axleId, raceZ() + raceH(), innerRaceD() * 0.5);
-  const rotorAxis = axisRevoluteConnector(scene, ids.rotorId, hubZ() + hubH(), hubBore() * 0.5);
-  if (!axleAxis) throw new Error("no on-axis axle race circle or cylinder for the revolute");
-  if (!rotorAxis) throw new Error("no on-axis hub bore circle or cylinder for the revolute");
-  await call("assembly_create_joint", {
-    name: "rotor_spin",
-    kind: "revolute",
-    connector_a: axleAxis,
-    connector_b: rotorAxis,
-    grounded_body_id: ids.axleId,
-  });
+  const need = (connector, label) => {
+    if (!connector) throw new Error(label);
+    return connector;
+  };
+  await createStableJoint(
+    "axle_sit",
+    "rigid",
+    need(axisConnectorAt(scene, ids.baseId, [0, 0], baseH(), baseBossD() * 0.5), "no on-axis base land for axle_sit"),
+    need(axisConnectorAt(scene, ids.axleId, [0, 0], flangeZ(), axleFlangeD() * 0.5), "no on-axis axle flange for axle_sit"),
+    ids.baseId,
+  );
+  await createStableJoint(
+    "rotor_spin",
+    "revolute",
+    need(
+      axisConnectorAt(scene, ids.axleId, [0, 0], raceZ() + raceH(), innerRaceD() * 0.5),
+      "no on-axis axle race for rotor_spin",
+    ),
+    need(
+      axisConnectorAt(scene, ids.rotorId, [0, 0], hubZ() + hubH(), hubBore() * 0.5),
+      "no on-axis hub bore for rotor_spin",
+    ),
+    ids.axleId,
+  );
+  await createStableJoint(
+    "cage_spin",
+    "revolute",
+    need(
+      axisConnectorAt(scene, ids.axleId, [0, 0], hubZ() + cageH(), innerRaceD() * 0.5),
+      "no on-axis axle race for cage_spin",
+    ),
+    need(
+      axisConnectorAt(scene, ids.cageId, [0, 0], hubZ() + cageH(), cageOd() * 0.5),
+      "no on-axis cage circle for cage_spin",
+    ),
+    ids.axleId,
+  );
+  for (let index = 0; index < ids.rollerIds.length; index++) {
+    const [x, y] = rollerXY(index);
+    const z = hubZ() + rollerH();
+    await createStableJoint(
+      `roller_${index}_spin`,
+      "revolute",
+      need(
+        axisConnectorAt(scene, ids.cageId, [x, y], z, cagePocket() * 0.5),
+        `no cage pocket axis for roller ${index}`,
+      ),
+      need(
+        axisConnectorAt(scene, ids.rollerIds[index], [x, y], z, rollerD() * 0.5),
+        `no roller axis for roller ${index}`,
+      ),
+      ids.cageId,
+    );
+  }
+  await createStableJoint(
+    "retainer_sit",
+    "rigid",
+    need(
+      axisConnectorAt(scene, ids.axleId, [0, 0], retainerZ(), innerRaceD() * 0.5),
+      "no on-axis axle axis for retainer_sit",
+    ),
+    need(
+      axisConnectorAt(scene, ids.retainerId, [0, 0], retainerZ(), retainerOd() * 0.5),
+      "no on-axis retainer washer for retainer_sit",
+    ),
+    ids.axleId,
+  );
   if (baseOccurrenceId) {
     try {
       await call("assembly_set_occurrence_grounded", {
@@ -1000,15 +1133,22 @@ async function formAssembly(ids) {
         grounded: true,
       });
     } catch {
-      /* axle remains the kinematic ground */
+      /* axle remains in the grounded cluster */
     }
   }
   const document = await call("assembly_document");
   const defs = document.component_structure?.definitions?.length ?? 0;
   const occs = document.component_structure?.occurrences?.length ?? 0;
-  if (defs !== 5 || occs !== 5) {
-    throw new Error(`expected 5 parts / 5 occurrences, got ${defs} components / ${occs} occurrences`);
+  const joints = document.joints?.length ?? 0;
+  if (defs !== assemblyComponentCount() || occs !== assemblyComponentCount()) {
+    throw new Error(
+      `expected ${assemblyComponentCount()} linked parts / occurrences, got ${defs} components / ${occs} occurrences`,
+    );
   }
+  if (joints < assemblyJointCount()) {
+    throw new Error(`expected ≥${assemblyJointCount()} joints, got ${joints}`);
+  }
+  await requireLinkedSolution();
   return document;
 }
 
@@ -1065,7 +1205,7 @@ async function makeAssemblyDrawing() {
     ],
     [
       [18, 58],
-      "GDT  0.20 axial float at base/flange, flange/hub, hub/retainer. Retainer washer OD < hub OD.",
+      "GDT  axle SITS on base (stator). 0.20 float at flange/hub and hub/retainer. Hub-on-rollers is RUNNING, not friction.",
     ],
     [
       [18, 68],
@@ -1116,7 +1256,9 @@ ${iterations.map(([name, why]) => `| ${name} | ${why} |`).join("\n")}
 - **Architecture:** Helical H-Darrieus, directionless (no yaw). Short fixed square post. Hub freewheels on a printed roller pack. No tall mast.
 - **Airfoil:** ${spec.airfoil} (t/c ${spec.airfoil_t_c}). 2026 VAWT dynamic-stall work favors t/c 21–24%. TE blunt to ${teMin()} mm (≥ 2 nozzles). Open drafted tips.
 - **Rotor:** one piece, N=${spec.wing_count}, c=${chordRoot().toFixed(1)}/${chordTip().toFixed(1)} mm, R=${wingRadius().toFixed(1)} mm, span=${wingH().toFixed(1)} mm, helix ${spec.helix_deg}°, σ=${solidity().toFixed(3)}. Envelope/rotor ${(baseEnvelope() / rotorD()).toFixed(2)}.
-- **Fits:** running +${spec.fit_running_mm} (rollers), slip +${spec.fit_slip_mm} (retainer), friction +${spec.fit_friction_mm} (axle on post). Slicer XY hole compensation stays 0. Thrust float ${spec.thrust_float} at base↔flange, flange↔hub/cage, and hub↔retainer. Retainer is a washer (OD ${retainerOd().toFixed(1)} < hub OD ${hubOd().toFixed(1)}). No press. No metal 608.
+- **Fits:** running +${spec.fit_running_mm} (rollers / hub bore — **not** a friction fit). Slip +${spec.fit_slip_mm} (square retainer on the post). Friction +${spec.fit_friction_mm} (axle square on the post only). Slicer XY hole compensation stays 0. Axle **sits** on the base (stator). Thrust float ${spec.thrust_float} at flange↔hub/cage and hub↔retainer. Retainer is a washer with a square slip hole.
+- **Loads:** weight/thrust on the flange land (Z). Radial + overturning moment on the large-PCD roller pack (XY and tip moment). Torque about Z stays in the rotor; the square post is the stator. Centrifugal blade load is taken by the one-piece hub spars — do not friction-fit blades or the hub onto the rollers.
+- **Links:** rigid axle_sit + retainer_sit; revolute rotor_spin + cage_spin + ${spec.roller_count}× roller_spin. assembly_solution must stay solved without yanking parts off-axis.
 - **Materials:** ${plaOrange} (base, axle, cage, rollers, retainer) and ${plaGlow} (rotor). Hardened nozzle for glow. AMS lite is not recommended for glow.
 - **Bushing:** printed roller cartridge ${spec.roller_count}× Ø${rollerD().toFixed(1)} on PCD ${pcd().toFixed(1)}. A two-land sleeve is not enough for tip moment.
 - **Scale:** source numbers are X2D-max (256×256×260, 8 mm margin). Exam scale ${spec.scale}. Feature floors: roller Ø${spec.roller_min_d}, TE ${spec.airfoil_te_min_mm}, 4-nozzle walls.
@@ -1253,7 +1395,7 @@ try {
   try {
     await formAssembly({ baseId, axleId, rotorId, cageId, rollerIds, retainerId });
     assemblyOk = true;
-    assemblyDetail = "5 components; hub freewheels on the fixed post";
+    assemblyDetail = `${assemblyComponentCount()} linked parts, ≥${assemblyJointCount()} joints; axle sits on base; hub and cage freewheel; rollers spin in the cage`;
   } catch (error) {
     assemblyDetail = String(error?.message ?? error);
   }
@@ -1357,8 +1499,9 @@ try {
     report.lessons,
     "assemble",
     assemblyOk &&
-      componentCount === 5 &&
-      occurrenceCount === 5 &&
+      componentCount === assemblyComponentCount() &&
+      occurrenceCount === assemblyComponentCount() &&
+      jointCount >= assemblyJointCount() &&
       bodies.length >= spec.min_bodies &&
       rollerIds.length === spec.roller_count,
     `${bodies.length} bodies, ${componentCount} components, ${occurrenceCount} occurrences, ${jointCount} joints; ${assemblyDetail}`,
