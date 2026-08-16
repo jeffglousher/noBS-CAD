@@ -22,6 +22,8 @@ axis — and grading it.
 
 Clearance is modeled in CAD (+0.40 mm diametral). No FDM press fits. Bodies
 are placed in assembly order (base, shaft, rotor, top plate, printed
-bushing, cap). Thrust is a printed 45° cone-in-cup. The rotor is a hub plus
-two even buckets, not a lone C coupon. Metal 608 bearings are later catalog
-hardware, not part of this exam.
+bushing, cap). Posts go through the top plate. The hub sits on the shaft
+shoulder. Thrust is a smaller male cone plus a floating land — not a
+lifted same-angle cone. The rotor is a hub plus two even buckets, not a
+lone C coupon. Study: [PRINT_KIT_GDT.md](../../docs/agentic/PRINT_KIT_GDT.md).
+Metal 608 bearings are later catalog hardware, not part of this exam.

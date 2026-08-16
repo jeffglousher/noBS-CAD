@@ -2,6 +2,10 @@
 
 ## 2026-08-15
 
+- **Update**: GD&T / printability study closed the first assembled-spinner
+  faults (rotor/post collision, butt-joint posts, through-pocket bushing,
+  parallel cones, round-on-round drive, hub swallowing the shoulder).
+  Record: [docs/agentic/PRINT_KIT_GDT.md](../docs/agentic/PRINT_KIT_GDT.md).
 - **Update**: Replaced the print-bed 608 coupon with a fully printed even
   spinner (assembled stack, 45° cone thrust, printed sleeve, 3+2 even
   layout). Documented the multi-body vs assembly gap in

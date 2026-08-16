@@ -7,6 +7,7 @@ Committed operating docs for humans and coding agents working on noBS CAD.
 |-----|---------|
 | [INTEGRATION_TESTS.md](INTEGRATION_TESTS.md) | Ordered MCP benchmarks — **#1 print-kit tutor** |
 | [PRINT_KIT_TUTOR.md](PRINT_KIT_TUTOR.md) | Curriculum and grader for benchmark #1 |
+| [PRINT_KIT_GDT.md](PRINT_KIT_GDT.md) | GD&T / printability study and corrections |
 | [ASSEMBLY.md](ASSEMBLY.md) | Multi-body vs assemblies — the gap the tutor exposes |
 | [MCP_2026.md](MCP_2026.md) | Recommended MCP 2026-07-28 success manual |
 | [INSTALL_MCP.md](INSTALL_MCP.md) | Hardened `xtask install-mcp` client wiring |

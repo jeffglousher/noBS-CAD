@@ -10,77 +10,102 @@
   "bush_od": 14.0,
   "bush_h": 4.0,
   "bush_seat": 14.4,
-  "post_d": 6.0,
-  "post_hole": 6.4,
-  "post_circle_r": 24.0,
+  "post_d": 8.0,
+  "post_hole": 8.4,
+  "post_circle_r": 38.0,
   "post_count": 3,
-  "post_h": 28.0,
-  "base_d": 64.0,
+  "post_proud": 2.0,
+  "base_d": 90.0,
   "base_h": 6.0,
+  "plate_z": 30.0,
+  "rotor_to_plate_gap": 2.0,
   "cone_h": 5.0,
   "cone_half_deg": 45.0,
   "cone_relief_d": 3.0,
-  "cone_tip_lift": 0.3,
-  "shaft_lower_h": 12.0,
+  "male_cone_r": 4.8,
+  "tip_r": 0.5,
+  "thrust_land_od": 13.0,
+  "thrust_land_h": 0.8,
+  "thrust_float": 0.2,
+  "cap_float": 0.2,
+  "shaft_lower_h": 10.0,
   "shaft_shoulder_d": 16.0,
   "shaft_shoulder_h": 2.0,
-  "shaft_upper_h": 20.0,
+  "shaft_upper_h": 22.0,
   "hub_od": 20.0,
-  "hub_h": 12.0,
+  "hub_h": 10.0,
+  "drive_across": 6.0,
+  "drive_across_hub": 6.4,
   "rotor_d": 56.0,
   "overlap": 0.15,
   "blade_wall": 1.8,
-  "blade_h": 12.0,
-  "blade_twist_deg": 25.0,
+  "blade_h": 10.0,
+  "blade_twist_deg": 20.0,
   "loft_stations": 3,
   "blade_count": 2,
-  "top_plate_d": 64.0,
-  "top_plate_h": 4.0,
+  "top_plate_d": 90.0,
+  "top_plate_h": 6.0,
   "cap_d": 20.0,
-  "cap_h": 2.0,
+  "cap_h": 2.4,
   "min_bodies": 6,
   "min_rotor_faces": 10,
   "assembly_order": ["base", "shaft", "rotor", "top_plate", "bushing", "cap"],
+  "gdt": {
+    "datums": {
+      "A": "Base bottom (primary). Print bed for the frame.",
+      "B": "Journal / cone axis (secondary). Common axis of the spinner.",
+      "C": "3× Ø8 posts on Ø76 PCD at 120° (tertiary). Locates the top plate."
+    },
+    "fits_mm": {
+      "running_journal_bushing": "+0.40 diametral (Ø8.0 / Ø8.4)",
+      "location_posts_plate": "+0.40 diametral (Ø8.0 / Ø8.4), posts through the plate",
+      "location_bushing_seat": "+0.40 diametral (Ø14.0 / Ø14.4) with a 2 mm land",
+      "drive_double_d": "+0.40 across flats (6.0 / 6.4)",
+      "centering_cone": "0.20 radial at the cup mouth (male r 4.8 in female r 5.0)",
+      "axial_thrust_and_cap": "0.20 float — running faces do not occupy the same volume"
+    },
+    "position": "Post pattern positional Ø0.4 MMC to B (one nozzle). FDM cannot hold tighter without a gauge print."
+  },
   "lessons": [
     {
       "id": "clearance",
       "title": "Clearance is a design input",
-      "teach": "A 0.4 mm Bambu nozzle cannot hold CNC fits. Model +0.40 mm diametral clearance in CAD for every printed-to-printed running or slip interface (journal/bushing, posts/top plate, bushing/seat). Leave slicer XY hole compensation at 0 unless a gauge print says otherwise."
+      "teach": "A 0.4 mm Bambu nozzle cannot hold CNC fits. Model +0.40 mm diametral clearance in CAD for every printed-to-printed running or slip interface. Leave slicer XY hole compensation at 0 unless a gauge print says otherwise."
     },
     {
       "id": "no_press",
       "title": "No FDM press fits",
-      "teach": "Press fits fail from elephant foot and shrinkage. Use +0.40 slip and retain with a shoulder, cone, plate, or cap. Do not assume a metal bearing will appear later."
+      "teach": "Press fits fail from elephant foot and shrinkage. Use +0.40 slip and retain with a shoulder, land, plate, or cap. Do not assume a metal bearing will appear later."
     },
     {
       "id": "assemble",
-      "title": "Build the assembled stack",
-      "teach": "The exam is a mechanism, not a print-bed scatter. Place bodies on one axis in assembly order: shaft cone in the base cup, rotor on the shoulder, top plate on the three posts, printed bushing in the plate, cap on the journal. noBS CAD has no mates or assembly configs — this placement is manual and that gap is the point."
+      "title": "Build a proper assembled stack",
+      "teach": "Bodies sit on one axis with real location: posts go through the top plate (not a butt joint), the rotor sweep clears the posts, the bushing sits on a land (not a through-pocket), and running faces have modeled gaps. Assembly order: base → shaft → rotor → top plate → bushing → cap."
     },
     {
       "id": "thrust",
-      "title": "Print a thrust bearing contour",
-      "teach": "A 45° cone-in-cup is an easy-to-rotate printed thrust. The shaft tip is lifted so it seats on the cone face, not the point. A small relief hole under the apex keeps the tip from bottoming."
+      "title": "Print a thrust bearing that can actually spin",
+      "teach": "A lifted same-angle cone never touches (parallel surfaces). Center with a 45° cup and a smaller male cone, and take thrust on a narrow annular land with 0.20 mm float. Relief under the apex so the tip does not bottom."
     },
     {
       "id": "even",
       "title": "Keep the machine even",
-      "teach": "Three posts at 120° and two rotor buckets at 180° so the spinner is balanced around the axis. An odd one-sided vane will not run true."
+      "teach": "Three posts at 120° and two rotor buckets at 180°. Double-D drive so the rotor turns the shaft. An odd one-sided vane will not run true."
     },
     {
       "id": "printed_bearings",
       "title": "Print the bearings too",
-      "teach": "This kit is fully printable: conical thrust plus a printed sleeve bushing. Metal 608 / catalog bearings are a later option from a standard table, not a hidden part of the exam."
+      "teach": "Printed cone + land for thrust, printed sleeve in a shouldered seat for radial. Plate thicker than the bushing so the seat has a land. Metal 608 / catalog bearings are a later table, not a hidden part."
     },
     {
       "id": "not_2d",
       "title": "The rotor is a part that mounts",
-      "teach": "A lone C-loft coupon is not a rotor. The even spinner has a hub that slips onto the shaft and two helical buckets joined to that hub."
+      "teach": "A lone C-loft coupon is not a rotor. The even spinner has a hub on a double-D, sitting on the shaft shoulder, with two helical buckets joined to that hub."
     },
     {
       "id": "export",
       "title": "Export a printable package",
-      "teach": "Assign appearances, run solid_export_preflight, then solid_export_3mf for bambu_studio. Print each body in its own orientation (base/plate flat, shaft on the cone, bushing as a ring, rotor on the hub face). 3MF is the manufacturing handoff."
+      "teach": "Assign appearances, run solid_export_preflight, then solid_export_3mf for bambu_studio. Print each body in its own orientation (base/plate flat, shaft on the land, bushing as a ring, rotor on the hub face). 3MF is the manufacturing handoff."
     }
   ]
 }

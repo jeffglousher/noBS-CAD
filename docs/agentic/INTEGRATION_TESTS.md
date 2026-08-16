@@ -9,6 +9,7 @@ must design an FDM-tolerant mechanical kit, then a grader checks clearance,
 orientation, machine elements, a helical loft, and a 3MF package.
 
 Curriculum and grader detail: [PRINT_KIT_TUTOR.md](PRINT_KIT_TUTOR.md).
+GD&T / printability corrections: [PRINT_KIT_GDT.md](PRINT_KIT_GDT.md).
 Spec: `scripts/fixtures/print-kit-tutor.spec.json`. Recipe: `model_print_kit`.
 
 ## Ordered benchmarks

@@ -378,12 +378,12 @@ pub fn get_prompt(name: &str, arguments: &Value) -> Result<Value, String> {
                  1. prompts/get model_print_kit. cad_list_all_tools. cad_new_project. cad_set_document_name Print Kit Tutor.\n\
                  2. Design input: nozzle={nozzle} mm. Every printed-to-printed running/slip fit is +{nozzle} mm diametral in CAD. No FDM press fits. Leave slicer XY hole compensation at 0.\n\
                  3. Build the assembled mechanism on one axis — not a print-bed scatter. Assembly order: base → shaft → rotor → top plate → printed bushing → cap. noBS CAD has no mates; place bodies by construction. That gap is real.\n\
-                 4. Base: Ø64 × 6 plate. Cut a 45° conical thrust cup (easy-to-rotate contour) with a small relief hole at the apex. Join three Ø6 posts at 120° (circular pattern) so the frame is even.\n\
-                 5. Shaft: revolve on XZ. Matching 45° cone (tip lifted 0.3 mm so it seats on the face), Ø8 journal, Ø16 shoulder, upper journal through the plate. Print the bearings: cone thrust + Ø8.4/Ø14 sleeve. Do not require a metal 608.\n\
-                 6. Rotor: hub that slips onto the shaft (Ø8.4) sitting on the shoulder, plus two helical buckets at 180° joined to the hub. A lone C-loft coupon is not a rotor.\n\
-                 7. Top plate on the posts (Ø6.4 holes), printed bushing in a Ø14.4 seat, cap on the journal. Functional holes are XY circles. Disable grid snap. Prefer locked circles.\n\
+                 4. Base: Ø90 × 6 plate. Cut a 45° conical thrust cup (female r5) with a Ø3 relief at the apex. Join three Ø8 posts on R38 at 120° that continue through the top plate and stand 2 mm proud.\n\
+                 5. Shaft: revolve on XZ. Smaller male cone (r4.8) plus a Ø13 × 0.8 thrust land with 0.20 float above the base — do not use a same-angle lifted cone (parallel surfaces never touch). Ø8 journal, Ø16 shoulder, double-D 6.0 only in the hub zone, upper journal through the plate.\n\
+                 6. Rotor: hub Ø20 / Ø8.4 that sits on the shoulder (do not swallow the shoulder), double-D 6.4, plus two helical buckets at 180° joined to the hub. A lone C-loft coupon is not a rotor. Sweep must clear the posts (R38 inner wall).\n\
+                 7. Top plate Ø90 × 6 at z=30 (above the rotor + 2 mm gap). Ø8.4 post holes that actually locate. Bushing seat Ø14.4 × 4 from the top so a 2 mm land remains. Printed bushing Ø8.4/Ø14 × 4 on that land. Cap Ø20 with 0.20 float. Functional holes are XY circles. Disable grid snap. Prefer locked circles.\n\
                  8. cad_set_focus print. set_body_appearance. solid_export_preflight. solid_export_3mf slicer_target=bambu_studio.\n\
-                 9. Grade: timeline ok, ≥6 coaxial bodies, printed cone + sleeve, even 3+2 layout, mounted rotor, 3MF is a PK zip.\n\
+                 9. Grade: timeline ok, ≥6 coaxial bodies, posts through plate, cone/land thrust, double-D drive, even 3+2 layout, mounted rotor, 3MF is a PK zip.\n\
                  Later: catalog metal bearings from a standard table at larger sizes. Not this exam."
             )
         }

@@ -246,27 +246,91 @@ function coneR() {
 function coneApexZ() {
   return spec.base_h - spec.cone_h;
 }
-function shaftTipZ() {
-  return coneApexZ() + spec.cone_tip_lift;
-}
 function shoulderZ() {
   return spec.base_h + spec.shaft_lower_h;
 }
 function shoulderTop() {
   return shoulderZ() + spec.shaft_shoulder_h;
 }
-function postTop() {
-  return spec.base_h + spec.post_h;
+function postExtrudeH() {
+  return spec.plate_z - spec.base_h + spec.top_plate_h + spec.post_proud;
 }
-function topPlateTop() {
-  return postTop() + spec.top_plate_h;
+function plateTop() {
+  return spec.plate_z + spec.top_plate_h;
+}
+function bushingZ() {
+  return plateTop() - spec.bush_h;
+}
+function capZ() {
+  return plateTop() + spec.cap_float;
 }
 function shaftTop() {
   return shoulderTop() + spec.shaft_upper_h;
 }
+function rotorSweepR() {
+  const extra = spec.rotor_d * spec.overlap;
+  const radius = (spec.rotor_d + extra) / 4;
+  return radius - extra / 2 + radius;
+}
+function postInnerR() {
+  return spec.post_circle_r - spec.post_d / 2;
+}
 function postXY(index) {
   const angle = ((360 / spec.post_count) * index * Math.PI) / 180;
   return [spec.post_circle_r * Math.cos(angle), spec.post_circle_r * Math.sin(angle)];
+}
+function shaftProfile() {
+  const journal = spec.journal_d / 2;
+  const shoulder = spec.shaft_shoulder_d / 2;
+  const land = spec.thrust_land_od / 2;
+  const tipZ = coneApexZ() + 0.5;
+  const mouthZ = spec.base_h;
+  const landZ = spec.base_h + spec.thrust_float;
+  const landTop = landZ + spec.thrust_land_h;
+  return [
+    { x: 0, y: tipZ },
+    { x: spec.tip_r, y: tipZ },
+    { x: spec.male_cone_r, y: mouthZ },
+    { x: spec.male_cone_r, y: landZ },
+    { x: land, y: landZ },
+    { x: land, y: landTop },
+    { x: journal, y: landTop },
+    { x: journal, y: shoulderZ() },
+    { x: shoulder, y: shoulderZ() },
+    { x: shoulder, y: shoulderTop() },
+    { x: journal, y: shoulderTop() },
+    { x: journal, y: shaftTop() },
+    { x: 0, y: shaftTop() },
+    { x: 0, y: tipZ },
+  ];
+}
+async function cutFlats(bodyId, z, depth, halfAcross, outer) {
+  await beginDatum(await offsetXY(z));
+  await call("sketch_add_rectangle", {
+    mode: "two_point",
+    p1: { x: halfAcross, y: -outer },
+    p2: { x: outer, y: outer },
+    ctrl_held: false,
+  });
+  await call("sketch_add_rectangle", {
+    mode: "two_point",
+    p1: { x: -outer, y: -outer },
+    p2: { x: -halfAcross, y: outer },
+    ctrl_held: false,
+  });
+  const sketch = await finishSketch();
+  requireClean(
+    await call("solid_extrude", {
+      sketch_name: sketch,
+      profile_indices: [0, 1],
+      operation: "cut",
+      extent: { type: "distance", distance: depth },
+      taper_angle_deg: 0,
+      flip: false,
+      target_body_ids: [bodyId],
+    }),
+    "double-D flats",
+  );
 }
 function newestBody(update, known) {
   const skip = new Set(known);
@@ -391,7 +455,7 @@ try {
       sketch_name: sketch,
       profile_indices: [0],
       operation: "new_body",
-      extent: { type: "distance", distance: spec.post_h },
+      extent: { type: "distance", distance: postExtrudeH() },
       taper_angle_deg: 0,
       flip: false,
       target_body_ids: [],
@@ -420,21 +484,8 @@ try {
     "join posts",
   );
 
-  const journal = spec.journal_d / 2;
-  const shoulder = spec.shaft_shoulder_d / 2;
   await beginXZ();
-  await addPoly([
-    { x: 0, y: shaftTipZ() },
-    { x: coneR(), y: shaftTipZ() + spec.cone_h },
-    { x: journal, y: shaftTipZ() + spec.cone_h },
-    { x: journal, y: shoulderZ() },
-    { x: shoulder, y: shoulderZ() },
-    { x: shoulder, y: shoulderTop() },
-    { x: journal, y: shoulderTop() },
-    { x: journal, y: shaftTop() },
-    { x: 0, y: shaftTop() },
-    { x: 0, y: shaftTipZ() },
-  ]);
+  await addPoly(shaftProfile());
   sketch = await finishSketch();
   update = requireClean(
     await call("solid_revolve", {
@@ -451,8 +502,9 @@ try {
     "shaft",
   );
   const shaftId = newestBody(update, [baseId]);
+  await cutFlats(shaftId, shoulderTop(), spec.hub_h + 0.2, spec.drive_across / 2, 8);
 
-  await beginDatum(await offsetXY(shoulderZ()));
+  await beginDatum(await offsetXY(shoulderTop()));
   await addCircle(0, 0, spec.hub_od);
   await addCircle(0, 0, spec.bush_id);
   sketch = await finishSketch();
@@ -469,10 +521,17 @@ try {
     "rotor hub",
   );
   const hubId = newestBody(update, [baseId, shaftId]);
+  await cutFlats(
+    hubId,
+    shoulderTop(),
+    spec.hub_h + 0.2,
+    spec.drive_across_hub / 2,
+    spec.bush_id / 2 + 1,
+  );
 
   const sectionNames = [];
   for (let i = 0; i < spec.loft_stations; i++) {
-    const z = shoulderZ() + (spec.blade_h * i) / (spec.loft_stations - 1);
+    const z = shoulderTop() + (spec.blade_h * i) / (spec.loft_stations - 1);
     const ang = (spec.blade_twist_deg * i) / (spec.loft_stations - 1);
     await beginDatum(await offsetXY(z));
     await addC(ang, 0, 0);
@@ -514,7 +573,7 @@ try {
     "join rotor",
   );
 
-  await beginDatum(await offsetXY(postTop()));
+  await beginDatum(await offsetXY(spec.plate_z));
   await addCircle(0, 0, spec.top_plate_d);
   sketch = await finishSketch();
   update = requireClean(
@@ -530,7 +589,7 @@ try {
     "top plate",
   );
   const plateId = newestBody(update, [baseId, shaftId, hubId]);
-  await beginDatum(await offsetXY(topPlateTop()));
+  await beginDatum(await offsetXY(plateTop()));
   await addCircle(0, 0, spec.journal_d + spec.clearance_mm);
   for (let i = 0; i < spec.post_count; i++) {
     const [hx, hy] = postXY(i);
@@ -549,7 +608,7 @@ try {
     }),
     "plate through holes",
   );
-  await beginDatum(await offsetXY(topPlateTop()));
+  await beginDatum(await offsetXY(plateTop()));
   await addCircle(0, 0, spec.bush_seat);
   sketch = await finishSketch();
   requireClean(
@@ -565,7 +624,7 @@ try {
     "bushing seat",
   );
 
-  await beginDatum(await offsetXY(postTop()));
+  await beginDatum(await offsetXY(bushingZ()));
   await addCircle(0, 0, spec.bush_od);
   await addCircle(0, 0, spec.bush_id);
   sketch = await finishSketch();
@@ -583,7 +642,7 @@ try {
   );
   const bushId = newestBody(update, [baseId, shaftId, hubId, plateId]);
 
-  await beginDatum(await offsetXY(topPlateTop()));
+  await beginDatum(await offsetXY(capZ()));
   await addCircle(0, 0, spec.cap_d);
   await addCircle(0, 0, spec.bush_id);
   sketch = await finishSketch();
@@ -648,14 +707,15 @@ try {
     if (!box) return false;
     const cx = (box.min[0] + box.max[0]) / 2;
     const cy = (box.min[1] + box.max[1]) / 2;
-    return Math.hypot(cx, cy) < 40;
+    return Math.hypot(cx, cy) < 50;
   };
   record(
     report.lessons,
     "clearance",
     Math.abs(spec.bush_id - spec.journal_d - spec.clearance_mm) < 1e-9 &&
       Math.abs(spec.post_hole - spec.post_d - spec.clearance_mm) < 1e-9 &&
-      Math.abs(spec.bush_seat - spec.bush_od - spec.clearance_mm) < 1e-9,
+      Math.abs(spec.bush_seat - spec.bush_od - spec.clearance_mm) < 1e-9 &&
+      Math.abs(spec.drive_across_hub - spec.drive_across - spec.clearance_mm) < 1e-9,
     `journal ${spec.journal_d} in bush ${spec.bush_id}; post ${spec.post_d} in hole ${spec.post_hole}`,
   );
   record(
@@ -664,31 +724,42 @@ try {
     spec.clearance_mm >= spec.nozzle_mm && spec.bush_id > spec.journal_d,
     "printed interfaces are +0.40 slip; cone and cap retain the stack",
   );
+  const properStack =
+    spec.top_plate_h > spec.bush_h &&
+    postExtrudeH() + spec.base_h > plateTop() &&
+    rotorSweepR() + 1 < postInnerR() &&
+    spec.thrust_float > 0 &&
+    spec.cap_float > 0;
   record(
     report.lessons,
     "assemble",
     bodies.length >= spec.min_bodies &&
-      bodies.some((body) => (bboxOf(body)?.max[2] ?? 0) > postTop() - 1) &&
-      bodies.every(nearAxis),
-    `${bodies.length} coaxial bodies: ${(spec.assembly_order ?? []).join(" → ")}`,
+      bodies.some((body) => (bboxOf(body)?.max[2] ?? 0) > plateTop() - 1) &&
+      bodies.every(nearAxis) &&
+      properStack,
+    `${bodies.length} coaxial bodies; posts through plate; rotor sweep ${rotorSweepR().toFixed(1)} < post inner ${postInnerR().toFixed(1)}`,
   );
   record(
     report.lessons,
     "thrust",
-    Math.abs(spec.cone_half_deg - 45) < 1e-9 && spec.cone_h >= 3 && spec.cone_tip_lift > 0,
-    `printed ${spec.cone_half_deg}° cone-in-cup, tip lift ${spec.cone_tip_lift} mm`,
+    Math.abs(spec.cone_half_deg - 45) < 1e-9 &&
+      spec.cone_h >= 3 &&
+      spec.male_cone_r + 0.15 < coneR() &&
+      spec.thrust_land_od > spec.journal_d &&
+      spec.thrust_float >= 0.2,
+    `45° cup r${coneR().toFixed(1)} / male r${spec.male_cone_r}; Ø${spec.thrust_land_od} land float ${spec.thrust_float}`,
   );
   record(
     report.lessons,
     "even",
-    spec.post_count === 3 && spec.blade_count === 2,
-    "3 posts at 120° and 2 buckets at 180°",
+    spec.post_count === 3 && spec.blade_count === 2 && spec.drive_across_hub > spec.drive_across,
+    "3 posts at 120°, 2 buckets at 180°, double-D drive",
   );
   record(
     report.lessons,
     "printed_bearings",
-    spec.bush_od < 20 && spec.bush_h <= 5 && spec.cone_h >= 3,
-    "printed sleeve + printed conical thrust; no metal 608 required",
+    spec.bush_od < 20 && spec.bush_h < spec.top_plate_h && spec.cone_h >= 3,
+    "printed sleeve on a 2 mm land + printed cone/land thrust; no metal 608",
   );
   const rotorBox = bboxOf(rotor);
   record(
