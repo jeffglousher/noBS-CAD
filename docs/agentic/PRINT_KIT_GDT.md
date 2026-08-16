@@ -85,6 +85,16 @@ on post tips in the slicer if they hang on the plate.
 
 If those steps are not visible in the solid, the exam failed.
 
+## Wings (hub off the lid)
+
+The top plate hides the rotor in the assembled park. These views are hub + three wings only.
+
+![Wings on the hub, isometric](images/wings-iso.png)
+
+![Wings on the hub, top](images/wings-top.png)
+
+![One wing, scoop and tenon](images/wings-one.png)
+
 ## Assembled park
 
 ![Assembled park, isometric](images/assembled-park-iso.png)
