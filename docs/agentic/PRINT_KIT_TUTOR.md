@@ -24,8 +24,8 @@ placed **assembled on one axis**:
 | Base | Ø90 × 6 plate, 45° cup (r5), 3× Ø8 posts on R38 | Cup centers the shaft. Posts locate through the top plate and stand 2 mm proud. |
 | Shaft | Male cone r4.8, Ø13 × 0.8 land (0.20 float), Ø8 journal, Ø16 shoulder, double-D 6.0 in the hub zone | Land takes thrust; journal runs in the sleeve; double-D drives the hub |
 | Hub | Ø28 × 8, Ø8.4 bore, **sits on the shoulder**, double-D 6.4, 3 sockets at 60°/180°/300° | The wing mount. Sockets open to the OD. |
-| Wing ×3 | Scoop r20–r28, 80° sweep, 16 mm tall, 7.6 × 4.8 tenon | Drops into a hub socket. Sweeps a bay between the posts. |
-| Top plate | Ø90 × 6 at z=36, Ø8.4 post holes, Ø14.4 × 4 seat (2 mm land) | Drops onto the three posts; seat holds the sleeve |
+| Wing ×3 | Vertical blade: chord 12 mm tangential, thick 2.4, span 32, mid-chord R24, 7.6 × 4.8 tenon | Drops into a hub socket. Stands in a bay between the posts. |
+| Top plate | Ø90 × 6 at z=52, Ø8.4 post holes, Ø16 windows over the blades, Ø14.4 × 4 seat | Drops onto the three posts; windows keep the rotor visible; seat holds the sleeve |
 | Printed bushing | Ø8.4 / Ø14 × 4 sleeve | Sits on the land; upper radial bearing; no metal 608 |
 | Cap | Ø20 × 2.4 washer, 0.20 float above the plate | Slips onto the journal and keeps the stack down |
 
@@ -36,7 +36,7 @@ gaps; do not occupy the same volume.
 Assembly order: **base → shaft → hub → three wings → top plate → bushing → cap**.
 
 Print each body in its own orientation (base/plate flat, shaft on the
-land, bushing as a ring, hub on its face, wings on the scoop wall). The
+land, bushing as a ring, hub on its face, wings on the blade face). The
 exam shows the assembled stack so the mechanism is readable. noBS CAD
 cannot store a second print layout.
 

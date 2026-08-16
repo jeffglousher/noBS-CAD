@@ -3,9 +3,10 @@
 ## 2026-08-16
 
 - **Update**: Print-kit tutor is a printed VAWT again (`fdm-print-vawt`).
-  The two-bearing frame stays. The wing is a separate scoop that drops a
-  tenon into a hub socket and sweeps a bay between the posts. A turntable
-  was the wrong product — the wing had nothing to use. Record:
+  The two-bearing frame stays. The wing is a vertical blade (chord
+  tangential, span up the bay) that drops a tenon into a hub socket.
+  A concentric ring sector is not a wing — it cannot make torque. A
+  turntable was the wrong product — the wing had nothing to use. Record:
   [docs/agentic/PRINT_KIT_GDT.md](../docs/agentic/PRINT_KIT_GDT.md).
 
 ## 2026-08-15

@@ -255,19 +255,18 @@ async function addOrientedRect(center, length, width, angleDeg) {
     true,
   );
 }
-async function addPieCut(keepStartDeg, keepEndDeg, far) {
-  const points = [{ x: 0, y: 0 }];
-  let angle = keepEndDeg;
-  const end = keepStartDeg + 360;
-  while (angle < end - 1e-6) {
-    const radians = (angle * Math.PI) / 180;
-    points.push({ x: far * Math.cos(radians), y: far * Math.sin(radians) });
-    angle += 40;
-  }
-  const radians = (end * Math.PI) / 180;
-  points.push({ x: far * Math.cos(radians), y: far * Math.sin(radians) });
-  points.push({ x: 0, y: 0 });
-  await addPoly(points, true);
+function bladeCenter(index) {
+  const radians = (wingAngleDeg(index) * Math.PI) / 180;
+  return [spec.wing_radius * Math.cos(radians), spec.wing_radius * Math.sin(radians)];
+}
+function bladeAngleDeg(index) {
+  return wingAngleDeg(index) + 90;
+}
+function bladeInnerR() {
+  return spec.wing_radius - spec.wing_thick / 2;
+}
+function bladeTipR() {
+  return Math.hypot(spec.wing_radius, spec.wing_chord / 2);
 }
 function coneR() {
   return spec.cone_h * Math.tan((spec.cone_half_deg * Math.PI) / 180);
@@ -314,13 +313,13 @@ function socketCenter(index) {
 function tenonCenter(index) {
   const radians = (wingAngleDeg(index) * Math.PI) / 180;
   const inner = spec.hub_od / 2 - spec.socket_radial + spec.clearance_mm / 2;
-  const outer = spec.wing_inner_r + 0.2;
+  const outer = bladeInnerR() + 0.2;
   const radius = (inner + outer) / 2;
   return [radius * Math.cos(radians), radius * Math.sin(radians)];
 }
 function tenonRadial() {
   const inner = spec.hub_od / 2 - spec.socket_radial + spec.clearance_mm / 2;
-  const outer = spec.wing_inner_r + 0.2;
+  const outer = bladeInnerR() + 0.2;
   return outer - inner;
 }
 function socketFloorZ() {
@@ -579,9 +578,9 @@ try {
   const known = [baseId, shaftId, hubId];
   const wingIds = [];
   for (let i = 0; i < spec.wing_count; i++) {
+    const angle = wingAngleDeg(i);
     await beginDatum(await offsetXY(shoulderTop()));
-    await addCircle(0, 0, spec.wing_outer_r * 2);
-    await addCircle(0, 0, spec.wing_inner_r * 2);
+    await addOrientedRect(bladeCenter(i), spec.wing_chord, spec.wing_thick, bladeAngleDeg(i));
     sketch = await finishSketch();
     update = requireClean(
       await call("solid_extrude", {
@@ -593,25 +592,9 @@ try {
         flip: false,
         target_body_ids: [],
       }),
-      "wing ring",
+      "wing blade",
     );
     const wingId = newestBody(update, known);
-    const angle = wingAngleDeg(i);
-    await beginDatum(await offsetXY(shoulderTop()));
-    await addPieCut(angle - spec.wing_sweep_deg / 2, angle + spec.wing_sweep_deg / 2, 80);
-    sketch = await finishSketch();
-    requireClean(
-      await call("solid_extrude", {
-        sketch_name: sketch,
-        profile_indices: [0],
-        operation: "cut",
-        extent: { type: "distance", distance: spec.wing_h + 1 },
-        taper_angle_deg: 0,
-        flip: false,
-        target_body_ids: [wingId],
-      }),
-      "wing bay",
-    );
     await beginDatum(await offsetXY(socketFloorZ()));
     await addOrientedRect(tenonCenter(i), tenonRadial(), spec.tenon_w, angle);
     sketch = await finishSketch();
@@ -654,11 +637,15 @@ try {
     const [hx, hy] = postXY(i);
     await addCircle(hx, hy, spec.post_hole);
   }
+  for (let i = 0; i < spec.wing_count; i++) {
+    const [wx, wy] = bladeCenter(i);
+    await addCircle(wx, wy, spec.window_d);
+  }
   sketch = await finishSketch();
   requireClean(
     await call("solid_extrude", {
       sketch_name: sketch,
-      profile_indices: [...Array(spec.post_count + 1).keys()],
+      profile_indices: [...Array(1 + spec.post_count + spec.wing_count).keys()],
       operation: "cut",
       extent: { type: "distance", distance: spec.top_plate_h + 1 },
       taper_angle_deg: 0,
@@ -789,7 +776,7 @@ try {
   const properStack =
     spec.top_plate_h > spec.bush_h &&
     postExtrudeH() + spec.base_h > plateTop() &&
-    spec.wing_outer_r + 1 < postInnerR() &&
+    bladeTipR() + 1 < postInnerR() &&
     spec.thrust_float > 0 &&
     spec.cap_float > 0;
   record(
@@ -799,7 +786,7 @@ try {
       bodies.some((body) => (bboxOf(body)?.max[2] ?? 0) > plateTop() - 1) &&
       bodies.every(nearAxis) &&
       properStack,
-    `${bodies.length} coaxial bodies; wing r${spec.wing_outer_r} in post inner r${postInnerR()}; hub sockets`,
+    `${bodies.length} coaxial bodies; blade tip r${bladeTipR().toFixed(1)} in post inner r${postInnerR()}; hub sockets`,
   );
   record(
     report.lessons,
@@ -827,13 +814,17 @@ try {
     "printed sleeve on a 2 mm land + printed cone/land thrust; no metal 608",
   );
   const wingBox = bboxOf(wing);
+  const wingXy = wingBox ? Math.max(wingBox.span[0], wingBox.span[1]) : Infinity;
   record(
     report.lessons,
     "not_2d",
     (wing?.faces?.length ?? 0) >= spec.min_rotor_faces &&
       !!wingBox &&
-      wingBox.span[2] > spec.wing_h - 1,
-    { faces: wing?.faces?.length, bbox: wingBox },
+      wingBox.span[2] > spec.wing_h - 1 &&
+      wingXy < bladeTipR() &&
+      spec.wing_thick < spec.wing_chord / 3 &&
+      spec.wing_h > spec.wing_chord * 2,
+    { faces: wing?.faces?.length, bbox: wingBox, xy: wingXy },
   );
   record(
     report.lessons,

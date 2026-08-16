@@ -17,7 +17,7 @@
   "post_proud": 2.0,
   "base_d": 90.0,
   "base_h": 6.0,
-  "plate_z": 36.0,
+  "plate_z": 52.0,
   "rotor_to_plate_gap": 2.0,
   "cone_h": 5.0,
   "cone_half_deg": 45.0,
@@ -31,7 +31,7 @@
   "shaft_lower_h": 10.0,
   "shaft_shoulder_d": 16.0,
   "shaft_shoulder_h": 2.0,
-  "shaft_upper_h": 28.0,
+  "shaft_upper_h": 44.0,
   "hub_od": 28.0,
   "hub_h": 8.0,
   "socket_w": 8.0,
@@ -42,11 +42,12 @@
   "drive_across": 6.0,
   "drive_across_hub": 6.4,
   "wing_count": 3,
-  "wing_h": 16.0,
-  "wing_outer_r": 28.0,
-  "wing_inner_r": 20.0,
-  "wing_sweep_deg": 80.0,
+  "wing_h": 32.0,
+  "wing_radius": 24.0,
+  "wing_chord": 12.0,
+  "wing_thick": 2.4,
   "wing_offset_deg": 60.0,
+  "window_d": 16.0,
   "top_plate_d": 90.0,
   "top_plate_h": 6.0,
   "cap_d": 20.0,
@@ -105,12 +106,12 @@
     {
       "id": "not_2d",
       "title": "The wing is a part that mounts",
-      "teach": "A leftover helical C-loft is not a wing. The wing is a scoop with a tenon. It uses the hub socket and clears the posts. A platter with paint wells is not a turbine."
+      "teach": "A leftover helical C-loft is not a wing. A concentric ring sector is not a wing either — its concave face points at the axis and cannot catch wind. The wing is a vertical blade (chord tangential, span up the bay) with a tenon into the hub. Windows in the top plate keep the blades visible."
     },
     {
       "id": "export",
       "title": "Export a printable package",
-      "teach": "Assign appearances, run solid_export_preflight, then solid_export_3mf for bambu_studio. Print each body in its own orientation (base/plate flat, shaft on the land, bushing as a ring, hub on its face, wings on the scoop wall). 3MF is the manufacturing handoff."
+      "teach": "Assign appearances, run solid_export_preflight, then solid_export_3mf for bambu_studio. Print each body in its own orientation (base/plate flat, shaft on the land, bushing as a ring, hub on its face, wings on the blade face). 3MF is the manufacturing handoff."
     }
   ]
 }

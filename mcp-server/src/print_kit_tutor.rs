@@ -55,10 +55,11 @@ pub struct Spec {
     pub drive_across_hub: f64,
     pub wing_count: usize,
     pub wing_h: f64,
-    pub wing_outer_r: f64,
-    pub wing_inner_r: f64,
-    pub wing_sweep_deg: f64,
+    pub wing_radius: f64,
+    pub wing_chord: f64,
+    pub wing_thick: f64,
     pub wing_offset_deg: f64,
+    pub window_d: f64,
     pub top_plate_d: f64,
     pub top_plate_h: f64,
     pub cap_d: f64,
@@ -114,17 +115,36 @@ impl Spec {
         let radius = self.hub_od / 2.0 - self.socket_radial / 2.0;
         [radius * radians.cos(), radius * radians.sin()]
     }
+    fn blade_center(&self, index: usize) -> [f64; 2] {
+        let radians = self.wing_angle_deg(index).to_radians();
+        [
+            self.wing_radius * radians.cos(),
+            self.wing_radius * radians.sin(),
+        ]
+    }
+    fn blade_angle_deg(&self, index: usize) -> f64 {
+        self.wing_angle_deg(index) + 90.0
+    }
+    fn blade_inner_r(&self) -> f64 {
+        self.wing_radius - self.wing_thick / 2.0
+    }
+    fn blade_tip_r(&self) -> f64 {
+        (self.wing_radius.powi(2) + (self.wing_chord / 2.0).powi(2)).sqrt()
+    }
     fn tenon_center(&self, index: usize) -> [f64; 2] {
         let radians = self.wing_angle_deg(index).to_radians();
         let inner = self.hub_od / 2.0 - self.socket_radial + self.clearance_mm / 2.0;
-        let outer = self.wing_inner_r + 0.2;
+        let outer = self.blade_inner_r() + 0.2;
         let radius = (inner + outer) / 2.0;
         [radius * radians.cos(), radius * radians.sin()]
     }
     fn tenon_radial(&self) -> f64 {
         let inner = self.hub_od / 2.0 - self.socket_radial + self.clearance_mm / 2.0;
-        let outer = self.wing_inner_r + 0.2;
+        let outer = self.blade_inner_r() + 0.2;
         outer - inner
+    }
+    fn window_xy(&self, index: usize) -> [f64; 2] {
+        self.blade_center(index)
     }
     fn socket_floor_z(&self) -> f64 {
         self.shoulder_top() + self.hub_h - self.socket_h
@@ -482,16 +502,22 @@ fn build_wing(
     index: usize,
     known: &[u64],
 ) -> Result<u64, String> {
+    let angle = spec.wing_angle_deg(index);
     let deck = offset_xy(call, spec.shoulder_top())?;
     begin_datum(call, deck)?;
-    add_circle(call, [0.0, 0.0], spec.wing_outer_r * 2.0)?;
-    add_circle(call, [0.0, 0.0], spec.wing_inner_r * 2.0)?;
-    let ring = finish_sketch(call)?;
+    add_oriented_rect(
+        call,
+        spec.blade_center(index),
+        spec.wing_chord,
+        spec.wing_thick,
+        spec.blade_angle_deg(index),
+    )?;
+    let blade = finish_sketch(call)?;
     let update = require_clean(
         call(
             "solid_extrude",
             json!({
-                "sketch_name": ring,
+                "sketch_name": blade,
                 "profile_indices": [0],
                 "operation": "new_body",
                 "extent": { "type": "distance", "distance": spec.wing_h },
@@ -500,32 +526,9 @@ fn build_wing(
                 "target_body_ids": []
             }),
         )?,
-        "wing ring",
+        "wing blade",
     )?;
     let wing_id = newest_body_id(&update, known)?;
-
-    let angle = spec.wing_angle_deg(index);
-    let keep_start = angle - spec.wing_sweep_deg / 2.0;
-    let keep_end = angle + spec.wing_sweep_deg / 2.0;
-    let pie_deck = offset_xy(call, spec.shoulder_top())?;
-    begin_datum(call, pie_deck)?;
-    add_pie_cut(call, keep_start, keep_end, 80.0)?;
-    let pie = finish_sketch(call)?;
-    require_clean(
-        call(
-            "solid_extrude",
-            json!({
-                "sketch_name": pie,
-                "profile_indices": [0],
-                "operation": "cut",
-                "extent": { "type": "distance", "distance": spec.wing_h + 1.0 },
-                "taper_angle_deg": 0.0,
-                "flip": false,
-                "target_body_ids": [wing_id]
-            }),
-        )?,
-        "wing bay",
-    )?;
 
     let tenon_deck = offset_xy(call, spec.socket_floor_z())?;
     begin_datum(call, tenon_deck)?;
@@ -586,13 +589,16 @@ fn build_top_plate(
     for i in 0..spec.post_count {
         add_circle(call, spec.post_xy(i), spec.post_hole)?;
     }
+    for i in 0..spec.wing_count {
+        add_circle(call, spec.window_xy(i), spec.window_d)?;
+    }
     let holes = finish_sketch(call)?;
     require_clean(
         call(
             "solid_extrude",
             json!({
                 "sketch_name": holes,
-                "profile_indices": (0..=spec.post_count).collect::<Vec<_>>(),
+                "profile_indices": (0..(1 + spec.post_count + spec.wing_count)).collect::<Vec<_>>(),
                 "operation": "cut",
                 "extent": { "type": "distance", "distance": spec.top_plate_h + 1.0 },
                 "taper_angle_deg": 0.0,
@@ -721,7 +727,7 @@ fn grade(
 
     let proper_stack = spec.top_plate_h > spec.bush_h
         && spec.post_extrude_h() + spec.base_h > spec.plate_top()
-        && spec.wing_outer_r + 1.0 < spec.post_inner_r()
+        && spec.blade_tip_r() + 1.0 < spec.post_inner_r()
         && spec.thrust_float > 0.0
         && spec.cap_float > 0.0;
     let stacked = bodies.len() >= spec.min_bodies
@@ -735,9 +741,9 @@ fn grade(
         "assemble",
         stacked,
         format!(
-            "{} coaxial bodies; wing r{:.0} in post inner r{:.0}; hub sockets",
+            "{} coaxial bodies; blade tip r{:.1} in post inner r{:.0}; hub sockets",
             bodies.len(),
-            spec.wing_outer_r,
+            spec.blade_tip_r(),
             spec.post_inner_r()
         ),
     );
@@ -776,15 +782,22 @@ fn grade(
     let wing_faces = wing
         .and_then(|body| body["faces"].as_array().map(|faces| faces.len()))
         .unwrap_or(0);
-    let wing_span = wing
-        .and_then(bbox)
+    let wing_box = wing.and_then(bbox);
+    let wing_span = wing_box
         .map(|box3| box3[1][2] - box3[0][2])
         .unwrap_or(0.0);
+    let wing_xy = wing_box
+        .map(|box3| (box3[1][0] - box3[0][0]).max(box3[1][1] - box3[0][1]))
+        .unwrap_or(f64::INFINITY);
     push_lesson(
         &mut lessons,
         "not_2d",
-        wing_faces >= spec.min_rotor_faces && wing_span > spec.wing_h - 1.0,
-        format!("mounted wing faces={wing_faces} height={wing_span:.1}"),
+        wing_faces >= spec.min_rotor_faces
+            && wing_span > spec.wing_h - 1.0
+            && wing_xy < spec.blade_tip_r()
+            && spec.wing_thick < spec.wing_chord / 3.0
+            && spec.wing_h > spec.wing_chord * 2.0,
+        format!("mounted blade faces={wing_faces} height={wing_span:.1} xy={wing_xy:.1}"),
     );
 
     let timeline_ok = features.iter().all(|feature| {
@@ -880,26 +893,6 @@ fn add_oriented_rect(
         ],
         true,
     )
-}
-
-fn add_pie_cut(
-    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
-    keep_start_deg: f64,
-    keep_end_deg: f64,
-    far: f64,
-) -> Result<(), String> {
-    let mut points = vec![[0.0, 0.0]];
-    let mut angle = keep_end_deg;
-    let end = keep_start_deg + 360.0;
-    while angle < end - 1e-6 {
-        let radians = angle.to_radians();
-        points.push([far * radians.cos(), far * radians.sin()]);
-        angle += 40.0;
-    }
-    let radians = end.to_radians();
-    points.push([far * radians.cos(), far * radians.sin()]);
-    points.push([0.0, 0.0]);
-    add_poly(call, &points, true)
 }
 
 fn cut_flats(
@@ -1192,7 +1185,9 @@ mod spec_tests {
         assert_eq!(spec.cone_half_deg, 45.0);
         assert!(spec.male_cone_r + 0.15 < spec.cone_r());
         assert!(spec.top_plate_h > spec.bush_h);
-        assert!(spec.wing_outer_r + 1.0 < spec.post_inner_r());
+        assert!(spec.blade_tip_r() + 1.0 < spec.post_inner_r());
+        assert!(spec.wing_h > spec.wing_chord * 2.0);
+        assert!(spec.wing_thick < spec.wing_chord / 3.0);
         assert!(spec.post_extrude_h() + spec.base_h > spec.plate_top());
         assert!(
             (spec.plate_z
