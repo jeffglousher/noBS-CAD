@@ -67,3 +67,16 @@ on post tips in the slicer if they hang on the plate.
 5. Cap onto the round journal, 0.20 above the plate.
 
 If those five steps are not visible in the solid, the exam failed.
+
+## As-built stack (Node exam, 2026-08-15)
+
+| Body | z min–max | Notes |
+|------|-----------|--------|
+| Base + posts | 0–38 | Posts through the 30–36 plate, 2 mm proud |
+| Shaft | 1.5–40 | Land above the cup; journal through the cap |
+| Rotor | 18–28 | Sits on the shoulder; 2 mm air to the plate |
+| Top plate | 30–36 | Ø90 × 6 |
+| Bushing | 32–36 | On the 2 mm land |
+| Cap | 36.2–38.6 | 0.20 float |
+
+Rotor sweep R28 < post inner R34. Six coaxial bodies. READY TO PRINT.
