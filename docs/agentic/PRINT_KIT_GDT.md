@@ -123,3 +123,45 @@ only. The section is **NACA 0021**, not a hoop and not a flat plate.
 | Cap | 71.2–72.8 | 0.20 float |
 
 Blade tip ~R25.3 < post inner R29.5. Envelope/rotor ~1.46. Nine coaxial bodies.
+
+## 2026-08-16 assembly pass (closed)
+
+The two-bearing nest above is the previous exam. It printed and it
+graded, but it was the wrong product for additive manufacturing:
+
+| Fault | Why it failed | Correction |
+|-------|---------------|------------|
+| Uniform +0.40 | Every hole used the running clearance. Locates were sloppy; nothing that should be tight was. | Role-based: running +0.40, slip +0.28, friction +0.16. Slicer XY hole comp stays 0. |
+| Tenoned wings | Three separate blades + hub is a puzzle, not a rotor. | Hub + 3 helical NACAs are **one body**. Open drafted tips. |
+| Tall skinny shaft | Support tower; weak in bending at the blade tips. | Short square stator post. Axle is a flanged inner-race **puck**, printed on the flange. |
+| Two-land sleeve only | L/D 1.0 is a journal, not a moment bearing. | Large-PCD printed roller cartridge (PIP, min Ø8). Hub bore is the outer race. |
+| No CAD assembly | Multi-body nest, no components/joints, no drawing. | 5 components, grounded base, revolute, A3 sheet with notes. |
+| No scale | Desk-size only; not an X2D-max source. | Spec numbers are X2D-max (256×256×260, 8 mm margin). `scale` 0.4 in the exam. |
+
+### Fits (current)
+
+| Joint | Class | CAD |
+|-------|-------|-----|
+| Rollers ↔ pockets / races | Running | +0.40 diametral |
+| Retainer ↔ square post | Slip | +0.28 |
+| Axle square bore ↔ post | Friction locate | +0.16 |
+| Hub ↔ flange land | Thrust | 0.20 axial float |
+
+### Print (current)
+
+| Part | Orientation |
+|------|-------------|
+| Base | Flat (Y-frame + post) |
+| Axle | On the flange |
+| Rotor | Standing on the hub, tips up |
+| Roller cartridge | Flat, PIP |
+| Retainer | Flat |
+
+### Assembly (current)
+
+1. Axle puck onto the square post (friction). Flange sits on the base.
+2. Roller cartridge over the inner race, onto the flange.
+3. Rotor hub over the cartridge (outer race). Hub sits on the flange land.
+4. Retainer slip-fits the post and keeps the hub down.
+
+If those steps are not visible in the solid, the exam failed.

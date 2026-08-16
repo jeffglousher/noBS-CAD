@@ -2,10 +2,16 @@
 
 ## 2026-08-16
 
+- **Update**: Print-kit tutor is now a five-part **assembly**: one-piece
+  helical rotor, short square stator, flanged inner-race puck, PIP roller
+  cartridge, retainer. Role-based fits (running +0.40 / slip +0.28 /
+  friction +0.16). Scale parameter (1.0 = Bambu Lab X2D max; exam 0.4).
+  Named `assembly_*` tools + A3 drawing. Five print plates.
+  Contract: [PRINT_KIT_DESIGN.md](../docs/agentic/PRINT_KIT_DESIGN.md).
 - **Update**: MCP now has named `assembly_*` tools (38), `solid_move_copy`,
   `nbcad://assembly` / `nbcad://assembly_solution`, and `assemble_joint` /
-  `check_interference` prompts. The print-kit tutor still does not use
-  joints. Matrix: [MCP_GAP.md](../docs/agentic/MCP_GAP.md).
+  `check_interference` prompts. The print-kit tutor uses components,
+  occurrences, and a revolute. Matrix: [MCP_GAP.md](../docs/agentic/MCP_GAP.md).
 - **Update**: Print-kit export is seven print-plate 3MFs
   (`Documents/noBS-CAD/Print-Kit-Tutor/`), not one assembled nest.
   This stack is not print-in-place.

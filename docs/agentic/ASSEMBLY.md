@@ -6,8 +6,10 @@ collision. Host dispatch is `assembly_*` in `crates/sketch/src/host.rs`.
 
 MCP now wraps **every** one of those methods as a named tool in
 `FocusPack::Assembly` (`mcp-server/src/assembly_tools.rs`). Agents should
-call `assembly_create_joint`, not `cad_invoke`. The print-kit tutor still
-builds a **multi-body part** on one axis with numeric fits — no mates.
+call `assembly_create_joint`, not `cad_invoke`. The print-kit tutor now
+builds **individual parts**, then forms an assembly (components,
+occurrences, a revolute) and an annotated drawing. Fits stay numbers
+(running / slip / friction) — joints do not invent metal 608s.
 
 ## What the engine and MCP both have
 
@@ -25,11 +27,13 @@ remains the escape hatch for host methods that land before a named wrapper.
 
 ## What the print-kit tutor must not do
 
-- Do not add joints, occurrences, or motion studies to the VAWT exam
-- Fits stay numbers (`+0.40`), not mates
+- Do not skip the assembly step (components + occurrences + a revolute)
+- Fits stay numbers (running +0.40 / slip +0.28 / friction +0.16), not
+  a substitute for mates and not a press
 - Until catalog hardware exists, kits **print every bearing surface**
-  (cone thrust, sleeve bushing, printed rollers)
-- Engine joints do not invent metal 608s or screws
+  (flange thrust land, PIP roller cartridge). No hidden 608s
+- Engine joints do not invent metal bearings or screws
+- Do not export the assembled nest as the print job
 
 ## Multi-body without mates (still valid)
 

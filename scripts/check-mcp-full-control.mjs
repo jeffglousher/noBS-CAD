@@ -301,8 +301,11 @@ const spec = JSON.parse(specSrc);
 if (spec.nozzle_mm !== 0.4 || spec.clearance_mm !== 0.4) {
   fail('print-kit tutor spec must keep a 0.4 mm nozzle clearance stack');
 }
-if (Math.abs(spec.bush_id - spec.journal_d - spec.clearance_mm) > 1e-9) {
-  fail('print-kit tutor spec bush_id must be journal + clearance');
+if (spec.fit_running_mm !== 0.4) {
+  fail('print-kit tutor spec fit_running_mm must be 0.4 (PLA running / roller)');
+}
+if (!(spec.fit_friction_mm < spec.fit_slip_mm && spec.fit_slip_mm < spec.fit_running_mm)) {
+  fail('print-kit tutor spec must keep friction < slip < running fits');
 }
 if (!mainSrc.includes('mod print_kit_tutor')) {
   fail('mcp-server must compile the print-kit tutor exam');

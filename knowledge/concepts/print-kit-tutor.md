@@ -10,23 +10,21 @@ updated: 2026-08-16
 
 **Benchmark #1** in the agentic MCP suite
 ([integration tests](../../docs/agentic/INTEGRATION_TESTS.md)). A rerunnable
-CAD exam, not a one-off prototype. MCP teaches a 0.4 mm Bambu nozzle
-tolerance stack by building a printed VAWT — assembled on one
-axis — and grading it.
+CAD exam, not a one-off prototype. MCP teaches role-based 0.4 mm Bambu
+nozzle fits by building a printed VAWT **assembly** and grading it.
 
 - Spec: [print-kit-tutor.spec.json](../../scripts/fixtures/print-kit-tutor.spec.json)
 - Recipe: `prompts/get model_print_kit`
 - Engine exam: `cargo test --manifest-path mcp-server/Cargo.toml print_kit_tutor`
 - Agent exam: `npm run test:mcp-print-kit`
-- Multi-body vs mates: [ASSEMBLY.md](../../docs/agentic/ASSEMBLY.md) (named `assembly_*` tools exist; this exam stays a nest)
+- Assembly: [ASSEMBLY.md](../../docs/agentic/ASSEMBLY.md) (named `assembly_*` tools; this exam uses them)
 - Domain matrix: [MCP_GAP.md](../../docs/agentic/MCP_GAP.md)
 
-Clearance is modeled in CAD (+0.40 mm diametral). No FDM press fits. Bodies
-are placed in assembly order (base, shaft, hub, three wings, top plate,
-printed bushing, cap). The frame is a two-bearing stand. Each wing is a
-named symmetric airfoil (NACA 0021) that drops a tenon into a hub socket.
-Prefer printed bushings over rollers. The recipe is adversarial
+Five functional parts (base, axle puck, one-piece helical rotor, PIP
+roller cartridge, retainer), then components / occurrences / a revolute
+and an A3 drawing. Fits are per role (running +0.40, slip +0.28, friction
++0.16). Scale 1.0 is Bambu Lab X2D-max; the exam runs at 0.4. No FDM
+press fits. No metal 608s. The recipe is adversarial
 ([PRINT_KIT_DESIGN.md](../../docs/agentic/PRINT_KIT_DESIGN.md)); the exam
 writes a design report with plastic cost. Fits:
 [PRINT_KIT_GDT.md](../../docs/agentic/PRINT_KIT_GDT.md).
-Metal 608 bearings are later catalog hardware, not part of this exam.
