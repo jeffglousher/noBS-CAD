@@ -698,6 +698,7 @@ mod tests {
             "two-land",
             "Y-frame",
             "print plate",
+            "blank document",
         ] {
             assert!(
                 print_kit.contains(needle),
