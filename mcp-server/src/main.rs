@@ -18,6 +18,7 @@ use nbcad_sketch::{
 use nbcad_solid::{CommitKernelRequest, RecomputePlanDto, SolidSceneDto, StepExportRequest};
 use serde_json::{json, Map, Value};
 
+mod assembly_tools;
 mod disclosure;
 mod drawing_tools;
 mod full_control;
@@ -39,7 +40,7 @@ const META_CLIENT_INFO: &str = "io.modelcontextprotocol/clientInfo";
 const META_CLIENT_CAPABILITIES: &str = "io.modelcontextprotocol/clientCapabilities";
 const META_SERVER_INFO: &str = "io.modelcontextprotocol/serverInfo";
 const UNSUPPORTED_PROTOCOL_VERSION: i64 = -32022;
-const MODELING_TOOL_COUNT: usize = 166;
+const MODELING_TOOL_COUNT: usize = 205;
 const CONTROL_TOOL_COUNT: usize = 12;
 const PRINT_HELPER_COUNT: usize = 8;
 
@@ -173,10 +174,10 @@ impl WorkspaceKind {
     }
 
     fn from_focus(focus: FocusPack) -> Self {
-        if matches!(focus, FocusPack::Drawing) {
-            Self::Drawing
-        } else {
-            Self::Solid
+        match focus {
+            FocusPack::Drawing => Self::Drawing,
+            FocusPack::Assembly => Self::Assembly,
+            _ => Self::Solid,
         }
     }
 }
@@ -546,7 +547,8 @@ impl CadServer {
                 self.workspace = workspace;
                 let focus = match workspace {
                     WorkspaceKind::Drawing => FocusPack::Drawing,
-                    WorkspaceKind::Solid | WorkspaceKind::Assembly => FocusPack::Solid,
+                    WorkspaceKind::Assembly => FocusPack::Assembly,
+                    WorkspaceKind::Solid => FocusPack::Solid,
                 };
                 self.disclosure.set_focus(focus, true);
                 let mut status = self.disclosure.status_json();
@@ -1843,6 +1845,22 @@ fn tool_specs() -> Vec<ToolSpec> {
         }),
         &["body_id", "face_ids", "thickness", "inward"],
     );
+    let move_copy = object_schema(
+        json!({
+            "body_ids": body_ids.clone(),
+            "translation": point3.clone(),
+            "rotation": {
+                "type": "array",
+                "items": { "type": "number" },
+                "minItems": 4,
+                "maxItems": 4,
+                "description": "Unit quaternion [x, y, z, w]. Default identity [0, 0, 0, 1]."
+            },
+            "pivot": point3.clone(),
+            "copy": { "type": "boolean", "description": "When true, leave the source bodies and create copies." }
+        }),
+        &["body_ids", "translation", "pivot"],
+    );
     let solid_mirror = object_schema(
         json!({
             "body_ids": body_ids.clone(),
@@ -3112,6 +3130,28 @@ fn tool_specs() -> Vec<ToolSpec> {
             ),
         ),
         ToolSpec::solid(
+            "solid_move_copy",
+            "Move or copy bodies",
+            "Apply a rigid transform to one or more bodies. Rotation is a unit quaternion [x, y, z, w]; translation and pivot are millimetres. copy=true leaves the sources and creates new bodies.",
+            "solid_prepare_body_feature",
+            Payload::BodyFeature("move_copy"),
+            move_copy.clone(),
+        ),
+        ToolSpec::solid(
+            "solid_edit_move_copy",
+            "Edit Move/Copy feature",
+            "Edit a persisted Move/Copy and fully replay downstream history.",
+            "solid_prepare_edit_body_feature",
+            Payload::EditBodyFeature("move_copy"),
+            object_schema(
+                json!({
+                    "feature_id": {"type": "integer", "minimum": 1},
+                    "request": move_copy
+                }),
+                &["feature_id", "request"],
+            ),
+        ),
+        ToolSpec::solid(
             "solid_mirror",
             "Mirror bodies",
             "Create mirrored copies of one or more bodies around an origin, face, or construction plane.",
@@ -3442,7 +3482,7 @@ fn tool_specs() -> Vec<ToolSpec> {
                 json!({
                     "focus": {
                         "type": "string",
-                        "enum": ["document", "sketch", "solid", "modify", "body_ops", "datums", "history", "inspect", "print", "drawing"]
+                        "enum": ["document", "sketch", "solid", "modify", "body_ops", "datums", "history", "inspect", "print", "drawing", "assembly"]
                     },
                     "explicit": {
                         "type": "boolean",
@@ -3455,7 +3495,7 @@ fn tool_specs() -> Vec<ToolSpec> {
         ToolSpec::control(
             "cad_set_workspace",
             "Set UI workspace",
-            "Switch the product workspace the live UI should show: solid (model/sketch), drawing, or assembly. Writes focus.json on a live attach so the Drawing/Model switcher follows MCP. Assembly has no named MCP pack yet — use cad_invoke assembly_*.",
+            "Switch the product workspace the live UI should show: solid (model/sketch), drawing, or assembly. Writes focus.json on a live attach so the Drawing/Model switcher follows MCP. Assembly focus advertises the named assembly_* pack.",
             object_schema(
                 json!({
                     "workspace": {
@@ -3544,6 +3584,21 @@ fn tool_specs() -> Vec<ToolSpec> {
             empty_schema(),
         ),
     ]);
+    for tool in assembly_tools::assembly_tools() {
+        let payload = match tool.payload {
+            assembly_tools::AssemblyPayload::Empty => Payload::Empty,
+            assembly_tools::AssemblyPayload::Object => Payload::Object,
+            assembly_tools::AssemblyPayload::Field(field) => Payload::Field(field),
+        };
+        tools.push(ToolSpec::direct(
+            tool.name,
+            tool.title,
+            tool.description,
+            tool.engine_method,
+            payload,
+            tool.schema,
+        ));
+    }
     for tool in &mut tools {
         let (pack, spine) = tags_for_tool(tool.name);
         tool.pack = pack;
@@ -3618,7 +3673,7 @@ fn server_info() -> Value {
 }
 
 fn modeling_manual() -> &'static str {
-    "Modeling: one persistent headless CAD document. Begin and finish sketches before solid features. Use returned entity/body/face/edge ids. Soft disclosure is on; out-of-focus tools stay callable. Typical loop: sketch_begin → sketch_add_* / constraints → sketch_finish → sketch_profiles → solid_extrude (or revolve/sweep/loft/rib) → solid_scene / cad_document. Read state via nbcad://document|scene|sketch|profiles|features|drawing|workspace. Recipes: prompts/list (model_box, model_solid, model_print_tool, model_print_kit, import_step, export_step, drawing_export, undo_history, invoke). Mechanical full control: cad_invoke (any host method) and cad_drawing_command (any drawing op). Application history: cad_undo / cad_redo. Optional UI co-link: cad_list_sessions → cad_attach. Live UI workspace: cad_set_workspace solid|drawing. Drawings: cad_drawing_create_sheet → cad_drawing_auto_layout / cad_drawing_add_* → cad_drawing_project_sheet / cad_drawing_export_dxf / cad_drawing_export_svg. File import: solid_import_step. Print: solid_export_3mf."
+    "Modeling: one persistent headless CAD document. Begin and finish sketches before solid features. Use returned entity/body/face/edge ids. Soft disclosure is on; out-of-focus tools stay callable. Typical loop: sketch_begin → sketch_add_* / constraints → sketch_finish → sketch_profiles → solid_extrude (or revolve/sweep/loft/rib) → solid_scene / cad_document. Read state via nbcad://document|scene|sketch|profiles|features|drawing|assembly|assembly_solution|workspace. Recipes: prompts/list (model_box, model_solid, model_print_tool, model_print_kit, import_step, export_step, drawing_export, assemble_joint, check_interference, undo_history, invoke). Named assembly_* tools cover components, occurrences, joints, motion, and interference. Mechanical escape hatch: cad_invoke (any host method) and cad_drawing_command (any drawing op). Application history: cad_undo / cad_redo. Optional UI co-link: cad_list_sessions → cad_attach. Live UI workspace: cad_set_workspace solid|drawing|assembly. Drawings: cad_drawing_create_sheet → cad_drawing_auto_layout / cad_drawing_add_* → cad_drawing_project_sheet / cad_drawing_export_dxf / cad_drawing_export_svg. File import: solid_import_step. Print: solid_export_3mf."
 }
 
 fn modern_protocol_manual() -> &'static str {
@@ -3973,6 +4028,10 @@ fn read_product_resource(server: &mut CadServer, uri: &str) -> Result<Value, Str
         surfaces::ResourceKind::Project => server.call_tool("cad_project_model", json!({}))?,
         surfaces::ResourceKind::Scene => server.call_tool("solid_scene", json!({}))?,
         surfaces::ResourceKind::Drawing => server.call_tool("cad_drawing_document", json!({}))?,
+        surfaces::ResourceKind::Assembly => server.call_tool("assembly_document", json!({}))?,
+        surfaces::ResourceKind::AssemblySolution => {
+            server.call_tool("assembly_solution", json!({}))?
+        }
         surfaces::ResourceKind::Focus => {
             let mut status = server.disclosure.status_json();
             server.annotate_workspace(&mut status);
@@ -4331,7 +4390,7 @@ mod tests {
         assert_eq!(
             all_tools.len(),
             MODELING_TOOL_COUNT + PRINT_HELPER_COUNT + CONTROL_TOOL_COUNT,
-            "166 modeling tools plus 8 print helpers and 12 control tools"
+            "205 modeling tools plus 8 print helpers and 12 control tools"
         );
         let modeling_count = all_tools
             .iter()
@@ -4518,6 +4577,8 @@ mod tests {
         let focus;
         let features;
         let profiles;
+        let assembly;
+        let assembly_solution;
         let missing;
         {
             let mut read_resource = |uri: &str| {
@@ -4539,6 +4600,8 @@ mod tests {
             focus = read_resource("nbcad://focus");
             features = read_resource("nbcad://features");
             profiles = read_resource("nbcad://profiles");
+            assembly = read_resource("nbcad://assembly");
+            assembly_solution = read_resource("nbcad://assembly_solution");
             missing = read_resource("nbcad://nope");
         }
         assert_eq!(drawing["result"]["resultType"], "complete");
@@ -4558,6 +4621,8 @@ mod tests {
             "nbcad://features must bundle definitions: {features_text}"
         );
         assert_eq!(profiles["result"]["resultType"], "complete");
+        assert_eq!(assembly["result"]["resultType"], "complete");
+        assert_eq!(assembly_solution["result"]["resultType"], "complete");
         assert_eq!(missing["error"]["code"], -32602);
 
         let prompts = handle_message(
@@ -4959,17 +5024,18 @@ mod tests {
             *packs.entry(tool.pack.as_str()).or_default() += 1;
         }
         assert_eq!(packs.values().sum::<usize>(), MODELING_TOOL_COUNT);
-        // Modeling registry covers 9 packs; print helpers are outside MODELING_TOOL_COUNT.
+        // Modeling registry covers 10 packs; print helpers are outside MODELING_TOOL_COUNT.
         assert_eq!(packs.len(), FocusPack::ALL.len() - 1);
         assert_eq!(packs["document"], 8);
         assert_eq!(packs["sketch"], 50);
-        assert_eq!(packs["solid"], 10);
-        assert!(packs["modify"] >= 6);
-        assert!(packs["body_ops"] >= 11);
+        assert_eq!(packs["solid"], 15);
+        assert_eq!(packs["modify"], 9);
+        assert_eq!(packs["body_ops"], 16);
         assert!(packs["datums"] >= 6);
         assert!(packs["history"] >= 5);
-        assert_eq!(packs["inspect"], 12);
+        assert_eq!(packs["inspect"], 3);
         assert_eq!(packs["drawing"], drawing_tools::DRAWING_PACK_TOOL_COUNT);
+        assert_eq!(packs["assembly"], assembly_tools::ASSEMBLY_TOOL_COUNT);
         assert!(!packs.contains_key("print"));
     }
 
@@ -5025,9 +5091,30 @@ mod tests {
             "cad_drawing_command",
             "cad_undo",
             "cad_redo",
+            "assembly_document",
+            "assembly_create_joint",
+            "solid_move_copy",
+            "solid_edit_move_copy",
         ] {
             assert!(catalog.contains(tool), "missing full-control tool {tool}");
         }
+    }
+
+    #[test]
+    fn named_assembly_tools_and_workspace_are_live() {
+        let mut server = CadServer::new().unwrap();
+        let document = server.call_tool("assembly_document", json!({})).unwrap();
+        assert!(
+            document.get("joints").is_some() || document.get("component_structure").is_some(),
+            "assembly_document should return the assembly DTO: {document}"
+        );
+        let solution = server.call_tool("assembly_solution", json!({})).unwrap();
+        assert!(solution.is_object(), "assembly_solution: {solution}");
+        let status = server
+            .call_tool("cad_set_workspace", json!({ "workspace": "assembly" }))
+            .unwrap();
+        assert_eq!(status["active_focus"], "assembly");
+        assert_eq!(status["workspace"], "assembly");
     }
 
     #[test]
@@ -5187,6 +5274,7 @@ mod tests {
             ("inspect", "solid_scene"),
             ("print", "solid_export_3mf"),
             ("drawing", "cad_drawing_document"),
+            ("assembly", "assembly_document"),
         ];
         for (focus, tool_name) in expectations {
             let mut server = CadServer::new().unwrap();

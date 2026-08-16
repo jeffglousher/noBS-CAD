@@ -1,51 +1,42 @@
-# Assembly gap
+# Assembly vs multi-body
 
-Jack’s engine on `main` now has a real assembly layer: components,
-occurrences, joints, positions, motion studies, and approximate
-interference / swept-collision checks. The host dispatch is
-`assembly_*` in `crates/sketch/src/host.rs`.
+Jack’s engine on `main` has a real assembly layer: components, occurrences,
+joints, positions, motion studies, and approximate interference / swept
+collision. Host dispatch is `assembly_*` in `crates/sketch/src/host.rs`.
 
-The MCP process still does **not** wrap those methods. Agents can only
-build a **multi-body part** with `solid_*`. The print-kit tutor stays
-honest about that: nine printable VAWT bodies on one axis, no mates.
+MCP now wraps **every** one of those methods as a named tool in
+`FocusPack::Assembly` (`mcp-server/src/assembly_tools.rs`). Agents should
+call `assembly_create_joint`, not `cad_invoke`. The print-kit tutor still
+builds a **multi-body part** on one axis with numeric fits — no mates.
 
-## What the engine has (desktop / wasm)
+## What the engine and MCP both have
 
 - Component definitions and occurrence tree
-- Joints, joint motion, mechanism drag, grounded bodies
+- Joints (rigid, revolute, slider, cylindrical, planar, ball, pin_slot, screw, universal)
+- Joint motion, mechanism drag, grounded bodies
 - Saved positions and motion studies
 - Approximate interference and swept-collision reports
-- Browser / viewport consume `assembly_solution` poses
+- `nbcad://assembly` and `nbcad://assembly_solution`
+- Recipes: `assemble_joint`, `check_interference`
+- Solid Move/Copy as `solid_move_copy` / `solid_edit_move_copy`
 
-## What MCP still does not have (named tools)
+`cad_set_workspace assembly` advertises the assembly pack. `cad_invoke`
+remains the escape hatch for host methods that land before a named wrapper.
 
-All 36 `assembly_*` host methods are reachable today via `cad_invoke`
-(`method` + `arguments`). There is **no** named `assembly_*` MCP pack
-and no `FocusPack::Assembly`. Tool count stays 186 (166+8+12).
+## What the print-kit tutor must not do
 
-| Engine method | Named MCP tool | Why it matters |
-|---------------|----------------|----------------|
-| `assembly_document` / `assembly_solution` | `cad_invoke` only | Agents should read the occurrence tree without guessing the host name |
-| Create/update component or occurrence | `cad_invoke` only | Instance reuse is not in the exam spine |
-| Create/update/delete joint | `cad_invoke` only | Fits stay numbers in the print-kit tutor |
-| Motion / positions / contact sets | `cad_invoke` only | No kinematics recipe yet |
-| Interference / swept collision | `cad_invoke` only | No assemble-check lesson in the tutor |
-| Ribbon `bodyFeature:move_copy` | `cad_invoke` only | Jack’s solid move/copy is not a named `solid_*` tool |
+- Do not add joints, occurrences, or motion studies to the VAWT exam
+- Fits stay numbers (`+0.40`), not mates
+- Until catalog hardware exists, kits **print every bearing surface**
+  (cone thrust, sleeve bushing, printed rollers)
+- Engine joints do not invent metal 608s or screws
 
-Do **not** bump `MODELING_TOOL_COUNT` to paper over this. A later pack
-can wrap the existing host methods without rewriting Jack’s crate.
-`cad_set_workspace` accepts `assembly` so the live UI can follow.
-
-## What MCP can do today
+## Multi-body without mates (still valid)
 
 - `solid_*` `operation: "new_body"` — independent bodies in one document
+- `solid_move_copy` for placement after the body exists
 - Per-body appearance / 3MF materials
 - Combine, split, mirror, rectangular / circular pattern
-- Manual placement by sketching on datums (no `solid_move`)
+- Manual placement by sketching on datums
 
-## Fully printable first
-
-Until catalog hardware exists, kits must **print every bearing surface**
-they need (cone thrust, sleeve bushing, printed rollers). Do not design
-a mechanism that only works if a metal bearing appears off camera.
-The engine joints do not invent hardware.
+See [MCP_GAP.md](MCP_GAP.md) for the full pack matrix.

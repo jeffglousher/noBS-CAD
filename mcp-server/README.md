@@ -13,14 +13,15 @@ The older `initialize` handshake (`2025-06-18` and earlier) remains a
 handshake never returns `2026-07-28`. The first reply to it includes the
 runtime-upgrade recipe so agents that can switch on this process can do so.
 
-It covers sketch, solid, print, drawing-command, drawing-document, browser-visibility, application undo/redo, and a mechanical `cad_invoke` / `cad_drawing_command` escape hatch
+It covers sketch, solid, assembly, print, drawing-command, drawing-document, browser-visibility, application undo/redo, and a mechanical `cad_invoke` / `cad_drawing_command` escape hatch
 with **soft focus-scoped disclosure** (`tools.listChanged: true`). Out-of-focus
 tools stay callable. Product state is also readable as MCP **resources**
 (`nbcad://document`, `nbcad://scene`, `nbcad://sketch`, `nbcad://profiles`,
-`nbcad://features`, `nbcad://drawing`, `nbcad://workspace`, …) and recipes as
+`nbcad://features`, `nbcad://drawing`, `nbcad://assembly`,
+`nbcad://assembly_solution`, `nbcad://workspace`, …) and recipes as
 **prompts** (`model_box`, `model_solid`, `print_3mf`, `model_print_tool`,
 `model_print_kit`, `import_step`, `export_step`, `drawing_export`,
-`undo_history`, `invoke`, …).
+`assemble_joint`, `check_interference`, `undo_history`, `invoke`, …).
 
 For message-queued systems (Kafka / MQTT / NATS), set
 `NBCAD_MCP_TRANSPORT=bus-jsonl` and bridge `BusMessage` frames — see
@@ -128,9 +129,11 @@ definition/edit tools and supports New Body, Join, Cut, and Intersect where
 that operation is meaningful.
 
 Construction-plane tools create and edit Offset, Midplane, and Plane at Angle
-features with stable datum IDs. Body-operation tools expose Shell, Mirror,
-one/two-direction Rectangular Pattern, Circular Pattern, Combine, and Split
-Body through the same replayable history as the interactive application.
+features with stable datum IDs. Body-operation tools expose Shell, Move/Copy,
+Mirror, one/two-direction Rectangular Pattern, Circular Pattern, Combine, and
+Split Body through the same replayable history as the interactive application.
+Named `assembly_*` tools cover components, occurrences, joints, motion, and
+interference; `cad_set_workspace assembly` advertises that pack.
 
 `cad_project_model` returns the authoritative versioned `model.json`,
 `cad_load_project_model` transactionally restores and recomputes it, and

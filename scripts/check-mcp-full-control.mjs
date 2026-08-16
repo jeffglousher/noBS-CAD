@@ -230,6 +230,8 @@ const REQUIRED_RESOURCES = [
   'nbcad://appearances',
   'nbcad://materials',
   'nbcad://features',
+  'nbcad://assembly',
+  'nbcad://assembly_solution',
 ];
 const REQUIRED_PROMPTS = [
   'model_box',
@@ -244,6 +246,8 @@ const REQUIRED_PROMPTS = [
   'drawing_read',
   'drawing_sheet',
   'drawing_export',
+  'assemble_joint',
+  'check_interference',
   'undo_history',
   'invoke',
 ];

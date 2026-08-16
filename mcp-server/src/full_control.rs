@@ -429,155 +429,155 @@ pub const HOST_METHODS: &[HostMethod] = &[
     },
     HostMethod {
         method: "assembly_document",
-        tool: "cad_invoke",
+        tool: "assembly_document",
     },
     HostMethod {
         method: "assembly_set_document",
-        tool: "cad_invoke",
+        tool: "assembly_set_document",
     },
     HostMethod {
         method: "assembly_solution",
-        tool: "cad_invoke",
+        tool: "assembly_solution",
     },
     HostMethod {
         method: "assembly_create_component",
-        tool: "cad_invoke",
+        tool: "assembly_create_component",
     },
     HostMethod {
         method: "assembly_update_component",
-        tool: "cad_invoke",
+        tool: "assembly_update_component",
     },
     HostMethod {
         method: "assembly_create_occurrence",
-        tool: "cad_invoke",
+        tool: "assembly_create_occurrence",
     },
     HostMethod {
         method: "assembly_update_occurrence",
-        tool: "cad_invoke",
+        tool: "assembly_update_occurrence",
     },
     HostMethod {
         method: "assembly_duplicate_occurrence",
-        tool: "cad_invoke",
+        tool: "assembly_duplicate_occurrence",
     },
     HostMethod {
         method: "assembly_set_occurrence_grounded",
-        tool: "cad_invoke",
+        tool: "assembly_set_occurrence_grounded",
     },
     HostMethod {
         method: "assembly_set_occurrence_pose",
-        tool: "cad_invoke",
+        tool: "assembly_set_occurrence_pose",
     },
     HostMethod {
         method: "assembly_preview_joint",
-        tool: "cad_invoke",
+        tool: "assembly_preview_joint",
     },
     HostMethod {
         method: "assembly_create_joint",
-        tool: "cad_invoke",
+        tool: "assembly_create_joint",
     },
     HostMethod {
         method: "assembly_update_joint",
-        tool: "cad_invoke",
+        tool: "assembly_update_joint",
     },
     HostMethod {
         method: "assembly_preview_joint_update",
-        tool: "cad_invoke",
+        tool: "assembly_preview_joint_update",
     },
     HostMethod {
         method: "assembly_delete_joint",
-        tool: "cad_invoke",
+        tool: "assembly_delete_joint",
     },
     HostMethod {
         method: "assembly_set_joint_enabled",
-        tool: "cad_invoke",
+        tool: "assembly_set_joint_enabled",
     },
     HostMethod {
         method: "assembly_set_joint_motion",
-        tool: "cad_invoke",
+        tool: "assembly_set_joint_motion",
     },
     HostMethod {
         method: "assembly_preview_joint_motion",
-        tool: "cad_invoke",
+        tool: "assembly_preview_joint_motion",
     },
     HostMethod {
         method: "assembly_set_joint_coordinates",
-        tool: "cad_invoke",
+        tool: "assembly_set_joint_coordinates",
     },
     HostMethod {
         method: "assembly_preview_joint_coordinates",
-        tool: "cad_invoke",
+        tool: "assembly_preview_joint_coordinates",
     },
     HostMethod {
         method: "assembly_preview_mechanism_drag",
-        tool: "cad_invoke",
+        tool: "assembly_preview_mechanism_drag",
     },
     HostMethod {
         method: "assembly_apply_joint_motions",
-        tool: "cad_invoke",
+        tool: "assembly_apply_joint_motions",
     },
     HostMethod {
         method: "assembly_create_position",
-        tool: "cad_invoke",
+        tool: "assembly_create_position",
     },
     HostMethod {
         method: "assembly_update_position",
-        tool: "cad_invoke",
+        tool: "assembly_update_position",
     },
     HostMethod {
         method: "assembly_delete_position",
-        tool: "cad_invoke",
+        tool: "assembly_delete_position",
     },
     HostMethod {
         method: "assembly_apply_position",
-        tool: "cad_invoke",
+        tool: "assembly_apply_position",
     },
     HostMethod {
         method: "assembly_create_motion_study",
-        tool: "cad_invoke",
+        tool: "assembly_create_motion_study",
     },
     HostMethod {
         method: "assembly_update_motion_study",
-        tool: "cad_invoke",
+        tool: "assembly_update_motion_study",
     },
     HostMethod {
         method: "assembly_delete_motion_study",
-        tool: "cad_invoke",
+        tool: "assembly_delete_motion_study",
     },
     HostMethod {
         method: "assembly_sample_motion_study",
-        tool: "cad_invoke",
+        tool: "assembly_sample_motion_study",
     },
     HostMethod {
         method: "assembly_export_motion_path_csv",
-        tool: "cad_invoke",
+        tool: "assembly_export_motion_path_csv",
     },
     HostMethod {
         method: "assembly_create_contact_set",
-        tool: "cad_invoke",
+        tool: "assembly_create_contact_set",
     },
     HostMethod {
         method: "assembly_update_contact_set",
-        tool: "cad_invoke",
+        tool: "assembly_update_contact_set",
     },
     HostMethod {
         method: "assembly_delete_contact_set",
-        tool: "cad_invoke",
+        tool: "assembly_delete_contact_set",
     },
     HostMethod {
         method: "assembly_interference_check",
-        tool: "cad_invoke",
+        tool: "assembly_interference_check",
     },
     HostMethod {
         method: "assembly_evaluate_motion_study",
-        tool: "cad_invoke",
+        tool: "assembly_evaluate_motion_study",
     },
     HostMethod {
         method: "assembly_swept_collision_check",
-        tool: "cad_invoke",
+        tool: "assembly_swept_collision_check",
     },
     HostMethod {
         method: "assembly_set_grounded_body",
-        tool: "cad_invoke",
+        tool: "assembly_set_grounded_body",
     },
 ];
 
@@ -681,7 +681,7 @@ pub const RIBBON_FEATURES: &[RibbonFeature] = &[
     RibbonFeature {
         action: "bodyFeature",
         payload: Some("move_copy"),
-        tool: "cad_invoke",
+        tool: "solid_move_copy",
     },
     RibbonFeature {
         action: "assemblyWorkspace",
@@ -691,7 +691,7 @@ pub const RIBBON_FEATURES: &[RibbonFeature] = &[
     RibbonFeature {
         action: "joint",
         payload: None,
-        tool: "cad_invoke",
+        tool: "assembly_create_joint",
     },
     RibbonFeature {
         action: "sketchPattern",

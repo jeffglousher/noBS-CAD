@@ -30,7 +30,11 @@ Prefer `cad_list_all_tools` for planners over leaving the main session in `full_
 
 ## Focus packs
 
-`document | sketch | solid | modify | body_ops | datums | history | inspect | print | drawing`
+`document | sketch | solid | modify | body_ops | datums | history | inspect | print | drawing | assembly`
+
+Definition catalogs live with their feature packs (solid / modify / body_ops).
+`cad_undo` / `cad_redo` stay on the spine. Soft LRU is 3. Full matrix:
+[MCP_GAP.md](MCP_GAP.md).
 
 Keep `disclosure::tags_for_tool` aligned when adding dialogs or export tools.
 When adding a product surface, also expose it as an MCP **resource** when it is

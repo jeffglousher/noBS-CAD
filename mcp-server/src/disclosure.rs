@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 pub const FOCUS_THROTTLE_MS: u64 = 300;
 pub const SOFT_TTL_MS: u64 = 60_000;
 pub const SOFT_REPROMOTE_MS: u64 = 15_000;
-pub const SOFT_LRU: usize = 2;
+pub const SOFT_LRU: usize = 3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FocusPack {
@@ -19,10 +19,11 @@ pub enum FocusPack {
     Inspect,
     Print,
     Drawing,
+    Assembly,
 }
 
 impl FocusPack {
-    pub const ALL: [FocusPack; 10] = [
+    pub const ALL: [FocusPack; 11] = [
         FocusPack::Document,
         FocusPack::Sketch,
         FocusPack::Solid,
@@ -33,6 +34,7 @@ impl FocusPack {
         FocusPack::Inspect,
         FocusPack::Print,
         FocusPack::Drawing,
+        FocusPack::Assembly,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -47,6 +49,7 @@ impl FocusPack {
             FocusPack::Inspect => "inspect",
             FocusPack::Print => "print",
             FocusPack::Drawing => "drawing",
+            FocusPack::Assembly => "assembly",
         }
     }
 
@@ -62,6 +65,7 @@ impl FocusPack {
             "inspect" => Some(FocusPack::Inspect),
             "print" => Some(FocusPack::Print),
             "drawing" => Some(FocusPack::Drawing),
+            "assembly" => Some(FocusPack::Assembly),
             _ => None,
         }
     }
@@ -72,19 +76,28 @@ impl FocusPack {
             FocusPack::Sketch => {
                 "Sketch creation, constraints, dimensions, and sketch modify tools."
             }
-            FocusPack::Solid => "Solid creators: extrude, revolve, sweep, loft, and rib.",
-            FocusPack::Modify => "Edge and face modifiers: fillet, chamfer, and hole.",
+            FocusPack::Solid => {
+                "Solid creators: extrude, revolve, sweep, loft, rib, and their definition catalogs."
+            }
+            FocusPack::Modify => {
+                "Edge and face modifiers: fillet, chamfer, hole, and their definition catalogs."
+            }
             FocusPack::BodyOps => {
-                "Body operations: shell, mirror, patterns, combine, split, and STEP import."
+                "Body operations: shell, move/copy, mirror, patterns, combine, split, STEP import, and body-feature catalogs."
             }
             FocusPack::Datums => "Construction planes and datum features.",
-            FocusPack::History => "Rollback, delete, and reorder in feature history.",
-            FocusPack::Inspect => "Read-only solid and sketch definition catalogs.",
+            FocusPack::History => {
+                "Rollback, delete, and reorder in feature history. Application undo/redo stay on the spine."
+            }
+            FocusPack::Inspect => "Read-only scene, recompute, and tessellation.",
             FocusPack::Print => {
                 "Manufacturing export: 3MF/STL/STEP, materials, appearance, and print demos."
             }
             FocusPack::Drawing => {
                 "Technical drawings: sheet/view/annotation commands, undo/redo, HLR projection, and MCP-native DXF/SVG/profile export."
+            }
+            FocusPack::Assembly => {
+                "Components, occurrences, joints, motion, contacts, and interference."
             }
         }
     }
@@ -495,11 +508,14 @@ pub fn tags_for_tool(name: &str) -> (FocusPack, bool) {
             | "cad_attach"
             | "cad_refresh"
             | "cad_detach"
+            | "cad_undo"
+            | "cad_redo"
     );
     if spine {
         let pack = match name {
             "cad_document" => FocusPack::Document,
             "solid_scene" | "solid_recompute" => FocusPack::Inspect,
+            "cad_undo" | "cad_redo" => FocusPack::History,
             _ => FocusPack::Document,
         };
         return (pack, true);
@@ -562,13 +578,34 @@ pub fn tags_for_tool(name: &str) -> (FocusPack, bool) {
         | "sketch_preview_fillet"
         | "sketch_preview_offset"
         | "sketch_preview_trim" => FocusPack::Sketch,
-        "solid_extrude" | "solid_edit_extrude" | "solid_revolve" | "solid_edit_revolve"
-        | "solid_sweep" | "solid_edit_sweep" | "solid_loft" | "solid_edit_loft" | "solid_rib"
-        | "solid_edit_rib" => FocusPack::Solid,
-        "solid_fillet" | "solid_edit_fillet" | "solid_chamfer" | "solid_edit_chamfer"
-        | "solid_hole" | "solid_edit_hole" => FocusPack::Modify,
+        "solid_extrude"
+        | "solid_edit_extrude"
+        | "solid_revolve"
+        | "solid_edit_revolve"
+        | "solid_sweep"
+        | "solid_edit_sweep"
+        | "solid_loft"
+        | "solid_edit_loft"
+        | "solid_rib"
+        | "solid_edit_rib"
+        | "solid_extrude_definitions"
+        | "solid_revolve_definitions"
+        | "solid_sweep_definitions"
+        | "solid_loft_definitions"
+        | "solid_rib_definitions" => FocusPack::Solid,
+        "solid_fillet"
+        | "solid_edit_fillet"
+        | "solid_chamfer"
+        | "solid_edit_chamfer"
+        | "solid_hole"
+        | "solid_edit_hole"
+        | "solid_fillet_definitions"
+        | "solid_chamfer_definitions"
+        | "solid_hole_definitions" => FocusPack::Modify,
         "solid_shell"
         | "solid_edit_shell"
+        | "solid_move_copy"
+        | "solid_edit_move_copy"
         | "solid_mirror"
         | "solid_edit_mirror"
         | "solid_rectangular_pattern"
@@ -579,7 +616,8 @@ pub fn tags_for_tool(name: &str) -> (FocusPack, bool) {
         | "solid_edit_combine"
         | "solid_split_body"
         | "solid_edit_split_body"
-        | "solid_import_step" => FocusPack::BodyOps,
+        | "solid_import_step"
+        | "solid_body_feature_definitions" => FocusPack::BodyOps,
         "construction_plane_definitions"
         | "construction_plane_offset"
         | "construction_plane_edit_offset"
@@ -587,21 +625,10 @@ pub fn tags_for_tool(name: &str) -> (FocusPack, bool) {
         | "construction_plane_edit_midplane"
         | "construction_plane_at_angle"
         | "construction_plane_edit_at_angle" => FocusPack::Datums,
-        "solid_set_rollback"
-        | "solid_delete_feature"
-        | "solid_reorder_feature"
-        | "cad_undo"
-        | "cad_redo" => FocusPack::History,
-        "solid_extrude_definitions"
-        | "solid_revolve_definitions"
-        | "solid_sweep_definitions"
-        | "solid_loft_definitions"
-        | "solid_rib_definitions"
-        | "solid_fillet_definitions"
-        | "solid_chamfer_definitions"
-        | "solid_hole_definitions"
-        | "solid_body_feature_definitions"
-        | "solid_tessellate" => FocusPack::Inspect,
+        "solid_set_rollback" | "solid_delete_feature" | "solid_reorder_feature" => {
+            FocusPack::History
+        }
+        "solid_tessellate" => FocusPack::Inspect,
         "solid_export_step"
         | "solid_export_stl"
         | "solid_export_3mf"
@@ -612,6 +639,7 @@ pub fn tags_for_tool(name: &str) -> (FocusPack, bool) {
         | "demo_export_pip_3mf" => FocusPack::Print,
         "cad_drawing_document" | "cad_set_drawing_document" => FocusPack::Drawing,
         name if name.starts_with("cad_drawing_") => FocusPack::Drawing,
+        name if name.starts_with("assembly_") => FocusPack::Assembly,
         _ => FocusPack::Document,
     };
     (pack, false)
@@ -653,11 +681,13 @@ pub fn auto_focus_for_tool(name: &str) -> Option<FocusPack> {
     }
     if name.starts_with("solid_")
         && (name.contains("shell")
+            || name.contains("move_copy")
             || name.contains("mirror")
             || name.contains("pattern")
             || name.contains("combine")
             || name.contains("split_body")
-            || name.contains("import_step"))
+            || name.contains("import_step")
+            || name == "solid_body_feature_definitions")
     {
         return Some(FocusPack::BodyOps);
     }
@@ -670,8 +700,25 @@ pub fn auto_focus_for_tool(name: &str) -> Option<FocusPack> {
     ) {
         return Some(FocusPack::History);
     }
-    if name.ends_with("_definitions") || name == "solid_scene" || name == "solid_tessellate" {
+    if name.ends_with("_definitions") {
+        return Some(
+            if name.starts_with("solid_fillet")
+                || name.starts_with("solid_chamfer")
+                || name.starts_with("solid_hole")
+            {
+                FocusPack::Modify
+            } else if name.starts_with("solid_") {
+                FocusPack::Solid
+            } else {
+                FocusPack::Inspect
+            },
+        );
+    }
+    if name == "solid_scene" || name == "solid_tessellate" {
         return Some(FocusPack::Inspect);
+    }
+    if name.starts_with("assembly_") {
+        return Some(FocusPack::Assembly);
     }
     if matches!(
         name,
@@ -719,7 +766,9 @@ pub fn focus_from_ui(
             | "rectangular_pattern"
             | "circular_pattern"
             | "combine"
-            | "split_body" => FocusPack::BodyOps,
+            | "split_body"
+            | "move_copy" => FocusPack::BodyOps,
+            "joint" => FocusPack::Assembly,
             "extrude" | "revolve" | "sweep" | "loft" | "rib" => FocusPack::Solid,
             "construction_plane" | "offset_plane" | "midplane" | "plane_at_angle" => {
                 FocusPack::Datums
@@ -744,6 +793,7 @@ pub fn focus_from_ui(
         "inspect" => FocusPack::Inspect,
         "print" | "export" => FocusPack::Print,
         "drawing" => FocusPack::Drawing,
+        "assembly" => FocusPack::Assembly,
         _ => FocusPack::Document,
     }
 }
@@ -764,6 +814,15 @@ mod tests {
         );
         assert_eq!(focus_from_ui("sketch", None, None), FocusPack::Sketch);
         assert_eq!(focus_from_ui("drawing", None, None), FocusPack::Drawing);
+        assert_eq!(focus_from_ui("assembly", None, None), FocusPack::Assembly);
+        assert_eq!(
+            focus_from_ui("solid", None, Some("move_copy")),
+            FocusPack::BodyOps
+        );
+        assert_eq!(
+            focus_from_ui("solid", None, Some("joint")),
+            FocusPack::Assembly
+        );
     }
 
     #[test]
@@ -886,6 +945,8 @@ mod tests {
             "solid_edit_hole",
             "solid_shell",
             "solid_edit_shell",
+            "solid_move_copy",
+            "solid_edit_move_copy",
             "solid_mirror",
             "solid_edit_mirror",
             "solid_rectangular_pattern",
@@ -924,7 +985,7 @@ mod tests {
             "solid_scene",
             "solid_recompute",
         ];
-        assert_eq!(modeling.len(), 113);
+        assert_eq!(modeling.len(), 115);
         for name in modeling {
             let (pack, spine) = tags_for_tool(name);
             assert!(
@@ -933,6 +994,23 @@ mod tests {
             );
             let _ = spine;
         }
+        assert!(tags_for_tool("cad_undo").1);
+        assert_eq!(tags_for_tool("cad_undo").0, FocusPack::History);
+        assert_eq!(tags_for_tool("cad_redo").0, FocusPack::History);
+        assert_eq!(
+            tags_for_tool("solid_extrude_definitions").0,
+            FocusPack::Solid
+        );
+        assert_eq!(
+            tags_for_tool("solid_fillet_definitions").0,
+            FocusPack::Modify
+        );
+        assert_eq!(
+            tags_for_tool("solid_body_feature_definitions").0,
+            FocusPack::BodyOps
+        );
+        assert_eq!(tags_for_tool("solid_tessellate").0, FocusPack::Inspect);
+        assert_eq!(tags_for_tool("solid_move_copy").0, FocusPack::BodyOps);
         for name in [
             "solid_export_3mf",
             "solid_export_stl",
@@ -960,6 +1038,14 @@ mod tests {
             "cad_drawing_command",
         ] {
             assert_eq!(tags_for_tool(name).0, FocusPack::Drawing, "{name}");
+        }
+        for name in [
+            "assembly_document",
+            "assembly_create_joint",
+            "assembly_interference_check",
+            "assembly_set_grounded_body",
+        ] {
+            assert_eq!(tags_for_tool(name).0, FocusPack::Assembly, "{name}");
         }
     }
 }

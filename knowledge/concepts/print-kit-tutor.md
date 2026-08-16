@@ -18,7 +18,8 @@ axis — and grading it.
 - Recipe: `prompts/get model_print_kit`
 - Engine exam: `cargo test --manifest-path mcp-server/Cargo.toml print_kit_tutor`
 - Agent exam: `npm run test:mcp-print-kit`
-- Assembly gap: [ASSEMBLY.md](../../docs/agentic/ASSEMBLY.md)
+- Multi-body vs mates: [ASSEMBLY.md](../../docs/agentic/ASSEMBLY.md) (named `assembly_*` tools exist; this exam stays a nest)
+- Domain matrix: [MCP_GAP.md](../../docs/agentic/MCP_GAP.md)
 
 Clearance is modeled in CAD (+0.40 mm diametral). No FDM press fits. Bodies
 are placed in assembly order (base, shaft, hub, three wings, top plate,

@@ -228,10 +228,8 @@ impl Spec {
         let hub = std::f64::consts::PI * (self.hub_d * 0.5).powi(2) * height;
         let rib_len = (self.post_circle_r - self.hub_d * 0.5).max(0.0);
         let ribs = (self.post_count as f64) * self.rib_w * rib_len * height;
-        let pads = (self.post_count as f64)
-            * std::f64::consts::PI
-            * (self.pad_d * 0.5).powi(2)
-            * height;
+        let pads =
+            (self.post_count as f64) * std::f64::consts::PI * (self.pad_d * 0.5).powi(2) * height;
         hub + ribs + pads
     }
     fn estimated_solid_cm3(&self) -> f64 {
@@ -245,11 +243,8 @@ impl Spec {
         let hub = std::f64::consts::PI
             * ((self.hub_od * 0.5).powi(2) - (self.bush_id * 0.5).powi(2))
             * self.hub_h;
-        let wing = (self.wing_count as f64)
-            * 0.70
-            * self.wing_chord
-            * self.wing_thick
-            * self.wing_h;
+        let wing =
+            (self.wing_count as f64) * 0.70 * self.wing_chord * self.wing_thick * self.wing_h;
         let plate = self.y_frame_volume(self.top_plate_h)
             + std::f64::consts::PI * (self.plate_boss_d * 0.5).powi(2) * self.plate_boss_h;
         let bush_tube = std::f64::consts::PI
@@ -373,15 +368,7 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
     }
     let preflight = call("solid_export_preflight", json!({}))?;
     let plate_exports = export_print_plates(
-        &mut call,
-        &spec,
-        base_id,
-        shaft_id,
-        hub_id,
-        &wing_ids,
-        plate_id,
-        bush_id,
-        cap_id,
+        &mut call, &spec, base_id, shaft_id, hub_id, &wing_ids, plate_id, bush_id, cap_id,
     )?;
     let scene = call("solid_scene", json!({}))?;
     let document = call("cad_document", json!({}))?;
@@ -1068,9 +1055,7 @@ fn grade(
         .and_then(|body| body["faces"].as_array().map(|faces| faces.len()))
         .unwrap_or(0);
     let wing_box = wing.and_then(bbox);
-    let wing_span = wing_box
-        .map(|box3| box3[1][2] - box3[0][2])
-        .unwrap_or(0.0);
+    let wing_span = wing_box.map(|box3| box3[1][2] - box3[0][2]).unwrap_or(0.0);
     let wing_xy = wing_box
         .map(|box3| (box3[1][0] - box3[0][0]).max(box3[1][1] - box3[0][1]))
         .unwrap_or(f64::INFINITY);
@@ -1209,10 +1194,16 @@ fn shaft_profile(spec: &Spec) -> Vec<[f64; 2]> {
 fn naca_00_thickness(x: f64, thickness_ratio: f64) -> f64 {
     let x = x.clamp(0.0, 1.0);
     5.0 * thickness_ratio
-        * (0.2969 * x.sqrt() - 0.1260 * x - 0.3516 * x * x + 0.2843 * x.powi(3) - 0.1015 * x.powi(4))
+        * (0.2969 * x.sqrt() - 0.1260 * x - 0.3516 * x * x + 0.2843 * x.powi(3)
+            - 0.1015 * x.powi(4))
 }
 
-fn naca_symmetric_loop(chord: f64, thickness_ratio: f64, stations: usize, te_min: f64) -> Vec<[f64; 2]> {
+fn naca_symmetric_loop(
+    chord: f64,
+    thickness_ratio: f64,
+    stations: usize,
+    te_min: f64,
+) -> Vec<[f64; 2]> {
     let count = stations.max(6);
     let mut xs = Vec::with_capacity(count);
     for i in 0..count {

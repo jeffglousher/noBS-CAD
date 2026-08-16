@@ -2,6 +2,10 @@
 
 ## 2026-08-16
 
+- **Update**: MCP now has named `assembly_*` tools (37), `solid_move_copy`,
+  `nbcad://assembly` / `nbcad://assembly_solution`, and `assemble_joint` /
+  `check_interference` prompts. The print-kit tutor still does not use
+  joints. Matrix: [MCP_GAP.md](../docs/agentic/MCP_GAP.md).
 - **Update**: Print-kit export is seven print-plate 3MFs
   (`Documents/noBS-CAD/Print-Kit-Tutor/`), not one assembled nest.
   This stack is not print-in-place.

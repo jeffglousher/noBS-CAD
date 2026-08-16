@@ -21,13 +21,16 @@
 //! - `nbcad://appearances` — per-body color / filament
 //! - `nbcad://materials` — filament catalog
 //! - `nbcad://features` — persisted solid / datum / body-op definitions
+//! - `nbcad://assembly` — components, occurrences, joints, positions, studies
+//! - `nbcad://assembly_solution` — forward-kinematics poses
 //!
 //! Template: `nbcad://session/{session_id}` peeks a session `model.json`.
 //!
 //! Recipes (`prompts/get`): `model_box`, `model_hole`, `model_solid`,
 //! `attach_ui`, `print_3mf`, `model_print_tool`, `model_print_kit`,
 //! `import_step`, `export_step`, `drawing_read`, `drawing_sheet`,
-//! `drawing_export`, `undo_history`, `invoke`.
+//! `drawing_export`, `assemble_joint`, `check_interference`,
+//! `undo_history`, `invoke`.
 //!
 //! # Remaining (not this slice)
 //!
@@ -35,7 +38,7 @@
 //! - `nbcad://tools` — use `cad_list_all_tools` / `tools/list`
 //! - `nbcad://session/{id}/focus` and `…/window` — `cad_attach` already loads `focus.json`
 //! - Dedicated construction-plane / body-ops / fillet prompts — tools exist;
-//!   `model_solid` + `invoke` cover the loop
+//!   `model_solid` + `assemble_joint` + `invoke` cover the loop
 //! - `subscriptions/listen` — out of scope
 //! - Collaboration comments — not a shipped Drawing / Solid product surface
 //! - Jack's annotation-rich UI DXF writer — MCP has its own DXF / SVG export
@@ -62,6 +65,8 @@ pub const MAIN_RESOURCE_URIS: &[&str] = &[
     "nbcad://appearances",
     "nbcad://materials",
     "nbcad://features",
+    "nbcad://assembly",
+    "nbcad://assembly_solution",
 ];
 
 /// Every `prompts/list` recipe on the main product surface.
@@ -78,6 +83,8 @@ pub const MAIN_PROMPT_NAMES: &[&str] = &[
     "drawing_read",
     "drawing_sheet",
     "drawing_export",
+    "assemble_joint",
+    "check_interference",
     "undo_history",
     "invoke",
 ];
@@ -98,6 +105,8 @@ pub enum ResourceKind {
     Appearances,
     Materials,
     Features,
+    Assembly,
+    AssemblySolution,
     Session(String),
 }
 
@@ -110,7 +119,7 @@ pub fn list_resources() -> Value {
             resource("nbcad://scene", "scene", "Solid scene", "Tessellated bodies, faces, and edges from the last recompute."),
             resource("nbcad://drawing", "drawing", "Drawing document", "Technical drawing sheets and view intent (not generated HLR curves)."),
             resource("nbcad://focus", "focus", "Disclosure focus", "Active focus pack, advertisement mode, and workspace."),
-            resource("nbcad://workspace", "workspace", "Product workspace", "Solid (model/sketch) vs drawing workspace, plus current focus."),
+            resource("nbcad://workspace", "workspace", "Product workspace", "Solid (model/sketch), drawing, or assembly workspace, plus current focus."),
             resource("nbcad://sessions", "sessions", "UI sessions", "Attachable session directories under NBCAD_SESSION_DIR."),
             resource("nbcad://sketch", "sketch", "Active sketch", "In-progress sketch snapshot, or null when none is active."),
             resource("nbcad://sketches", "sketches", "Finished sketches", "Retained snapshots of every finished sketch."),
@@ -119,6 +128,8 @@ pub fn list_resources() -> Value {
             resource("nbcad://appearances", "appearances", "Body appearances", "Per-body color and filament assignments."),
             resource("nbcad://materials", "materials", "Material catalog", "Built-in filament presets for 3MF appearance."),
             resource("nbcad://features", "features", "Feature definitions", "Persisted extrude, revolve, sweep, loft, rib, fillet, chamfer, hole, datum, and body-op definitions."),
+            resource("nbcad://assembly", "assembly", "Assembly document", "Components, occurrences, joints, positions, motion studies, and contact sets."),
+            resource("nbcad://assembly_solution", "assembly_solution", "Assembly solution", "Forward-kinematics occurrence and instance body poses."),
         ],
         "ttlMs": 5_000,
         "cacheScope": "private"
@@ -214,6 +225,18 @@ pub fn list_prompts() -> Value {
                 &[("format", "dxf, svg, or profile_dxf (default dxf)", false)]
             ),
             prompt_desc(
+                "assemble_joint",
+                "Assemble with a joint",
+                "Create components and occurrences, then mate them with a named joint.",
+                &[("kind", "rigid, revolute, slider, cylindrical, planar, ball, pin_slot, screw, or universal (default revolute)", false)]
+            ),
+            prompt_desc(
+                "check_interference",
+                "Check assembly interference",
+                "Read the assembly solution and run an approximate pairwise interference check.",
+                &[]
+            ),
+            prompt_desc(
                 "undo_history",
                 "Undo or edit history",
                 "Application undo/redo, plus timeline rollback, delete, and reorder.",
@@ -248,6 +271,8 @@ pub fn parse_resource_uri(uri: &str) -> Result<ResourceKind, String> {
         "nbcad://appearances" => Ok(ResourceKind::Appearances),
         "nbcad://materials" => Ok(ResourceKind::Materials),
         "nbcad://features" => Ok(ResourceKind::Features),
+        "nbcad://assembly" => Ok(ResourceKind::Assembly),
+        "nbcad://assembly_solution" => Ok(ResourceKind::AssemblySolution),
         other => {
             const PREFIX: &str = "nbcad://session/";
             if let Some(session_id) = other.strip_prefix(PREFIX) {
@@ -335,7 +360,7 @@ pub fn get_prompt(name: &str, arguments: &Value) -> Result<Value, String> {
                  3. cad_attach session_id=<uuid> mode={mode}.\n\
                  4. Live mode takes writer=mcp from ui/none and writebacks model.json.\n\
                  5. If the UI later holds the lock, cad_refresh loads it without stealing.\n\
-                 6. cad_set_workspace solid|drawing (or read nbcad://workspace) to follow the live UI.\n\
+                 6. cad_set_workspace solid|drawing|assembly (or read nbcad://workspace) to follow the live UI.\n\
                  Headless goldens do not need attach."
             )
         }
@@ -430,6 +455,31 @@ pub fn get_prompt(name: &str, arguments: &Value) -> Result<Value, String> {
                  MCP writes its own DXF/SVG; do not wait for the desktop File menu."
             )
         }
+        "assemble_joint" => {
+            let kind = arguments
+                .get("kind")
+                .and_then(Value::as_str)
+                .unwrap_or("revolute");
+            format!(
+                "Assemble existing solid bodies with a {kind} joint.\n\
+                 1. cad_set_focus focus=assembly (or cad_set_workspace assembly).\n\
+                 2. Read nbcad://scene for body ids, then nbcad://assembly.\n\
+                 3. assembly_create_component for each part (name + body_ids).\n\
+                 4. assembly_create_occurrence for each component.\n\
+                 5. assembly_create_joint kind={kind} with connector_a / connector_b (stable faces/edges + frames).\n\
+                 6. Optional assembly_set_joint_motion / assembly_set_occurrence_grounded.\n\
+                 7. Confirm nbcad://assembly and nbcad://assembly_solution. Print-kit tutors stay multi-body nests — do not add joints there."
+            )
+        }
+        "check_interference" => {
+            "Check approximate pairwise interference in the current assembly.\n\
+             1. cad_set_focus focus=assembly.\n\
+             2. Read nbcad://assembly and nbcad://assembly_solution.\n\
+             3. assembly_interference_check (optional occurrence_ids and clearance_threshold_mm).\n\
+             4. For motion: assembly_evaluate_motion_study or assembly_swept_collision_check.\n\
+             5. This is an approximate report — not a manufacturing fit. Print-kit fits stay numeric (+0.40), not joints."
+                .to_string()
+        }
         "undo_history" => {
             "Undo, redo, or edit feature history.\n\
              1. Read nbcad://document (feature list + rollback_index) and nbcad://workspace.\n\
@@ -445,7 +495,7 @@ pub fn get_prompt(name: &str, arguments: &Value) -> Result<Value, String> {
                 .unwrap_or("a host.rs method");
             format!(
                 "Mechanical full control when a named tool is the wrong shape.\n\
-                 1. Prefer the named sketch_ / solid_ / cad_drawing_* tool when you know the feature.\n\
+                 1. Prefer the named sketch_ / solid_ / assembly_* / cad_drawing_* tool when you know the feature.\n\
                  2. cad_invoke method={method} arguments={{…}}. Omit arguments for empty host methods.\n\
                  3. solid_prepare_* and project_prepare_* run OCCT replay. solid_commit is rejected.\n\
                  4. drawing_command takes {{op, …fields}} — or call cad_drawing_command with the same shape.\n\
@@ -512,6 +562,8 @@ fn prompt_title(name: &str) -> String {
         "drawing_read" => "Inspect drawings".to_string(),
         "drawing_sheet" => "Create a drawing sheet".to_string(),
         "drawing_export" => "Export a drawing".to_string(),
+        "assemble_joint" => "Assemble with a joint".to_string(),
+        "check_interference" => "Check assembly interference".to_string(),
         "undo_history" => "Undo or edit history".to_string(),
         "invoke" => "Invoke any engine method".to_string(),
         other => other.to_string(),
@@ -561,6 +613,14 @@ mod tests {
         assert_eq!(
             parse_resource_uri("nbcad://features").unwrap(),
             ResourceKind::Features
+        );
+        assert_eq!(
+            parse_resource_uri("nbcad://assembly").unwrap(),
+            ResourceKind::Assembly
+        );
+        assert_eq!(
+            parse_resource_uri("nbcad://assembly_solution").unwrap(),
+            ResourceKind::AssemblySolution
         );
         match parse_resource_uri("nbcad://session/01732db8-694c-886c-87d8-c2c64537d673").unwrap() {
             ResourceKind::Session(id) => assert_eq!(id, "01732db8-694c-886c-87d8-c2c64537d673"),
@@ -620,8 +680,8 @@ mod tests {
                 .unwrap()
                 .contains("thrust")
         );
-        let print_kit = get_prompt("model_print_kit", &json!({})).unwrap()["messages"][0]["content"]
-            ["text"]
+        let print_kit = get_prompt("model_print_kit", &json!({})).unwrap()["messages"][0]
+            ["content"]["text"]
             .as_str()
             .unwrap()
             .to_string();
@@ -675,6 +735,19 @@ mod tests {
                 .as_str()
                 .unwrap()
                 .contains("cad_invoke")
+        );
+        assert!(
+            get_prompt("assemble_joint", &json!({"kind": "slider"})).unwrap()["messages"][0]
+                ["content"]["text"]
+                .as_str()
+                .unwrap()
+                .contains("assembly_create_joint")
+        );
+        assert!(
+            get_prompt("check_interference", &json!({})).unwrap()["messages"][0]["content"]["text"]
+                .as_str()
+                .unwrap()
+                .contains("assembly_interference_check")
         );
         assert!(get_prompt("unknown", &json!({})).is_err());
     }

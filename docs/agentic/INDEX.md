@@ -10,7 +10,8 @@ Committed operating docs for humans and coding agents working on noBS CAD.
 | [PRINT_KIT_DESIGN.md](PRINT_KIT_DESIGN.md) | 2026 airfoil / bushing / finish contract |
 | [PRINT_KIT_REPORT.md](PRINT_KIT_REPORT.md) | Worked design report (iteration + plastic cost) |
 | [PRINT_KIT_GDT.md](PRINT_KIT_GDT.md) | GD&T / printability study and corrections |
-| [ASSEMBLY.md](ASSEMBLY.md) | Multi-body vs assemblies — the gap the tutor exposes |
+| [ASSEMBLY.md](ASSEMBLY.md) | Multi-body vs assemblies — named tools exist; tutor stays nest |
+| [MCP_GAP.md](MCP_GAP.md) | Domain coverage matrix — packs, named tools, resources |
 | [MCP_2026.md](MCP_2026.md) | Recommended MCP 2026-07-28 success manual |
 | [INSTALL_MCP.md](INSTALL_MCP.md) | Hardened `xtask install-mcp` client wiring |
 | [MAINTENANCE.md](MAINTENANCE.md) | Build, OCCT, test, PR checklist |
