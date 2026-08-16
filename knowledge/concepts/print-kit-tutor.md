@@ -25,7 +25,9 @@ helical rotor, PIP roller cartridge, retainer). The CAD assembly links
 every moving body: rigid stator (axle sits on the base; retainer on the
 post), rigid `hub_mount` (hub on bushing OD), plus revolutes for the
 bushing, cage, and each roller. The hub is not the outer race.
-Hub-on-rollers is a running fit, not friction. Blades stay one printed
+Hub-on-rollers is a running fit, not friction. Same-plate PIP pockets
+are +0.80; assembled races stay +0.40. Bed-printed locates get a 0.80 mm
+lead-in. The bushing is not nested around the PIP rollers. Blades stay one printed
 body with the hub. The exam starts from a blank document (`cad_new_project`,
 0 bodies) and hides construction planes before writing the `.nbcad`.
 Reruns wipe retired plates so `Print-Kit-Tutor/` holds only

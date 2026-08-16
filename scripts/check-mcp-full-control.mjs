@@ -304,6 +304,9 @@ if (spec.nozzle_mm !== 0.4 || spec.clearance_mm !== 0.4) {
 if (spec.fit_running_mm !== 0.4) {
   fail('print-kit tutor spec fit_running_mm must be 0.4 (PLA running / roller)');
 }
+if (spec.fit_pip_mm !== 0.8 || spec.bed_relief_mm !== 0.8) {
+  fail('print-kit tutor spec must keep PIP +0.80 and a 0.80 mm bed lead-in (2 nozzles)');
+}
 if (!(spec.fit_friction_mm < spec.fit_slip_mm && spec.fit_slip_mm < spec.fit_running_mm)) {
   fail('print-kit tutor spec must keep friction < slip < running fits');
 }
@@ -340,6 +343,9 @@ if (!tutorSrc.includes('axle_sit') || !tutorSrc.includes('cage_spin') || !tutorS
 if (!tutorSrc.includes('bushing_spin') || !tutorSrc.includes('hub_mount') || !tutorSrc.includes('buildBushing')) {
   fail('print-kit Node exam must mount the hub on a distinct outer-race bushing');
 }
+if (!tutorSrc.includes('cutBedReliefCircle') || !tutorSrc.includes('fit_pip_mm') || !tutorSrc.includes('bed_relief')) {
+  fail('print-kit Node exam must model PIP clearance and elephant-foot lead-ins');
+}
 if (!tutorSrc.includes('solid_move_copy') || !tutorSrc.includes('layoutPrintPlate')) {
   fail('print-kit Node exam must lay the kit out on one plate before export');
 }
@@ -361,6 +367,9 @@ if (!rustTutor.includes('axle_sit') || !rustTutor.includes('cage_spin') || !rust
 }
 if (!rustTutor.includes('bushing_spin') || !rustTutor.includes('hub_mount') || !rustTutor.includes('build_bushing')) {
   fail('print-kit cargo exam must mount the hub on a distinct outer-race bushing');
+}
+if (!rustTutor.includes('cut_bed_relief_circle') || !rustTutor.includes('fit_pip_mm') || !rustTutor.includes('bed_relief')) {
+  fail('print-kit cargo exam must model PIP clearance and elephant-foot lead-ins');
 }
 if (!rustTutor.includes('solid_move_copy') || !rustTutor.includes('layout_print_plate')) {
   fail('print-kit cargo exam must lay the kit out on one plate before export');

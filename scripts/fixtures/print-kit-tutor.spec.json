@@ -15,6 +15,8 @@
   "fit_running_mm": 0.4,
   "fit_slip_mm": 0.28,
   "fit_friction_mm": 0.16,
+  "fit_pip_mm": 0.8,
+  "bed_relief_mm": 0.8,
   "filament": {
     "name": "Bambu PLA Basic Orange + Bambu PLA Glow",
     "density_g_cm3": 1.24,
@@ -82,10 +84,12 @@
       "C": "Three Y-frame pads at 120° (tertiary)."
     },
     "fits_mm": {
-      "running_rollers": "+0.40 diametral PLA-on-PLA (spin). Slicer XY hole compensation stays 0.",
+      "running_rollers": "+0.40 diametral PLA-on-PLA for parts printed separately and assembled (rollers on both races). Slicer XY hole compensation stays 0.",
+      "pip_cage_pockets": "+0.80 diametral (2 nozzles) for same-plate PIP. Assembled running +0.40 is 0.20/side and welds if the roller and cage print in the same layer.",
       "slip_axle_retainer": "+0.28 diametral — drops together, not sloppy.",
-      "friction_square_drive_and_cage": "+0.16 diametral — tap-in locate of the axle on the square post and of the hub on the bushing OD. Not a press. The hub must NOT friction-fit the rollers.",
-      "thrust_land": "Axle sits on the base (stator). Hub sits on the bushing shoulder (they spin together). 0.20 axial float at running lands (flange↔bushing/cage, hub↔retainer). Retainer is a washer that covers the open raceway (OD between outer-race ID and hub OD)."
+      "friction_square_drive_and_cage": "+0.16 diametral — tap-in locate of the axle on the square post and of the hub on the bushing OD. Not a press. Functional land starts above a 0.80 mm bed lead-in. The hub must NOT friction-fit the rollers.",
+      "thrust_land": "Axle sits on the base (stator). Hub sits on the bushing shoulder (they spin together). 0.20 axial float at running lands (flange↔bushing/cage, hub↔retainer). Retainer is a washer that covers the open raceway (OD between outer-race ID and hub OD).",
+      "do_not_nest_bushing_pip": "Do not print the bushing around the PIP rollers. Race-to-roller at +0.40 is 0.10 mm/side — they fuse. Bushing is a separate body; cage+rollers are the PIP cluster. Axial capture is the axle flange + retainer, not a top lip (that kills PIP)."
     }
   },
   "lessons": [
@@ -97,12 +101,12 @@
     {
       "id": "fits",
       "title": "Fits are per role and material",
-      "teach": "Do not use one clearance for every hole. Running (rollers on both races) is +0.40. Slip (retainer on the post) is +0.28. Friction locate (axle on the square post, hub on the bushing OD) is +0.16. Model 0.20 axial float at every running land — coincident planes fuse in FDM. The hub sits on the bushing shoulder (no float; they spin together). That is PLA + 0.4 mm nozzle at design time. Slicer XY hole compensation stays 0 unless a gauge print says otherwise."
+      "teach": "Fits are per role *and* per whether the parts share a plate. Assembled running (rollers on races printed as other bodies) is +0.40. Same-plate PIP (cage pockets) is +0.80 — two nozzles — or the first layers weld. Slip +0.28. Friction +0.16 on a land *above* a 0.80 mm bed lead-in; a bed-printed friction hole with no relief will not assemble after elephant foot. Model 0.20 axial float at every running land. Do not nest the bushing around the PIP rollers."
     },
     {
       "id": "no_press",
       "title": "Snug is not a press",
-      "teach": "FDM press fits fail from elephant foot. Friction locate is still a modeled gap. Retain with a flange, land, or retainer — not interference. No metal 608s."
+      "teach": "FDM press fits fail from elephant foot. Friction locate is still a modeled gap, and the functional land starts above a 2-nozzle lead-in on every bed-printed bore (hub, bushing ID, axle square, retainer square). Retain with a flange, land, or retainer — not interference. No metal 608s. No inward top lip over PIP rollers."
     },
     {
       "id": "assemble",
@@ -112,12 +116,12 @@
     {
       "id": "rollers",
       "title": "Print a roller pack that takes tip moment",
-      "teach": "A tall skinny sleeve cannot hold aero loads at the blade tips. Use a short, large-PCD printed roller cartridge (PIP rollers in a cage) inside a distinct outer-race bushing. The hub friction-mounts on the bushing OD and sits on the bushing shoulder. Thrust on a flat land. Size rollers for FDM (min Ø8)."
+      "teach": "A tall skinny sleeve cannot hold aero loads at the blade tips. Use a short, large-PCD printed roller cartridge (PIP rollers in a cage, +0.80 pockets) inside a distinct outer-race bushing printed as its own body. Do not PIP the rollers inside the bushing at running clearance. The hub friction-mounts on the bushing OD (land above the bed lead-in) and sits on the bushing shoulder. The cage is a spacer; axial capture is the flange + retainer. Size rollers for FDM (min Ø8)."
     },
     {
       "id": "even",
       "title": "Keep the machine even",
-      "teach": "Three helical blades at 120°. Root azimuth 30° so a 60° helix stays balanced. The square post is the stator — the hub freewheels on the roller pack. An odd one-sided vane is not a turbine."
+      "teach": "Three helical blades at 120°. Root azimuth 30° so a 60° helix stays balanced. The square post is the stator — the bushing freewheels on the roller pack; the hub mounts on the bushing. An odd one-sided vane is not a turbine."
     },
     {
       "id": "one_piece_rotor",
@@ -137,7 +141,7 @@
     {
       "id": "print_flat",
       "title": "Print rotational parts lying down",
-      "teach": "Never design a tall skinny shaft that needs a tower of support. The axle is a flanged square puck, printed on the flange. Base, cage, and retainer print flat. Only the rotor stands up, and its tips are open/drafted."
+      "teach": "Never design a tall skinny shaft that needs a tower of support. The axle is a flanged square puck, printed on the flange. Base, bushing, cage, and retainer print flat, each with a 2-nozzle bed lead-in on functional holes. Only the rotor stands up, and its tips are open/drafted. Cage+rollers are the PIP cluster; the bushing is not nested around them."
     },
     {
       "id": "helix",

@@ -23,6 +23,8 @@ pub struct Spec {
     pub fit_running_mm: f64,
     pub fit_slip_mm: f64,
     pub fit_friction_mm: f64,
+    pub fit_pip_mm: f64,
+    pub bed_relief_mm: f64,
     pub filament: Filament,
     pub materials: PrintMaterials,
     pub wing_count: usize,
@@ -190,7 +192,13 @@ impl Spec {
         self.mm_min(self.cage_h, self.roller_h() + 2.0)
     }
     fn cage_pocket(&self) -> f64 {
-        self.roller_d() + self.fit_running_mm
+        self.roller_d() + self.fit_pip_mm
+    }
+    fn bed_relief_h(&self) -> f64 {
+        self.bed_relief_mm
+    }
+    fn bed_relief_d(&self) -> f64 {
+        self.bed_relief_mm
     }
     fn retainer_od(&self) -> f64 {
         (self.outer_race_id() + 4.0)
@@ -291,7 +299,10 @@ impl Spec {
         (self.fit_running_mm - self.nozzle_mm).abs() < 1e-9
             && self.fit_friction_mm + 1e-9 < self.fit_slip_mm
             && self.fit_slip_mm + 1e-9 < self.fit_running_mm
+            && self.fit_running_mm + 1e-9 < self.fit_pip_mm
             && (self.clearance_mm - self.fit_running_mm).abs() < 1e-9
+            && (self.bed_relief_mm - self.nozzle_mm * 2.0).abs() < 1e-9
+            && (self.fit_pip_mm - self.nozzle_mm * 2.0).abs() < 1e-9
     }
     fn rollers_ok(&self) -> bool {
         self.roller_count >= 6
@@ -303,6 +314,8 @@ impl Spec {
             && self.bushing_od() > self.outer_race_id()
             && self.bushing_flange_od() + 1e-9 > self.hub_od()
             && self.axle_flange_d() + 1e-9 > self.bushing_flange_od()
+            && self.cage_pocket() + 1e-9 >= self.roller_d() + self.fit_pip_mm
+            && self.outer_race_id() + self.bed_relief_d() + 1e-9 < self.bushing_od()
     }
     fn helix_ok(&self) -> bool {
         self.helix_deg >= 45.0 && self.helix_stations >= 2
@@ -326,6 +339,9 @@ impl Spec {
             && self.retainer_od() + 1e-9 > self.outer_race_id()
             && self.race_h() + 1e-9 >= self.cage_h() + self.thrust_float
             && self.hub_h() + 1e-9 >= self.bushing_h() - self.bushing_flange_h()
+            && self.bed_relief_h() + 1e-9 < self.hub_h()
+            && self.bed_relief_h() + 1e-9 < self.retainer_h()
+            && self.bed_relief_h() + 1e-9 < self.axle_flange_h()
     }
     fn assembly_component_count(&self) -> usize {
         6 + self.roller_count
@@ -638,6 +654,8 @@ fn layout_print_plate(
         &[axle_id],
         [col_x, -(axle_r + gap * 0.5), -spec.flange_z()],
     )?;
+    // Bushing stays its own body. Nesting it around the PIP rollers at
+    // assembled running clearance is 0.10 mm/side and welds on the bed.
     move_bodies(
         call,
         &[bushing_id],
@@ -822,6 +840,14 @@ fn build_axle(
         )?,
         "axle square bore",
     )?;
+    cut_bed_relief_square(
+        call,
+        spec,
+        spec.flange_z(),
+        spec.hub_square() + spec.bed_relief_d(),
+        axle_id,
+        "axle square bed lead-in",
+    )?;
     Ok(axle_id)
 }
 
@@ -869,6 +895,14 @@ fn build_bushing(
             }),
         )?,
         "bushing shoulder",
+    )?;
+    cut_bed_relief_circle(
+        call,
+        spec,
+        spec.bushing_z(),
+        spec.outer_race_id() + spec.bed_relief_d(),
+        bushing_id,
+        "bushing race bed lead-in",
     )?;
     Ok(bushing_id)
 }
@@ -964,6 +998,14 @@ fn build_rotor(
             &format!("helical blade {index}"),
         )?;
     }
+    cut_bed_relief_circle(
+        call,
+        spec,
+        z0,
+        spec.hub_bore() + spec.bed_relief_d(),
+        rotor_id,
+        "hub bore bed lead-in",
+    )?;
     Ok(rotor_id)
 }
 
@@ -1092,6 +1134,14 @@ fn build_retainer(
             }),
         )?,
         "retainer square slip",
+    )?;
+    cut_bed_relief_square(
+        call,
+        spec,
+        spec.retainer_z(),
+        spec.retainer_square() + spec.bed_relief_d(),
+        retainer_id,
+        "retainer square bed lead-in",
     )?;
     Ok(retainer_id)
 }
@@ -1427,8 +1477,8 @@ fn make_assembly_drawing(
         (
             [18.0, 38.0],
             format!(
-                "FITS  running +{:.2}  slip +{:.2}  friction +{:.2}  thrust float {:.2}  (slicer XY hole comp = 0)",
-                spec.fit_running_mm, spec.fit_slip_mm, spec.fit_friction_mm, spec.thrust_float
+                "FITS  running +{:.2}  PIP +{:.2}  slip +{:.2}  friction +{:.2}  bed lead-in {:.2}  (slicer XY hole comp = 0)",
+                spec.fit_running_mm, spec.fit_pip_mm, spec.fit_slip_mm, spec.fit_friction_mm, spec.bed_relief_mm
             ),
         ),
         (
@@ -1437,7 +1487,7 @@ fn make_assembly_drawing(
         ),
         (
             [18.0, 58.0],
-            "GDT  axle SITS on base. Hub SITS on bushing shoulder (friction on OD). 0.20 float at flange/bushing and hub/retainer. Rollers RUNNING in the bushing.".to_string(),
+            "GDT  axle SITS on base. Hub SITS on bushing shoulder (friction on OD above bed lead-in). PIP pockets +0.80; do not nest bushing around rollers. 0.20 float at running lands.".to_string(),
         ),
         (
             [18.0, 68.0],
@@ -1660,8 +1710,8 @@ fn grade(
         "fits",
         spec.fits_ok() && spec.stack_ok(),
         format!(
-            "running +{:.2}  slip +{:.2}  friction +{:.2}  thrust float {:.2}",
-            spec.fit_running_mm, spec.fit_slip_mm, spec.fit_friction_mm, spec.thrust_float
+            "running +{:.2}  PIP +{:.2}  slip +{:.2}  friction +{:.2}  bed lead-in {:.2}",
+            spec.fit_running_mm, spec.fit_pip_mm, spec.fit_slip_mm, spec.fit_friction_mm, spec.bed_relief_mm
         ),
     );
     push_lesson(
@@ -1759,10 +1809,12 @@ fn grade(
         "print_flat",
         spec.print_flat_ok(),
         format!(
-            "axle puck h{:.1} on flange Ø{:.1}; rotor stands {:.0}",
+            "axle puck h{:.1} on flange Ø{:.1}; rotor stands {:.0}; bed lead-in {:.2}; PIP pockets +{:.2}",
             spec.axle_flange_h() + spec.race_h(),
             spec.axle_flange_d(),
-            spec.rotor_print_h()
+            spec.rotor_print_h(),
+            spec.bed_relief_mm,
+            spec.fit_pip_mm
         ),
     );
     push_lesson(
@@ -1901,6 +1953,66 @@ fn add_airfoil(
         .map(|[x, y]| [center[0] + cos * x - sin * y, center[1] + sin * x + cos * y])
         .collect();
     add_poly(call, &world, true)
+}
+
+fn cut_bed_relief_circle(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    spec: &Spec,
+    z: f64,
+    diameter: f64,
+    body_id: u64,
+    label: &str,
+) -> Result<(), String> {
+    let deck = offset_xy(call, z)?;
+    begin_datum(call, deck)?;
+    add_circle(call, [0.0, 0.0], diameter)?;
+    let sketch = finish_sketch(call)?;
+    require_clean(
+        call(
+            "solid_extrude",
+            json!({
+                "sketch_name": sketch,
+                "profile_indices": [0],
+                "operation": "cut",
+                "extent": { "type": "distance", "distance": spec.bed_relief_h() },
+                "taper_angle_deg": 0.0,
+                "flip": false,
+                "target_body_ids": [body_id]
+            }),
+        )?,
+        label,
+    )?;
+    Ok(())
+}
+
+fn cut_bed_relief_square(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    spec: &Spec,
+    z: f64,
+    size: f64,
+    body_id: u64,
+    label: &str,
+) -> Result<(), String> {
+    let deck = offset_xy(call, z)?;
+    begin_datum(call, deck)?;
+    add_oriented_rect(call, [0.0, 0.0], size, size, 0.0)?;
+    let sketch = finish_sketch(call)?;
+    require_clean(
+        call(
+            "solid_extrude",
+            json!({
+                "sketch_name": sketch,
+                "profile_indices": [0],
+                "operation": "cut",
+                "extent": { "type": "distance", "distance": spec.bed_relief_h() },
+                "taper_angle_deg": 0.0,
+                "flip": false,
+                "target_body_ids": [body_id]
+            }),
+        )?,
+        label,
+    )?;
+    Ok(())
 }
 
 fn add_oriented_rect(
@@ -2240,5 +2352,8 @@ mod spec_tests {
         assert!(spec.axle_flange_d() > spec.bushing_flange_od());
         assert!(spec.cage_id() > spec.inner_race_d());
         assert!(spec.post_h() < spec.axle_flange_d() * 2.5);
+        assert!(spec.fit_pip_mm > spec.fit_running_mm);
+        assert!((spec.bed_relief_mm - spec.nozzle_mm * 2.0).abs() < 1e-9);
+        assert!(spec.cage_pocket() > spec.roller_d() + spec.fit_running_mm);
     }
 }

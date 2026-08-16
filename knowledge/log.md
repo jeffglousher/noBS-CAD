@@ -2,6 +2,11 @@
 
 ## 2026-08-16
 
+- **Update**: Print-kit FDM pass: PIP pockets are +0.80 (2 nozzles), not
+  assembled running +0.40. Every bed-printed locate (hub bore, bushing ID,
+  axle square, retainer square) has a 0.80 mm elephant-foot lead-in. The
+  bushing is not nested around the PIP rollers — that gap is 0.10 mm/side
+  and welds. Cage is a spacer; axial capture is flange + retainer.
 - **Update**: Print-kit bushing is a distinct outer-race ring with an
   external shoulder. The hub friction-mounts on the bushing OD (`hub_mount`)
   and sits on that seat. Rollers run inside the bushing ID (`bushing_spin`);

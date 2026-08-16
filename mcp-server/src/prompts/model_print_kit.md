@@ -7,11 +7,12 @@ Printer: Bambu Lab X2D (256×256×260, 8 mm margin). `spec.scale` shrinks the X2
 
 Nozzle = {nozzle} mm. Fits are **per role**, not one clearance for every hole:
 
-- running (rollers / races): +{nozzle} mm diametral
+- running (rollers / races printed as **other** bodies, then assembled): +{nozzle} mm diametral
+- PIP (same-plate cage pockets): +0.80 mm (2 nozzles). Assembled running is 0.20/side and **welds** if the roller and cage share a layer
 - slip (retainer on the post): +0.28 mm
-- friction locate (axle on the square post, hub on the bushing OD): +0.16 mm
+- friction locate (axle on the square post, hub on the bushing OD): +0.16 mm on a land **above** a 0.80 mm bed lead-in
 
-No FDM press fits. Slicer XY hole compensation stays 0. Thrust is a flat land with 0.20 mm float at **every** running land (flange↔bushing/cage, hub↔retainer). The hub **sits** on the bushing shoulder (no float; they spin together). The retainer is a washer that covers the open raceway (OD between outer-race ID and hub OD), not a cap through the hub.
+No FDM press fits. Slicer XY hole compensation stays 0. Thrust is a flat land with 0.20 mm float at **every** running land (flange↔bushing/cage, hub↔retainer). The hub **sits** on the bushing shoulder (no float; they spin together). The retainer is a washer that covers the open raceway (OD between outer-race ID and hub OD), not a cap through the hub. Every bed-printed functional hole gets a 2-nozzle elephant-foot lead-in. Do **not** print the bushing around the PIP rollers.
 
 This prompt is adversarial. A kit that spins in the grader and fails as a turbine is a FAIL. Read the reject list before you sketch.
 
@@ -29,7 +30,10 @@ Do not ship any of these. They have already been built. They are not turbines.
 - Flat rectangular plate sold as a wing (a plate is a vane, not an airfoil)
 - Turntable, lazy Susan, paint wells, or any platter that throws the wing away
 - One-sided vane, even blade count that cog-locks, or a rotor that only works in one wind azimuth
-- Metal 608 / catalog roller / ball bearings as hidden parts. Fully 3D printed. The bushing is a **distinct outer-race ring** with an external shoulder; the roller cartridge lives **inside** it. The hub is not the outer race.
+- Metal 608 / catalog roller / ball bearings as hidden parts. Fully 3D printed. The bushing is a **distinct outer-race ring** with an external shoulder; the roller cartridge lives **inside** it after assembly. The hub is not the outer race.
+- PIP at assembled running clearance (cage pockets or rollers inside the bushing at +0.40). Same-plate gap must be **2 nozzles**
+- A friction or running bore on the print bed with no lead-in (elephant foot closes +0.16 and pinches a race)
+- Nesting the bushing around the PIP rollers on the plate (0.10 mm/side — they fuse)
 - Press fits, same-angle lifted cones (parallel surfaces never touch)
 - A report that only says READY TO PRINT
 - A fat frame: base envelope > 1.55 × rotor tip diameter (the Ø90 cookie)
@@ -97,12 +101,12 @@ Specify, in the report, all of:
 
 The bearing is a **printed roller cartridge** (PIP rollers in a cage) inside a **distinct outer-race bushing** at a large pitch circle so it can take the moment at the blade tips. Thrust on the axle flange land (0.20 float under the bushing). No metal 608, no 623, no tall two-land sleeve as the only bearing. Do not make the hub the outer race.
 
-- Inner race: cylindrical OD on the axle puck
-- Outer race: **bushing ID** (not the hub bore)
-- Bushing OD + external shoulder: the hub **friction-mounts** here and **sits** on the shoulder
-- Cage sits inside the bushing, around the race
+- Inner race: cylindrical OD on the axle puck (printed separately)
+- Outer race: **bushing ID** (not the hub bore), printed separately, with a bed lead-in so elephant foot does not pinch the rollers
+- Bushing OD + external shoulder: the hub **friction-mounts** here (land above the hub's bed lead-in) and **sits** on the shoulder
+- Cage + rollers are the **PIP cluster** (pockets +0.80). The cage is a spacer; axial capture is the axle flange + retainer
+- Do not PIP the rollers inside the bushing. Do not close a top inward lip over the rollers
 - Square post is the **stator** (friction in the axle, slip in the retainer). The hub does **not** key to the post
-- Retain with the flange + retainer washer over the open raceway. Not interference. Do not close a top inward lip over the rollers (that kills PIP)
 
 PLA-on-PLA is a demo spin, not a 1000 h bearing. Say that in the report.
 
@@ -148,7 +152,7 @@ The report must include:
 
 ### 1. Iteration log (what failed, why)
 
-At least the real product faults: scatter, colliding spinner, helical C, hoop sector, turntable, flat plate, straight NACA in a fat cage, uniform +0.40 on every hole, tenoned separate wings, tall skinny shaft, two-land sleeve that cannot take tip moment.
+At least the real product faults: scatter, colliding spinner, helical C, hoop sector, turntable, flat plate, straight NACA in a fat cage, uniform +0.40 on every hole, PIP at assembled running clearance, bed-printed friction bore with no lead-in, tenoned separate wings, tall skinny shaft, two-land sleeve that cannot take tip moment.
 
 ### 2. Design process
 

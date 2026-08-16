@@ -38,9 +38,11 @@ floors (roller Ø8, TE 0.8, 4-nozzle walls) are clamped.
 | Roller cartridge | Cage + 6 PIP rollers, min Ø8, large PCD | Running +0.40 on rollers / inner race / bushing ID. PIP on the kit plate. |
 | Retainer | Washer covering the open raceway | Slip +0.28 on the post. Floats 0.20 above the hub. |
 
-Fits are **per role** (running / slip / friction). Do not use +0.40 on
-every hole. Slicer XY hole compensation stays 0. No metal 608s. No FDM
-press fits.
+Fits are **per role** (running / PIP / slip / friction) and per whether
+the parts share a plate. Assembled running +0.40. Same-plate PIP +0.80.
+Every bed-printed locate gets a 0.80 mm elephant-foot lead-in. Do not
+nest the bushing around the PIP rollers. Slicer XY hole compensation
+stays 0. No metal 608s. No FDM press fits.
 
 Assembly order: **base → axle → bushing → roller cartridge → rotor → retainer**.
 

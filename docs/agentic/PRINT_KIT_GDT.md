@@ -142,7 +142,8 @@ graded, but it was the wrong product for additive manufacturing:
 
 | Joint | Class | CAD |
 |-------|-------|-----|
-| Rollers ↔ pockets / races | Running | +0.40 diametral |
+| Rollers ↔ races (assembled) | Running | +0.40 diametral |
+| Rollers ↔ cage pockets (PIP) | PIP | +0.80 diametral (2 nozzles). Not the assembled running number. |
 | Retainer ↔ square post | Slip | +0.28 |
 | Axle square bore ↔ post | Friction locate | +0.16 |
 | Hub bore ↔ bushing OD | Friction locate | +0.16. They spin together. |
@@ -186,3 +187,11 @@ If those steps are not visible in the solid, the exam failed.
 | Fault | Why it failed | Correction |
 |-------|---------------|------------|
 | Hub as the outer race | Cage stuffed inside the hub wall. No distinct bushing, no shoulder, no “wheel on a bearing.” | Outer-race bushing with an external shoulder. Hub friction-mounts on the OD and sits on the seat. Rollers stay inside the bushing ID. |
+
+### 2026-08-16 additive / FDM pass
+
+| Fault | Why it failed | Correction |
+|-------|---------------|------------|
+| PIP at assembled running | Cage pockets at +0.40 are 0.20 mm/side. Same-plate first layers weld. | PIP pockets +0.80 (2 nozzles). Assembled races stay +0.40. |
+| Bed-printed friction bore | Hub bore and axle square sit on the bed. Elephant foot closes +0.16. | 0.80 mm lead-in on hub bore, bushing ID, axle square, retainer square. Functional land starts above layer 1. |
+| Bushing nested around rollers | Race-to-roller at +0.40 is 0.10 mm/side on the same plate. They fuse. | Bushing is its own body. Cage+rollers are the PIP cluster. Axial capture is flange + retainer, not a top lip. |

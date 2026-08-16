@@ -26,7 +26,7 @@ Contract: [PRINT_KIT_DESIGN.md](PRINT_KIT_DESIGN.md).
 - **Architecture:** Helical H-Darrieus, directionless (no yaw). Short fixed square post. Hub freewheels on a printed roller pack. No tall mast.
 - **Airfoil:** NACA 0021 (t/c 0.21). 2026 band is t/c 21–24%. TE blunt to 0.8 mm. Open drafted tips.
 - **Rotor:** one piece, N=3, 60° helix, σ in 0.24–0.45. Envelope/rotor ≤ 1.55.
-- **Fits:** running +0.40 (rollers on both races), slip +0.28 (retainer), friction +0.16 (axle on post, hub on bushing OD). Slicer XY hole compensation stays 0. No press. No 608.
+- **Fits:** assembled running +0.40 (rollers on races), PIP +0.80 (cage pockets), slip +0.28 (retainer), friction +0.16 on a land above a 0.80 mm bed lead-in. Do not nest the bushing around the PIP rollers. Slicer XY hole compensation stays 0. No press. No 608.
 - **Bushing:** distinct outer-race ring with an external shoulder. PIP roller cartridge (6× min Ø8) on a large PCD inside the ID. Hub friction-mounts on the OD. A two-land sleeve is not enough for tip moment.
 - **Scale:** X2D-max source; exam scale 0.4. Feature floors clamped.
 - **Service finish:** rotor standing so layer lines run spanwise; sand PLA 400→1000 on skins.
