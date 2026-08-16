@@ -23,11 +23,11 @@ placed **assembled on one axis**:
 
 | Body | Role | How it mates |
 |------|------|----------------|
-| Base | Ø90 × 6 plate, 45° cup (r5), 3× Ø8 posts on R38 | Cup centers the shaft. Posts locate through the top plate and stand 2 mm proud. |
+| Base | Ø72 × 5 plate, 45° cup (r5), 3× Ø5 posts on R32 | Cup centers the shaft. Posts locate through the top plate and stand 2 mm proud. |
 | Shaft | Male cone r4.8, Ø13 × 0.8 land (0.20 float), Ø8 journal, Ø16 shoulder, double-D 6.0 in the hub zone | Land takes thrust; journal runs in the sleeve; double-D drives the hub |
 | Hub | Ø28 × 8, Ø8.4 bore, **sits on the shoulder**, double-D 6.4, 3 sockets at 60°/180°/300° | The wing mount. Sockets open to the OD. |
-| Wing ×3 | **NACA 0021** (t/c 0.21), chord 12 mm tangential, blunt TE 0.8 mm, span 32, mid-chord R24, 7.6 × 4.8 tenon | Drops into a hub socket. Stands in a bay between the posts. |
-| Top plate | Ø90 × 6 at z=52, Ø8.4 post holes, Ø16 windows over the blades, Ø14.4 × 4 seat | Drops onto the three posts; windows keep the rotor visible; seat holds the sleeve |
+| Wing ×3 | Helical **NACA 0021**, chord 16, span 48, 60° twist on R24, blunt TE 0.8, 7.6 × 4.8 tenon | Drops into a hub socket. Stays in a post bay for the whole helix. |
+| Top plate | Ø72 × 6 at z=67, Ø5.4 post holes, Ø22 windows at mid-helix, Ø14.4 × 4 seat | Drops onto the three posts; windows keep the rotor visible; seat holds the sleeve |
 | Printed bushing | Ø8.4 / Ø14 × 4 sleeve | Sits on the land; upper radial bearing; no metal 608 |
 | Cap | Ø20 × 2.4 washer, 0.20 float above the plate | Slips onto the journal and keeps the stack down |
 
@@ -75,8 +75,10 @@ Agents start with `prompts/get model_print_kit`.
 6. Prefer printed bushings (no hidden 608)
 7. The wing is a part that mounts
 8. The section is a 2026-appropriate airfoil (not a plate or hoop)
-9. Publish the design report (iteration + plastic cost)
-10. Export a printable package
+9. Frame girth vs the rotor (plate/rotor ≤ 1.55, post/chord ≤ 0.40)
+10. Helical blades, not a straight fence (≥45° loft on the cylinder)
+11. Publish the design report (iteration + plastic cost)
+12. Export a printable package
 
 Later (not this exam): catalog metal bearings from a standard table at
 larger sizes.

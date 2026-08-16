@@ -633,6 +633,8 @@ mod tests {
             "service finish",
             "design report",
             "Reject list",
+            "helical",
+            "girth",
         ] {
             assert!(
                 print_kit.contains(needle),

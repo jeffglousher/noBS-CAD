@@ -2,10 +2,10 @@
 
 ## 2026-08-16
 
-- **Update**: `model_print_kit` is now an adversarial design contract:
-  directionless H-Darrieus, 2026 symmetric airfoil (NACA 0021 / 0024–4.5/3.5
-  family), printed bushings not rollers, service finish, and a design
-  report with iteration + plastic cost. Flat plates and hoop sectors fail.
+- **Update**: Print-kit sanity pass: helical NACA 0021 (60° on R24),
+  stand shrunk to Ø72 / Ø5 posts so the frame no longer out-girths the
+  rotor (plate/rotor 1.42, post/chord 0.31). Straight fence + Ø90 cookie
+  fail the new `sanity` and `helix` lessons.
   Contract: [PRINT_KIT_DESIGN.md](../docs/agentic/PRINT_KIT_DESIGN.md).
 
 ## 2026-08-15

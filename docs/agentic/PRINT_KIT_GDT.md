@@ -28,7 +28,7 @@ socket. Windows in the top plate keep the blades visible.
 | Product (leftover loft) | Two helical C-buckets joined to a hub. Not a mount, not assemblable as a wing. | Separate wing bodies. Tenon in socket. No loft. |
 | Product (hoop sector) | “Scoop” was an 80° annulus at r20–r28. Concave faces the axis. Looks like a broken rim. Cannot make torque. | Named symmetric airfoil, chord tangential. |
 | Product (flat plate) | 12 × 2.4 × 32 rectangle. A vane, not a section. Directionless VAWT sees reversing α. | **NACA 0021** (t/c 0.21), blunt TE ≥ 0.8 mm. 2026 band is t/c 21–24%. |
-| Rotor vs posts | C-buckets sweep ~Ø56. Posts on R24 × Ø6 occupy R21–27. They collide. | Posts on **R38 × Ø8**. Inner wall R34. Blade tip ~**R25**. ≥9 mm air. Wings in the bays (60° offset). |
+| Rotor vs posts | C-buckets sweep ~Ø56. Posts on R24 × Ø6 occupy R21–27. They collide. | Posts **Ø5 on R32**. Inner wall R29.5. Helical tip ~**R25.3**. ≥4 mm air. Root at 30° so the 60° helix stays in the bay. |
 | Posts vs plate | Posts stopped at the plate bottom. Holes did not locate. | Posts continue **through** the 6 mm plate and stand **2 mm proud**. |
 | Bushing seat | Plate and seat were both 4 mm. Seat was a through-hole. Bushing falls. | Plate **6 mm**. Seat **4 mm** from the top. **2 mm land** under the sleeve. |
 | Cone “seat” | Same 45° + tip lift = parallel cones. No contact. Shaft falls. | Female 45° r5. Male r**4.8** (0.20 radial). Thrust on a **Ø13 × 0.8 land** with **0.20 float**. |
@@ -98,7 +98,7 @@ only. The section is **NACA 0021**, not a hoop and not a flat plate.
 
 ![Wings on the hub, top](images/wings-top.png)
 
-![One wing, NACA 0021 and tenon](images/wings-one.png)
+![One wing, helical NACA 0021 and tenon](images/wings-one.png)
 
 ## Assembled park
 
@@ -112,12 +112,12 @@ only. The section is **NACA 0021**, not a hoop and not a flat plate.
 
 | Body | z min–max | Notes |
 |------|-----------|--------|
-| Base + posts | 0–60 | Posts through the 52–58 plate, 2 mm proud |
-| Shaft | 1.5–62 | Land above the cup; journal through the cap |
-| Hub | 18–26 | Sits on the shoulder; sockets from the top |
-| Wings | 18–50 | Vertical blades; tenon in the socket; 2 mm air to the plate |
-| Top plate | 52–58 | Ø90 × 6 with Ø16 windows over the blades |
-| Bushing | 54–58 | On the 2 mm land |
-| Cap | 58.2–60.6 | 0.20 float |
+| Base + posts | 0–75 | Ø72 plate. Ø5 posts through the 67–73 plate, 2 mm proud |
+| Shaft | 0.5–78 | Land above the cup; journal through the cap |
+| Hub | 17–25 | Sits on the shoulder; sockets from the top |
+| Wings | 17–65 | Helical NACA 0021, 60° twist; tenon at the root; 2 mm air to the plate |
+| Top plate | 67–73 | Ø72 × 6 with Ø22 windows at mid-helix |
+| Bushing | 69–73 | On the 2 mm land |
+| Cap | 73.2–75.6 | 0.20 float |
 
-Blade tip ~R25 < post inner R34. Nine coaxial bodies.
+Blade tip ~R25.3 < post inner R29.5. Frame/rotor 1.42. Nine coaxial bodies.

@@ -59,6 +59,8 @@ pub struct Spec {
     pub wing_chord: f64,
     pub wing_thick: f64,
     pub wing_offset_deg: f64,
+    pub helix_deg: f64,
+    pub helix_stations: usize,
     pub airfoil: String,
     pub airfoil_t_c: f64,
     pub airfoil_te_min_mm: f64,
@@ -128,15 +130,15 @@ impl Spec {
         let radius = self.hub_od / 2.0 - self.socket_radial / 2.0;
         [radius * radians.cos(), radius * radians.sin()]
     }
-    fn blade_center(&self, index: usize) -> [f64; 2] {
-        let radians = self.wing_angle_deg(index).to_radians();
+    fn helix_azimuth_deg(&self, index: usize, t: f64) -> f64 {
+        self.wing_angle_deg(index) + self.helix_deg * t
+    }
+    fn helix_center(&self, index: usize, t: f64) -> [f64; 2] {
+        let radians = self.helix_azimuth_deg(index, t).to_radians();
         [
             self.wing_radius * radians.cos(),
             self.wing_radius * radians.sin(),
         ]
-    }
-    fn blade_angle_deg(&self, index: usize) -> f64 {
-        self.wing_angle_deg(index) + 90.0
     }
     fn blade_inner_r(&self) -> f64 {
         self.wing_radius - self.wing_thick / 2.0
@@ -157,7 +159,27 @@ impl Spec {
         outer - inner
     }
     fn window_xy(&self, index: usize) -> [f64; 2] {
-        self.blade_center(index)
+        self.helix_center(index, 0.5)
+    }
+    fn rotor_d(&self) -> f64 {
+        self.blade_tip_r() * 2.0
+    }
+    fn frame_girth_ratio(&self) -> f64 {
+        self.top_plate_d.max(self.base_d) / self.rotor_d()
+    }
+    fn post_chord_ratio(&self) -> f64 {
+        self.post_d / self.wing_chord
+    }
+    fn sanity_ok(&self) -> bool {
+        self.frame_girth_ratio() <= 1.55
+            && self.post_chord_ratio() <= 0.40
+            && self.wing_h + 1e-9 >= self.wing_chord * 2.5
+            && self.solidity() >= 0.27
+            && self.top_plate_d <= 76.0
+            && self.post_d <= 5.5
+    }
+    fn helix_ok(&self) -> bool {
+        self.helix_deg >= 45.0 && self.helix_stations >= 2
     }
     fn socket_floor_z(&self) -> f64 {
         self.shoulder_top() + self.hub_h - self.socket_h
@@ -558,32 +580,38 @@ fn build_wing(
     known: &[u64],
 ) -> Result<u64, String> {
     let angle = spec.wing_angle_deg(index);
-    let deck = offset_xy(call, spec.shoulder_top())?;
-    begin_datum(call, deck)?;
-    add_airfoil(
-        call,
-        spec.blade_center(index),
-        spec.blade_angle_deg(index),
-        spec.wing_chord,
-        spec.airfoil_t_c,
-        spec.airfoil_stations,
-        spec.airfoil_te_min_mm,
-    )?;
-    let blade = finish_sketch(call)?;
+    let stations = spec.helix_stations.max(2);
+    let mut sections = Vec::new();
+    for station in 0..stations {
+        let t = station as f64 / (stations - 1) as f64;
+        let deck = offset_xy(call, spec.shoulder_top() + spec.wing_h * t)?;
+        begin_datum(call, deck)?;
+        add_airfoil(
+            call,
+            spec.helix_center(index, t),
+            spec.helix_azimuth_deg(index, t) + 90.0,
+            spec.wing_chord,
+            spec.airfoil_t_c,
+            spec.airfoil_stations,
+            spec.airfoil_te_min_mm,
+        )?;
+        sections.push(finish_sketch(call)?);
+    }
     let update = require_clean(
         call(
-            "solid_extrude",
+            "solid_loft",
             json!({
-                "sketch_name": blade,
-                "profile_indices": [0],
+                "sections": sections.iter().map(|name| json!({
+                    "sketch_name": name,
+                    "profile_index": 0
+                })).collect::<Vec<_>>(),
+                "ruled": false,
                 "operation": "new_body",
-                "extent": { "type": "distance", "distance": spec.wing_h },
-                "taper_angle_deg": 0.0,
-                "flip": false,
-                "target_body_ids": []
+                "target_body_ids": [],
+                "continuity": "g1"
             }),
         )?,
-        "wing blade",
+        "helical wing",
     )?;
     let wing_id = newest_body_id(&update, known)?;
 
@@ -825,7 +853,7 @@ fn grade(
         "even",
         spec.post_count == 3
             && spec.wing_count == 3
-            && spec.wing_offset_deg == 60.0
+            && (spec.wing_offset_deg + spec.helix_deg * 0.5 - 60.0).abs() < 1e-9
             && spec.drive_across_hub > spec.drive_across,
         "3 posts at 120°, 3 wings in the bays, double-D drive".to_string(),
     );
@@ -851,7 +879,7 @@ fn grade(
         "not_2d",
         wing_faces >= spec.min_rotor_faces
             && wing_span > spec.wing_h - 1.0
-            && wing_xy < spec.blade_tip_r()
+            && wing_xy < spec.wing_radius + spec.wing_chord * 0.65
             && spec.wing_thick < spec.wing_chord / 3.0
             && spec.wing_h > spec.wing_chord * 2.0,
         format!("mounted blade faces={wing_faces} height={wing_span:.1} xy={wing_xy:.1}"),
@@ -866,6 +894,28 @@ fn grade(
             spec.airfoil_t_c,
             spec.airfoil_te_min_mm,
             spec.solidity()
+        ),
+    );
+    push_lesson(
+        &mut lessons,
+        "sanity",
+        spec.sanity_ok(),
+        format!(
+            "frame/rotor {:.2}; post/chord {:.2}; σ={:.2}; plate Ø{:.0} post Ø{:.0}",
+            spec.frame_girth_ratio(),
+            spec.post_chord_ratio(),
+            spec.solidity(),
+            spec.top_plate_d,
+            spec.post_d
+        ),
+    );
+    push_lesson(
+        &mut lessons,
+        "helix",
+        spec.helix_ok() && wing_span > spec.wing_h - 1.0,
+        format!(
+            "{:.0}° helix, {} stations, span {:.1}",
+            spec.helix_deg, spec.helix_stations, wing_span
         ),
     );
     let cost = spec.estimated_filament_usd();
@@ -1327,6 +1377,8 @@ mod spec_tests {
         assert!(spec.wing_h > spec.wing_chord * 2.0);
         assert!(spec.wing_thick < spec.wing_chord / 3.0);
         assert!(spec.airfoil_ok());
+        assert!(spec.sanity_ok());
+        assert!(spec.helix_ok());
         assert!(spec.estimated_filament_usd() > 0.05);
         assert!(spec.post_extrude_h() + spec.base_h > spec.plate_top());
         assert!(
@@ -1342,7 +1394,7 @@ mod spec_tests {
         assert!(spec.shaft_top() > spec.plate_top() + spec.cap_float + spec.cap_h);
         assert_eq!(spec.post_count, 3);
         assert_eq!(spec.wing_count, 3);
-        assert_eq!(spec.wing_offset_deg, 60.0);
+        assert!((spec.wing_offset_deg + spec.helix_deg * 0.5 - 60.0).abs() < 1e-9);
         assert!(spec.min_bodies >= 9);
         assert!(spec.bush_od < 20.0);
     }

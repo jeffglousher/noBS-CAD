@@ -21,6 +21,9 @@ Do not ship any of these. They have already been built. They are not turbines.
 - Metal 608 / catalog roller / ball bearings as hidden parts. Prefer printed bushings. Rollers are a later table, not this exam
 - Press fits, same-angle lifted cones (parallel surfaces never touch), hub swallowing the shoulder
 - A report that only says READY TO PRINT
+- A fat frame: plate or base OD > 1.55 × rotor tip diameter (the Ø90 cookie around 12 mm slats)
+- Posts thicker than 0.40 × chord
+- Straight prismatic airfoils (a fence). Helix is required
 
 If the solid looks like a broken rim, a fence slat, or a lid, start over.
 
@@ -28,11 +31,11 @@ If the solid looks like a broken rim, a fence slat, or a lid, start over.
 
 A small **directionless vertical-axis wind turbine** (VAWT). Wind azimuth does not matter. There is no yaw. The machine is a two-bearing stand plus a rotor the stand can hold.
 
-Architecture (required): **H-Darrieus** with a **symmetric airfoil** section. Symmetric because the blade sees reversing angle of attack every revolution; a cambered HAWT section is the wrong physics. Directionless means: odd blade count, 120° spacing, chord approximately tangential, identical blades, no preferred wind direction.
+Architecture (required): **helical / Gorlov H-Darrieus** with a **symmetric airfoil** section. Symmetric because the blade sees reversing α every revolution. Helical because a straight extrusion is idle for most of the rev and has hard torque ripple — at desk Re that kills self-start. Directionless means: odd blade count, 120° spacing, chord tangent to the cylinder at every station, identical blades, no preferred wind azimuth.
+
+Helix rule: loft a **closed NACA** at ≥2 stations. Mid-chord stays on radius R. Chord stays tangent. Twist ≥45° over the span (spec: 60°). Root at 30° so the 60° helix stays in the post bays. Do not rotate the section in place (that grows tip radius into the posts). Do not fake twist with a leftover C.
 
 Optional (do not substitute for the airfoil): a small inner drag starter (Savonius cup or 2026 adaptive Darrieus–Savonius flap, Gu & MacDonald & Tang, *Flow* 2026). If you add one, it must clear the airfoils and the posts and still assemble with no hardware.
-
-Helical / Gorlov twist is allowed only if the loft is a closed airfoil at every station. Do not fake twist with a leftover C.
 
 ## 2026 airfoil (required)
 
@@ -49,13 +52,23 @@ Range-wide Darrieus optimization (2026, Joukowsky / MOP) still beats NACA 0021 a
 
 Low-Re flap papers (plain / Gurney / hybrid, 2026) are optional add-ons. Do not use a flap to excuse a flat plate.
 
-Desk-scale numbers that must stay true:
+## Grouped expected design (build this, not a remix)
 
-- Chord tangential (pitch β ≈ 0 unless you document a few degrees)
-- Mid-chord on a radius that **clears the posts** (spec: R24, posts R38, inner wall R34)
-- Span up the bay (spec: 32 mm). Aspect ratio is stubby because the Ø90 bed is the product limit — say so in the report. Do not “fix” AR by deleting the frame
-- Solidity σ = N c / (π D) ≈ 0.24 at the spec chord. Low-Re self-start wants 0.30–0.45; if you raise chord, re-check tip vs posts and raise the windows
-- Estimate Re = V_rel × c / ν. Desk wind 3–5 m/s, TSR ~2, c = 12 mm → Re ~ 5e3–1e4. Thick symmetric is the correct family. Thin 0012 is not
+The rotor is the product. The frame is a stand. Size the stand to the rotor.
+
+| Group | Spec (do not “improve” by fattening the cage) |
+|-------|-----------------------------------------------|
+| Section | NACA 0021, t/c 0.21, TE ≥ 0.8 mm, 8 stations, ctrl held |
+| Rotor | N=3, c=16 mm, R=24 mm, span=48 mm, σ≈0.32, 60° helix, 3 loft stations |
+| Bay | Root azimuth 30°/150°/270°. Helix +60° so mid-span is mid-bay. Tip ~R25.3 |
+| Stand | Base/plate **Ø72 × 5 / 6**, not Ø90. Posts **Ø5 on R32** (inner R29.5). ≥4 mm air to tip |
+| Girth gates | plate/rotor D ≤ 1.55; post/chord ≤ 0.40; span/chord ≥ 2.5 |
+| Fits | +{nozzle} mm every running/slip. Printed cup+land + printed sleeve. No 608 |
+| Stack | plate_z = 67 (5+10+2+48+2). Hub sits on the shoulder. Tenon at the **root** station |
+
+Sanity: if the plates look like cookies and the blades look like garnish, the girth gates failed.
+
+Desk Re (c=16 mm, 3–5 m/s, TSR ~2) ≈ 7e3–1.4e4. Thick symmetric is still the right family.
 
 ## Service finish (dynamics)
 
@@ -96,18 +109,18 @@ Print each body in its own orientation. The exam shows the assembled park so the
 
 Minimum wall 1.6 mm (4 nozzles). Functional holes are complete XY circles. Disable grid snap. Prefer locked circles. Draw airfoil, socket, and tenon polylines with **ctrl held** or ortho-snap will square the section into a plate.
 
-## Frame (keep it)
+## Frame (keep the stand, shrink the girth)
 
-The Ø90 post-and-plate stack is the good part. Do not throw it away.
+The two-bearing idea stays. The Ø90 cookie does not.
 
 1. prompts/get model_print_kit. cad_list_all_tools. cad_new_project. cad_set_document_name Print Kit Tutor
-2. Base Ø90 × 6. Cut the 45° cup. Join three Ø8 posts on R38 at 120° that continue **through** the top plate and stand 2 mm proud
+2. Base Ø72 × 5. Cut the 45° cup. Join three Ø5 posts on R32 at 120° that continue **through** the top plate and stand 2 mm proud
 3. Shaft: revolve on XZ. Male cone r4.8, land, Ø8 journal, Ø16 shoulder, double-D, upper journal through the plate
-4. Hub Ø28 × 8 **sits on** the shoulder. Ø8.4 bore, double-D 6.4, three sockets at 60°/180°/300°
-5. Each wing: **NACA 0021** (or the 2026 modified 0024) extruded span-wise, mid-chord R24, chord tangential, blunt TE, tenon into a socket, bay between posts. Windows in the top plate so the rotor is visible from +Z
-6. Top plate Ø90 × 6 at z=52. Post holes that locate. Windows over each blade. Bushing seat with a land. Sleeve. Cap
+4. Hub Ø28 × 8 **sits on** the shoulder. Ø8.4 bore, double-D 6.4, three sockets at the **root** azimuths (30°/150°/270°)
+5. Each wing: loft **NACA 0021** at 3 stations, 60° helix on the R24 cylinder, chord tangent, blunt TE, tenon into the root socket. Ø22 windows at mid-helix
+6. Top plate Ø72 × 6 at z=67. Post holes that locate. Bushing seat with a land. Sleeve. Cap
 7. cad_set_focus print. set_body_appearance. solid_export_preflight. solid_export_3mf slicer_target=bambu_studio
-8. Write the design report (below). Grade against the lessons. A green export with a rejected section is still a fail
+8. Write the design report. Include the girth ratios and why helix. A green export with a fat frame or a straight fence is still a fail
 
 ## Design report (required deliverable)
 
@@ -117,7 +130,7 @@ The report must include:
 
 ### 1. Iteration log (what failed, why)
 
-At least the real product faults: scatter, colliding spinner, helical C, hoop sector, turntable, flat plate. For each: what it looked like, why it cannot make directionless torque or cannot assemble, what you changed.
+At least the real product faults: scatter, colliding spinner, helical C, hoop sector, turntable, flat plate, straight NACA in a fat Ø90 cage. For each: what it looked like, why it cannot make directionless torque or why the frame out-girths the rotor, what you changed.
 
 ### 2. Design process
 
@@ -146,4 +159,4 @@ Do not invent a $0 kit. Do not omit the blades.
 
 ## Grade
 
-Timeline ok. ≥9 coaxial bodies. Posts through plate. Wings in hub sockets. Cone/land thrust. Double-D drive. Even 3+3. **Named symmetric airfoil, not a plate or hoop.** Printed bushings, no hidden rollers. 3MF is a PK zip. **Design report with iteration + cost exists.**
+Timeline ok. ≥9 coaxial bodies. Posts through plate. Wings in hub sockets. Cone/land thrust. Double-D drive. Even 3+3. **Named helical NACA, not a plate, hoop, or straight fence.** Frame/rotor ≤ 1.55. Post/chord ≤ 0.40. Printed bushings. 3MF is a PK zip. **Design report with iteration, girth check, and cost exists.**

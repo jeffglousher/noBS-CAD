@@ -10,14 +10,14 @@
   "bush_od": 14.0,
   "bush_h": 4.0,
   "bush_seat": 14.4,
-  "post_d": 8.0,
-  "post_hole": 8.4,
-  "post_circle_r": 38.0,
+  "post_d": 5.0,
+  "post_hole": 5.4,
+  "post_circle_r": 32.0,
   "post_count": 3,
   "post_proud": 2.0,
-  "base_d": 90.0,
-  "base_h": 6.0,
-  "plate_z": 52.0,
+  "base_d": 72.0,
+  "base_h": 5.0,
+  "plate_z": 67.0,
   "rotor_to_plate_gap": 2.0,
   "cone_h": 5.0,
   "cone_half_deg": 45.0,
@@ -31,7 +31,7 @@
   "shaft_lower_h": 10.0,
   "shaft_shoulder_d": 16.0,
   "shaft_shoulder_h": 2.0,
-  "shaft_upper_h": 44.0,
+  "shaft_upper_h": 61.0,
   "hub_od": 28.0,
   "hub_h": 8.0,
   "socket_w": 8.0,
@@ -42,17 +42,19 @@
   "drive_across": 6.0,
   "drive_across_hub": 6.4,
   "wing_count": 3,
-  "wing_h": 32.0,
+  "wing_h": 48.0,
   "wing_radius": 24.0,
-  "wing_chord": 12.0,
-  "wing_thick": 2.52,
-  "wing_offset_deg": 60.0,
+  "wing_chord": 16.0,
+  "wing_thick": 3.36,
+  "wing_offset_deg": 30.0,
+  "helix_deg": 60.0,
+  "helix_stations": 3,
   "airfoil": "NACA 0021",
   "airfoil_t_c": 0.21,
   "airfoil_te_min_mm": 0.8,
-  "airfoil_stations": 12,
-  "window_d": 16.0,
-  "top_plate_d": 90.0,
+  "airfoil_stations": 8,
+  "window_d": 22.0,
+  "top_plate_d": 72.0,
   "top_plate_h": 6.0,
   "cap_d": 20.0,
   "cap_h": 2.4,
@@ -69,11 +71,11 @@
     "datums": {
       "A": "Base bottom (primary). Frame print bed.",
       "B": "Journal / cone axis (secondary). Turbine axis.",
-      "C": "3× Ø8 posts on Ø76 PCD at 120° (tertiary). Locates the top plate. Wings sit in the bays between posts."
+      "C": "3× Ø5 posts on Ø64 PCD at 120° (tertiary). Locates the top plate. Helical wings stay in the bays."
     },
     "fits_mm": {
       "running_journal_bushing": "+0.40 diametral (Ø8.0 / Ø8.4)",
-      "location_posts_plate": "+0.40 diametral (Ø8.0 / Ø8.4), posts through the plate",
+      "location_posts_plate": "+0.40 diametral (Ø5.0 / Ø5.4), posts through the plate",
       "location_bushing_seat": "+0.40 diametral (Ø14.0 / Ø14.4) with a 2 mm land",
       "drive_double_d": "+0.40 across flats (6.0 / 6.4)",
       "wing_tenon_hub_socket": "+0.40 width (7.6 / 8.0); 0.20 axial float in a 5 mm pocket",
@@ -106,7 +108,7 @@
     {
       "id": "even",
       "title": "Keep the machine even",
-      "teach": "Three posts at 120° and three wings at 120° in the bays between them (60° offset). Double-D so the hub turns the shaft. An odd one-sided vane is not a turbine."
+      "teach": "Three posts at 120° and three helical wings that stay in the bays (30° root, 60° helix → mid-bay at mid-span). Double-D so the hub turns the shaft. An odd one-sided vane is not a turbine."
     },
     {
       "id": "printed_bearings",
@@ -122,6 +124,16 @@
       "id": "airfoil",
       "title": "The section is a 2026-appropriate airfoil",
       "teach": "Directionless VAWTs see reversing α. Build a thick symmetric airfoil (t/c 21–24%, blunt TE ≥ 2 nozzles). Cite the section. A hoop or a rectangle of the same bbox is a fail even if the stack spins."
+    },
+    {
+      "id": "sanity",
+      "title": "Frame girth vs the rotor",
+      "teach": "The stand is subordinate to the rotor. Plate OD ≤ 1.55 × rotor tip diameter. Posts ≤ 0.40 × chord. A Ø90 cookie around 12 mm slats is a fail even if it spins."
+    },
+    {
+      "id": "helix",
+      "title": "Helical blades, not a straight fence",
+      "teach": "A prismatic extrusion is idle for most of the rev and has hard torque ripple. Loft a closed NACA at ≥2 stations with ≥45° helix on the cylinder (mid-chord stays at R, chord stays tangent). Do not fake this with a leftover C."
     },
     {
       "id": "report",

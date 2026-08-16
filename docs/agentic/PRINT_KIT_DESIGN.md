@@ -6,6 +6,22 @@ Adversarial contract for benchmark #1. The recipe is `prompts/get model_print_ki
 [PRINT_KIT_GDT.md](PRINT_KIT_GDT.md).
 
 A kit that exports 3MF and cannot make directionless torque is a **fail**.
+A kit whose frame out-girths the rotor, or whose blades are a straight
+fence, is also a **fail**.
+
+## Grouped expected design
+
+| Group | Number | Why |
+|-------|--------|-----|
+| Section | NACA 0021, TE ≥ 0.8 mm | 2026 thick-symmetric band; printable |
+| Rotor | c=16, R=24, span=48, N=3, 60° helix | σ≈0.32; AR=3; always some blade working |
+| Bay | Root 30°, helix +60° | Stays between Ø5 posts on R32 |
+| Stand | Ø72 plates, Ø5 posts | Frame/rotor ≤ 1.55; post/chord ≤ 0.40 |
+| Fits | +0.40 mm, printed bushings | No 608, no screws |
+
+Straight H-rotor is the wrong default at this Re: torque ripple and
+dead azimuths. Helix is required. Mid-chord stays on the cylinder;
+chord stays tangent. Do not twist the section in place.
 
 ## Why this page exists
 
