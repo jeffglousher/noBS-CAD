@@ -357,6 +357,7 @@ pub fn load_spec() -> Result<Spec, String> {
     serde_json::from_str(SPEC_JSON).map_err(|error| format!("print-kit spec: {error}"))
 }
 
+#[allow(dead_code)]
 struct Built {
     base_id: u64,
     axle_id: u64,
@@ -408,6 +409,7 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
         axle_id,
         rotor_id,
         cage_id,
+        &roller_ids,
         retainer_id,
     ) {
         Ok(()) => (true, "5 components; hub freewheels on the fixed post".to_string()),
@@ -707,7 +709,8 @@ fn build_rotor(
 
     for index in 0..spec.wing_count {
         let [px, py] = spec.helix_center(index, 0.0);
-        begin_datum(call, offset_xy(call, z0)?)?;
+        let spar_deck = offset_xy(call, z0)?;
+        begin_datum(call, spar_deck)?;
         add_oriented_rect(
             call,
             [px * 0.5, py * 0.5],
@@ -882,25 +885,28 @@ fn form_assembly(
     axle_id: u64,
     rotor_id: u64,
     cage_id: u64,
+    roller_ids: &[u64],
     retainer_id: u64,
 ) -> Result<(), String> {
     call(
         "cad_set_focus",
         json!({ "focus": "assembly", "explicit": true }),
     )?;
+    let mut cartridge = vec![cage_id];
+    cartridge.extend(roller_ids.iter().copied());
     let mut components = Vec::new();
-    for (name, body_id) in [
-        ("base", base_id),
-        ("axle", axle_id),
-        ("rotor", rotor_id),
-        ("roller_cage", cage_id),
-        ("retainer", retainer_id),
+    for (name, body_ids) in [
+        ("base", vec![base_id]),
+        ("axle", vec![axle_id]),
+        ("rotor", vec![rotor_id]),
+        ("roller_cage", cartridge),
+        ("retainer", vec![retainer_id]),
     ] {
         let created = call(
             "assembly_create_component",
             json!({
                 "name": name,
-                "body_ids": [body_id],
+                "body_ids": body_ids,
                 "absorb_promoted_bodies": true
             }),
         )?;
@@ -915,9 +921,9 @@ fn form_assembly(
                 "name": format!("{name}_1")
             }),
         )?;
-        components.push((name, body_id, component_id, occurrence));
+        components.push((name, component_id, occurrence));
     }
-    if let Some((_, body_id, _, occ)) = components.first() {
+    if let Some((_, _, occ)) = components.first() {
         if let Some(occurrence_id) = occ["id"].as_u64() {
             let _ = call(
                 "assembly_set_occurrence_grounded",
@@ -926,7 +932,7 @@ fn form_assembly(
         }
         let _ = call(
             "assembly_set_grounded_body",
-            json!({ "body_id": body_id }),
+            json!({ "body_id": base_id }),
         );
     }
     let scene = call("solid_scene", json!({}))?;
@@ -934,16 +940,16 @@ fn form_assembly(
         planar_face_near_z(&scene, axle_id, spec.race_z() + spec.cage_h()),
         planar_face_near_z(&scene, rotor_id, spec.hub_z() + spec.hub_h()),
     ) {
-        let _ = call(
+        call(
             "assembly_create_joint",
             json!({
                 "name": "rotor_spin",
                 "kind": "revolute",
                 "connector_a": axle_face,
                 "connector_b": rotor_face,
-                "grounded_body_id": base_id
+                "grounded_body_id": axle_id
             }),
-        );
+        )?;
     }
     let document = call("assembly_document", json!({}))?;
     let defs = document["component_structure"]["definitions"]
@@ -1016,7 +1022,7 @@ fn make_assembly_drawing(
         call(
             "cad_drawing_add_note",
             json!({
-                "position": { "x": position[0], "y": position[1] },
+                "position": position,
                 "text": text
             }),
         )?;

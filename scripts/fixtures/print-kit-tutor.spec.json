@@ -84,7 +84,7 @@
     {
       "id": "assemble",
       "title": "Individual parts, then an assembly",
-      "teach": "Each functional part is its own body. The three blades and hub are one rotor. Then create components/occurrences and a revolute on the axle. The print-kit is an assembly, not a glued nest and not a bag of coupons."
+      "teach": "Each functional part is its own body. The three blades and hub are one rotor. Then create components/occurrences and a revolute so the hub freewheels on the fixed post. The print-kit is an assembly, not a glued nest and not a bag of coupons."
     },
     {
       "id": "rollers",

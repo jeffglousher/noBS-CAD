@@ -834,16 +834,16 @@ function planarFaceNearZ(scene, bodyId, z) {
 async function formAssembly(ids) {
   await call("cad_set_focus", { focus: "assembly", explicit: true });
   const components = [];
-  for (const [name, bodyId] of [
-    ["base", ids.baseId],
-    ["axle", ids.axleId],
-    ["rotor", ids.rotorId],
-    ["roller_cage", ids.cageId],
-    ["retainer", ids.retainerId],
+  for (const [name, bodyIds] of [
+    ["base", [ids.baseId]],
+    ["axle", [ids.axleId]],
+    ["rotor", [ids.rotorId]],
+    ["roller_cage", [ids.cageId, ...ids.rollerIds]],
+    ["retainer", [ids.retainerId]],
   ]) {
     const created = await call("assembly_create_component", {
       name,
-      body_ids: [bodyId],
+      body_ids: bodyIds,
       absorb_promoted_bodies: true,
     });
     const componentId = created.id ?? created.component?.id;
@@ -852,7 +852,7 @@ async function formAssembly(ids) {
       component_id: componentId,
       name: `${name}_1`,
     });
-    components.push({ name, bodyId, componentId, occurrence });
+    components.push({ name, componentId, occurrence });
   }
   const grounded = components[0];
   if (grounded?.occurrence?.id) {
@@ -862,7 +862,7 @@ async function formAssembly(ids) {
     });
   }
   try {
-    await call("assembly_set_grounded_body", { body_id: grounded.bodyId });
+    await call("assembly_set_grounded_body", { body_id: ids.baseId });
   } catch {
     /* optional on some hosts */
   }
@@ -870,17 +870,13 @@ async function formAssembly(ids) {
   const axleFace = planarFaceNearZ(scene, ids.axleId, raceZ() + cageH());
   const rotorFace = planarFaceNearZ(scene, ids.rotorId, hubZ() + hubH());
   if (axleFace && rotorFace) {
-    try {
-      await call("assembly_create_joint", {
-        name: "rotor_spin",
-        kind: "revolute",
-        connector_a: axleFace,
-        connector_b: rotorFace,
-        grounded_body_id: ids.baseId,
-      });
-    } catch {
-      /* faces may not resolve; components still count */
-    }
+    await call("assembly_create_joint", {
+      name: "rotor_spin",
+      kind: "revolute",
+      connector_a: axleFace,
+      connector_b: rotorFace,
+      grounded_body_id: ids.axleId,
+    });
   }
   const document = await call("assembly_document");
   const defs = document.component_structure?.definitions?.length ?? 0;
@@ -922,7 +918,7 @@ async function makeAssemblyDrawing() {
     ],
   ];
   for (const [position, text] of notes) {
-    await call("cad_drawing_add_note", { position: { x: position[0], y: position[1] }, text });
+    await call("cad_drawing_add_note", { position, text });
   }
   const drawing = await call("cad_drawing_document");
   if ((drawing.sheets?.length ?? 0) < 1) throw new Error("drawing sheet missing");
@@ -1049,7 +1045,7 @@ try {
   let assemblyOk = false;
   let assemblyDetail = "";
   try {
-    await formAssembly({ baseId, axleId, rotorId, cageId, retainerId });
+    await formAssembly({ baseId, axleId, rotorId, cageId, rollerIds, retainerId });
     assemblyOk = true;
     assemblyDetail = "5 components; hub freewheels on the fixed post";
   } catch (error) {
