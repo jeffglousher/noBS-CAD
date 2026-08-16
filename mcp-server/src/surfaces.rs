@@ -177,8 +177,8 @@ pub fn list_prompts() -> Value {
             ),
             prompt_desc(
                 "model_print_kit",
-                "Teach a printed turntable",
-                "Synthesis exam: assembled printed turntable with cone/land thrust and a sleeve bushing, modeled for a 0.4 mm Bambu nozzle.",
+                "Teach a printed VAWT",
+                "Synthesis exam: assembled printed VAWT — two-bearing frame, hub sockets, three wings that drop onto the hub — modeled for a 0.4 mm Bambu nozzle.",
                 &[("nozzle_mm", "Nozzle diameter used as the diametral clearance (default 0.4)", false)]
             ),
             prompt_desc(
@@ -372,18 +372,18 @@ pub fn get_prompt(name: &str, arguments: &Value) -> Result<Value, String> {
                 .and_then(Value::as_f64)
                 .unwrap_or(0.4);
             format!(
-                "CAD synthesis tutor — build a fully printed turntable as an assembled stack, then grade FDM tolerancing.\n\
-                 Spec: scripts/fixtures/print-kit-tutor.spec.json (id fdm-print-turntable). Rerun: npm run test:mcp-print-kit.\n\
+                "CAD synthesis tutor — build a fully printed VAWT as an assembled stack, then grade FDM tolerancing.\n\
+                 Spec: scripts/fixtures/print-kit-tutor.spec.json (id fdm-print-vawt). Rerun: npm run test:mcp-print-kit.\n\
                  Exam (headless is enough; cad_attach is optional live UI):\n\
                  1. prompts/get model_print_kit. cad_list_all_tools. cad_new_project. cad_set_document_name Print Kit Tutor.\n\
-                 2. Design input: nozzle={nozzle} mm. Every printed-to-printed running/slip fit is +{nozzle} mm diametral in CAD. No FDM press fits. Leave slicer XY hole compensation at 0.\n\
-                 3. Build a product, not a cage. The platter is larger than the foot. The keeper is a small collar — not a second lid. Assembly order: base → shaft → platter → keeper → printed bushing → cap. noBS CAD has no mates; place bodies by construction. That gap is real.\n\
-                 4. Base: Ø48 × 6 foot. Cut a 45° conical thrust cup (female r5) with a Ø3 relief at the apex. No posts.\n\
-                 5. Shaft: revolve on XZ. Smaller male cone (r4.8) plus a Ø13 × 0.8 thrust land with 0.20 float above the base — do not use a same-angle lifted cone (parallel surfaces never touch). Ø8 journal, Ø16 shoulder, double-D 6.0 only in the platter zone, upper journal through the keeper.\n\
-                 6. Platter: Ø72 × 6 that sits on the shoulder (do not swallow the shoulder), Ø8.4 bore, double-D 6.4, rim well Ø64 × 1.2 from the top, 3× Ø16 wells on R22 at 120°. A leftover helical C-bucket is not a turntable.\n\
-                 7. Keeper Ø28 × 6 at z=23.5 (small collar, not a second lid). Ø8.4 journal. Bushing seat Ø14.4 × 4 from the top so a 2 mm land remains. Printed bushing Ø8.4/Ø14 × 4 on that land. Cap Ø20 × 2.4 with 0.20 float. Functional holes are XY circles. Disable grid snap. Prefer locked circles.\n\
+                 2. Design input: nozzle={nozzle} mm. Every printed-to-printed running/slip fit is +{nozzle} mm diametral in CAD, including the wing tenon in the hub socket. No FDM press fits. Leave slicer XY hole compensation at 0.\n\
+                 3. The frame is a two-bearing stand. The wing uses the hub. Assembly order: base → shaft → hub → three wings → top plate → printed bushing → cap. noBS CAD has no mates; place bodies by construction. That gap is real.\n\
+                 4. Base: Ø90 × 6 plate. Cut a 45° conical thrust cup (female r5) with a Ø3 relief at the apex. Join three Ø8 posts on R38 at 120° that continue through the top plate and stand 2 mm proud.\n\
+                 5. Shaft: revolve on XZ. Smaller male cone (r4.8) plus a Ø13 × 0.8 thrust land with 0.20 float above the base — do not use a same-angle lifted cone (parallel surfaces never touch). Ø8 journal, Ø16 shoulder, double-D 6.0 only in the hub zone, upper journal through the plate.\n\
+                 6. Hub: Ø28 × 8 that sits on the shoulder (do not swallow the shoulder), Ø8.4 bore, double-D 6.4, three sockets (8 × 6 × 5) at 60°/180°/300° open to the OD. Each wing is a scoop (r20–r28, 80° sweep, 16 mm tall) with a 7.6 × 4.8 tenon that drops into a socket. Wings sit in the bays between the posts. Sweep must clear the posts (R38 inner wall). A leftover helical C-loft or a paint-stand platter is not a wing.\n\
+                 7. Top plate Ø90 × 6 at z=36 (above the wings + 2 mm gap). Ø8.4 post holes that actually locate. Bushing seat Ø14.4 × 4 from the top so a 2 mm land remains. Printed bushing Ø8.4/Ø14 × 4 on that land. Cap Ø20 × 2.4 with 0.20 float. Functional holes are XY circles. Disable grid snap. Prefer locked circles. Draw non-ortho socket/tenon lines with ctrl held.\n\
                  8. cad_set_focus print. set_body_appearance. solid_export_preflight. solid_export_3mf slicer_target=bambu_studio.\n\
-                 9. Grade: timeline ok, ≥6 coaxial bodies, platter larger than the foot, small keeper, cone/land thrust, double-D drive, even 3-well pattern, mounted platter, 3MF is a PK zip.\n\
+                 9. Grade: timeline ok, ≥9 coaxial bodies, posts through plate, wings in hub sockets, cone/land thrust, double-D drive, even 3+3 layout, mounted wing, 3MF is a PK zip.\n\
                  Later: catalog metal bearings from a standard table at larger sizes. Not this exam."
             )
         }

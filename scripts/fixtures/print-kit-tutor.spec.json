@@ -1,6 +1,6 @@
 {
-  "id": "fdm-print-turntable",
-  "title": "Printed turntable",
+  "id": "fdm-print-vawt",
+  "title": "Printed VAWT",
   "document_name": "Print Kit Tutor",
   "slicer_target": "bambu_studio",
   "nozzle_mm": 0.4,
@@ -10,10 +10,15 @@
   "bush_od": 14.0,
   "bush_h": 4.0,
   "bush_seat": 14.4,
-  "base_d": 48.0,
+  "post_d": 8.0,
+  "post_hole": 8.4,
+  "post_circle_r": 38.0,
+  "post_count": 3,
+  "post_proud": 2.0,
+  "base_d": 90.0,
   "base_h": 6.0,
-  "plate_z": 23.5,
-  "rotor_to_plate_gap": 1.5,
+  "plate_z": 36.0,
+  "rotor_to_plate_gap": 2.0,
   "cone_h": 5.0,
   "cone_half_deg": 45.0,
   "cone_relief_d": 3.0,
@@ -23,56 +28,64 @@
   "thrust_land_h": 0.8,
   "thrust_float": 0.2,
   "cap_float": 0.2,
-  "shaft_lower_h": 8.0,
+  "shaft_lower_h": 10.0,
   "shaft_shoulder_d": 16.0,
   "shaft_shoulder_h": 2.0,
-  "shaft_upper_h": 18.0,
-  "platter_d": 72.0,
-  "platter_h": 6.0,
-  "rim_d": 64.0,
-  "rim_depth": 1.2,
-  "pocket_d": 16.0,
-  "pocket_count": 3,
-  "pocket_circle_r": 22.0,
+  "shaft_upper_h": 28.0,
+  "hub_od": 28.0,
+  "hub_h": 8.0,
+  "socket_w": 8.0,
+  "socket_radial": 6.0,
+  "socket_h": 5.0,
+  "tenon_w": 7.6,
+  "tenon_h": 4.8,
   "drive_across": 6.0,
   "drive_across_hub": 6.4,
-  "keeper_d": 28.0,
-  "keeper_h": 6.0,
+  "wing_count": 3,
+  "wing_h": 16.0,
+  "wing_outer_r": 28.0,
+  "wing_inner_r": 20.0,
+  "wing_sweep_deg": 80.0,
+  "wing_offset_deg": 60.0,
+  "top_plate_d": 90.0,
+  "top_plate_h": 6.0,
   "cap_d": 20.0,
   "cap_h": 2.4,
-  "min_bodies": 6,
-  "min_rotor_faces": 10,
-  "assembly_order": ["base", "shaft", "platter", "keeper", "bushing", "cap"],
+  "min_bodies": 9,
+  "min_rotor_faces": 8,
+  "assembly_order": ["base", "shaft", "hub", "wing", "wing", "wing", "top_plate", "bushing", "cap"],
   "gdt": {
     "datums": {
-      "A": "Base bottom (primary). Foot print bed.",
-      "B": "Journal / cone axis (secondary). Turntable axis.",
-      "C": "3× Ø16 wells on Ø44 PCD at 120° (tertiary). Even platter."
+      "A": "Base bottom (primary). Frame print bed.",
+      "B": "Journal / cone axis (secondary). Turbine axis.",
+      "C": "3× Ø8 posts on Ø76 PCD at 120° (tertiary). Locates the top plate. Wings sit in the bays between posts."
     },
     "fits_mm": {
       "running_journal_bushing": "+0.40 diametral (Ø8.0 / Ø8.4)",
-      "location_bushing_seat": "+0.40 diametral (Ø14.0 / Ø14.4) with a 2 mm land in the keeper",
+      "location_posts_plate": "+0.40 diametral (Ø8.0 / Ø8.4), posts through the plate",
+      "location_bushing_seat": "+0.40 diametral (Ø14.0 / Ø14.4) with a 2 mm land",
       "drive_double_d": "+0.40 across flats (6.0 / 6.4)",
+      "wing_tenon_hub_socket": "+0.40 width (7.6 / 8.0); 0.20 axial float in a 5 mm pocket",
       "centering_cone": "0.20 radial at the cup mouth (male r 4.8 in female r 5.0)",
       "axial_thrust_and_cap": "0.20 float — running faces do not occupy the same volume"
     },
-    "position": "Pocket pattern positional Ø0.4 MMC to B (one nozzle). FDM cannot hold tighter without a gauge print."
+    "position": "Post and wing-socket patterns positional Ø0.4 MMC to B (one nozzle). FDM cannot hold tighter without a gauge print."
   },
   "lessons": [
     {
       "id": "clearance",
       "title": "Clearance is a design input",
-      "teach": "A 0.4 mm Bambu nozzle cannot hold CNC fits. Model +0.40 mm diametral clearance in CAD for every printed-to-printed running or slip interface. Leave slicer XY hole compensation at 0 unless a gauge print says otherwise."
+      "teach": "A 0.4 mm Bambu nozzle cannot hold CNC fits. Model +0.40 mm diametral clearance in CAD for every printed-to-printed running or slip interface, including the wing tenon in the hub socket. Leave slicer XY hole compensation at 0 unless a gauge print says otherwise."
     },
     {
       "id": "no_press",
       "title": "No FDM press fits",
-      "teach": "Press fits fail from elephant foot and shrinkage. Use +0.40 slip and retain with a shoulder, land, keeper, or cap. Do not assume a metal bearing will appear later."
+      "teach": "Press fits fail from elephant foot and shrinkage. Use +0.40 slip and retain with a shoulder, land, plate, or cap. The wing drops into a socket; it is not a press. Do not assume a metal bearing will appear later."
     },
     {
       "id": "assemble",
-      "title": "Build a product, not a cage",
-      "teach": "The platter is the part. The foot is smaller than the platter. The keeper is a small collar on the journal — not a second Ø90 lid. The hub sits on the shoulder. Running faces have modeled gaps. Assembly order: base → shaft → platter → keeper → bushing → cap."
+      "title": "The wing uses the frame",
+      "teach": "The frame is a two-bearing stand: cup in the base, sleeve in the top plate, posts through the plate. The hub sits on the shoulder and carries three sockets. Each wing drops a tenon into a socket and sweeps a bay between the posts. Assembly order: base → shaft → hub → three wings → top plate → bushing → cap."
     },
     {
       "id": "thrust",
@@ -82,22 +95,22 @@
     {
       "id": "even",
       "title": "Keep the machine even",
-      "teach": "Three wells at 120° on the platter and a double-D so the platter turns the shaft. An odd one-sided vane is not a turntable."
+      "teach": "Three posts at 120° and three wings at 120° in the bays between them (60° offset). Double-D so the hub turns the shaft. An odd one-sided vane is not a turbine."
     },
     {
       "id": "printed_bearings",
       "title": "Print the bearings too",
-      "teach": "Printed cone + land for thrust, printed sleeve in a shouldered keeper for radial. Keeper thicker than the bushing so the seat has a land. Metal 608 / catalog bearings are a later table, not a hidden part."
+      "teach": "Printed cone + land for thrust, printed sleeve in a shouldered top plate for radial. Plate thicker than the bushing so the seat has a land. Metal 608 / catalog bearings are a later table, not a hidden part."
     },
     {
       "id": "not_2d",
-      "title": "The platter is a part that mounts",
-      "teach": "A lone C-loft coupon is not a product. The turntable platter sits on the shaft shoulder, carries three even wells and a rim, and is driven by a double-D."
+      "title": "The wing is a part that mounts",
+      "teach": "A leftover helical C-loft is not a wing. The wing is a scoop with a tenon. It uses the hub socket and clears the posts. A platter with paint wells is not a turbine."
     },
     {
       "id": "export",
       "title": "Export a printable package",
-      "teach": "Assign appearances, run solid_export_preflight, then solid_export_3mf for bambu_studio. Print each body in its own orientation (base/platter/keeper flat, shaft on the land, bushing as a ring). 3MF is the manufacturing handoff."
+      "teach": "Assign appearances, run solid_export_preflight, then solid_export_3mf for bambu_studio. Print each body in its own orientation (base/plate flat, shaft on the land, bushing as a ring, hub on its face, wings on the scoop wall). 3MF is the manufacturing handoff."
     }
   ]
 }

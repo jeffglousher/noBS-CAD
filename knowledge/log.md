@@ -2,10 +2,10 @@
 
 ## 2026-08-16
 
-- **Update**: Replaced the leftover VAWT-in-a-cage print-kit with a
-  printed turntable (`fdm-print-turntable`). Same 0.4 mm FDM stack
-  (cone/land thrust, printed sleeve, double-D). The platter is the part;
-  the foot is smaller; the keeper is a collar. Record:
+- **Update**: Print-kit tutor is a printed VAWT again (`fdm-print-vawt`).
+  The two-bearing frame stays. The wing is a separate scoop that drops a
+  tenon into a hub socket and sweeps a bay between the posts. A turntable
+  was the wrong product — the wing had nothing to use. Record:
   [docs/agentic/PRINT_KIT_GDT.md](../docs/agentic/PRINT_KIT_GDT.md).
 
 ## 2026-08-15

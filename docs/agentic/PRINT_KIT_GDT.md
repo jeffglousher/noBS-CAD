@@ -1,43 +1,45 @@
 # Print-kit tutor — GD&T and printability study
 
-Pro-forma study for benchmark #1 (`fdm-print-turntable`). The first assembled
-spinner looked like a kit and was not one. The next kit was a **super frame
-around a leftover VAWT**: posts, lids, and helical C-buckets that graded
-clearance while the machine was still not a product. This page is the
+Pro-forma study for benchmark #1 (`fdm-print-vawt`). The first assembled
+spinner looked like a kit and was not one. The next kit was a leftover
+helical loft inside a good frame. Replacing that with a turntable threw
+the frame away — and left the wing with nothing to use. This page is the
 correction record. Numbers live in `scripts/fixtures/print-kit-tutor.spec.json`.
 
-## Product fault (why the cage was wrong)
+## Product fault (why the turntable was wrong)
 
-The Ø90 post-and-plate stack taught “posts through plate” and “rotor clears
-posts.” Those are assembly-lesson checkboxes. They are not a reason to
-print a wind turbine. noBS CAD is local mechanical CAD. Benchmark #1 has
-to look like something you would model and print: a **turntable** (lazy
-Susan / paint stand). The platter is the part. The foot is smaller. The
-keeper is a collar, not a second lid. Helical C-buckets stay out.
+The Ø90 post-and-plate stack is a **two-bearing stand**: cup in the base,
+sleeve in the top plate, posts locating the upper bearing. That is how a
+small VAWT is built. The wing uses that stand by mounting to a hub on the
+shaft and sweeping the bays between the posts.
 
-Fits and printed bearings from the cage era stay. The machine does not.
+A lazy-Susan platter with paint wells does not use the frame. Helical
+C-buckets joined to a hub also failed: they were leftover loft, not a
+mount. The wing is now a **separate scoop with a tenon** that drops into
+a hub socket.
 
 ## Faults found (and closed)
 
 | Fault | Why it failed | Correction |
 |-------|---------------|------------|
-| Product | Competent GD&T around two leftover helical buckets inside a Ø90 cage. Looks like a frame, not a machine. | **Printed turntable.** Ø72 platter on a Ø48 foot. Ø28 keeper. Three wells. No posts. No C-buckets. |
-| Rotor vs posts | C-buckets sweep ~Ø56. Posts on R24 × Ø6 occupy R21–27. They collide. | Dropped. A turntable does not need a post circle. |
-| Posts vs plate | Posts stopped at the plate bottom. Holes did not locate. | Dropped with the cage. Location is the journal + double-D + shoulder. |
-| Bushing seat | Plate and seat were both 4 mm. Seat was a through-hole. Bushing falls. | Keeper **6 mm**. Seat **4 mm** from the top. **2 mm land** under the sleeve. |
+| Product (turntable) | Competent bearings, no wing. The frame had nothing to do. | **Printed VAWT.** Keep the two-bearing frame. Hub sockets. Three wings that drop on. |
+| Product (leftover loft) | Two helical C-buckets joined to a hub. Not a mount, not assemblable as a wing. | Separate wing bodies. Tenon in socket. No loft. |
+| Rotor vs posts | C-buckets sweep ~Ø56. Posts on R24 × Ø6 occupy R21–27. They collide. | Posts on **R38 × Ø8**. Inner wall R34. Wing outer **R28**. ≥6 mm air. Wings in the bays (60° offset). |
+| Posts vs plate | Posts stopped at the plate bottom. Holes did not locate. | Posts continue **through** the 6 mm plate and stand **2 mm proud**. |
+| Bushing seat | Plate and seat were both 4 mm. Seat was a through-hole. Bushing falls. | Plate **6 mm**. Seat **4 mm** from the top. **2 mm land** under the sleeve. |
 | Cone “seat” | Same 45° + tip lift = parallel cones. No contact. Shaft falls. | Female 45° r5. Male r**4.8** (0.20 radial). Thrust on a **Ø13 × 0.8 land** with **0.20 float**. |
-| Rotor drive | Round-on-round slip. Rotor need not turn the shaft. | **Double-D** 6.0 / 6.4 in the platter zone only. Upper journal stays round for the sleeve. |
-| Cap grind | Cap sat on the plate with 0 gap. | **0.20 mm cap float** above the keeper. |
-| Hub vs shoulder | Hub started at the shoulder plane with an Ø8.4 bore around the Ø16 shoulder. They occupy the same volume. | Platter **sits on the shoulder top**. `plate_z` includes the 2 mm shoulder. |
-| Twisted buckets | Radial C-walls at 10°/20° ortho-snapped (`ctrl_held: false`). Loft stations had no closed profile. | Removed. Even mass is three wells at 120°, not a helical loft leftover. |
+| Rotor drive | Round-on-round slip. Rotor need not turn the shaft. | **Double-D** 6.0 / 6.4 in the hub zone only. |
+| Wing mount | No interface. Blade was a leftover solid. | Hub **sockets** 8 × 6 × 5. Wing **tenon** 7.6 × 4.8 (+0.40 / 0.20 float). |
+| Hub vs shoulder | Hub started at the shoulder plane with an Ø8.4 bore around the Ø16 shoulder. They occupy the same volume. | Hub **sits on the shoulder top**. `plate_z` includes the 2 mm shoulder. |
+| Twisted buckets | Radial C-walls ortho-snapped. Loft stations had no closed profile. | No loft. Straight scoops. Socket/tenon lines drawn with **ctrl held**. |
 
 ## Datum scheme
 
 | Datum | Feature | Role |
 |-------|---------|------|
-| **A** | Base bottom | Primary. Foot print bed. |
-| **B** | Journal / cone axis | Secondary. Turntable axis. |
-| **C** | 3× Ø16 wells, Ø44 PCD, 120° | Tertiary. Even platter. |
+| **A** | Base bottom | Primary. Frame print bed. |
+| **B** | Journal / cone axis | Secondary. Turbine axis. |
+| **C** | 3× Ø8 posts, Ø76 PCD, 120° | Tertiary. Top-plate location. Wings sit in the bays. |
 
 Position of C to B: **Ø0.4 MMC** (one 0.4 mm nozzle). Tighter than that is a
 gauge-print problem, not a CAD problem.
@@ -47,37 +49,41 @@ gauge-print problem, not a CAD problem.
 | Joint | Class | CAD |
 |-------|-------|-----|
 | Journal ↔ bushing | Running | Ø8.0 / Ø8.4 (+0.40 diametral) |
-| Journal ↔ platter / keeper | Running / location | Ø8.0 / Ø8.4 |
+| Posts ↔ plate | Location slip | Ø8.0 / Ø8.4, through |
 | Bushing ↔ seat | Location slip | Ø14.0 / Ø14.4 + 2 mm land |
 | Double-D drive | Location slip | 6.0 / 6.4 across flats |
+| Wing tenon ↔ hub socket | Location slip | 7.6 / 8.0 width; 0.20 axial float |
 | Cone center | Clearance | 0.20 radial at the mouth |
 | Thrust land, cap | Axial play | 0.20 float — **no coincident running faces** |
 
-Shoulder ↔ platter bottom is a **sitting** face (they rotate together). That
+Shoulder ↔ hub bottom is a **sitting** face (they rotate together). That
 contact is intentional.
 
 ## Printability (0.4 mm Bambu, 0.20 mm layer)
 
 | Body | Print orientation | Notes |
 |------|-------------------|-------|
-| Base | As assembled (A on the bed) | 45° cup needs no support. |
+| Base | As assembled (A on the bed) | 45° cup needs no support. Posts print up. |
 | Shaft | Land / shoulder on the bed | Do not print on the cone tip. Double-D flats are vertical walls. |
-| Platter | Flat on the bed | Rim and wells are complete XY circles. |
-| Keeper | Flat | Journal and seat are XY circles. |
+| Hub | Face on the bed | Sockets are complete XY pockets. |
+| Wing | Scoop wall on the bed | Tenon stands up. 8 mm radial depth. |
+| Top plate | Flat | All functional holes are complete XY circles. |
 | Bushing | Ring on the bed | Bore is an XY circle. |
 | Cap | Flat | Same. |
 
-Minimum wall 1.6 mm. No horizontal holes. No FDM press fits.
+Minimum wall 1.6 mm. No horizontal holes. No FDM press fits. Break 0.4×45
+on post tips in the slicer if they hang on the plate.
 
 ## Assembly (proper)
 
 1. Shaft cone into the cup — land floats 0.20 above A.
-2. Platter double-D onto the journal; platter **sits on** the shoulder (they rotate together).
-3. Keeper down the journal (small collar, not a lid).
-4. Sleeve into the shouldered seat.
-5. Cap onto the round journal, 0.20 above the keeper.
+2. Hub double-D onto the journal; hub **sits on** the shoulder.
+3. Each wing **drops** its tenon into a hub socket. The scoop sits in a post bay.
+4. Top plate down the three posts (holes actually engage).
+5. Sleeve into the shouldered seat.
+6. Cap onto the round journal, 0.20 above the plate.
 
-If those five steps are not visible in the solid, the exam failed.
+If those steps are not visible in the solid, the exam failed.
 
 ## Assembled park
 
@@ -91,11 +97,12 @@ If those five steps are not visible in the solid, the exam failed.
 
 | Body | z min–max | Notes |
 |------|-----------|--------|
-| Base | 0–6 | Ø48 foot, no posts |
-| Shaft | 1.5–34 | Land above the cup; journal through the cap |
-| Platter | 16–22 | Sits on the shoulder; 1.5 mm air to the keeper |
-| Keeper | 23.5–29.5 | Ø28 × 6 collar |
-| Bushing | 25.5–29.5 | On the 2 mm land |
-| Cap | 29.7–32.1 | 0.20 float |
+| Base + posts | 0–44 | Posts through the 36–42 plate, 2 mm proud |
+| Shaft | 1.5–46 | Land above the cup; journal through the cap |
+| Hub | 18–26 | Sits on the shoulder; sockets from the top |
+| Wings | 18–34 | Tenon in the socket; scoop clears the plate by 2 mm |
+| Top plate | 36–42 | Ø90 × 6 |
+| Bushing | 38–42 | On the 2 mm land |
+| Cap | 42.2–44.6 | 0.20 float |
 
-Platter Ø72 > foot Ø48. Keeper Ø28 is a collar. Six coaxial bodies.
+Wing outer R28 < post inner R34. Nine coaxial bodies.

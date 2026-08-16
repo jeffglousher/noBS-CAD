@@ -18,7 +18,7 @@ Keep concepts **thin**. Longer material lives in the repository’s
 - [MCP harness](concepts/mcp-harness.md) - Current local automation behavior and proposed next steps.
 - [Contribution process](concepts/process.md) - Lightweight contribution and review expectations.
 - [Export & print](concepts/export-print.md) - Current interchange support and additive targets.
-- [Print-kit tutor](concepts/print-kit-tutor.md) - Benchmark #1: printed turntable exam.
+- [Print-kit tutor](concepts/print-kit-tutor.md) - Benchmark #1: printed VAWT exam.
 
 ## Hosted page
 

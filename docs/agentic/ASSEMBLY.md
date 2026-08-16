@@ -20,9 +20,9 @@ multi-body part, not an assembly.
 | Catalog hardware | A metal 608 (or any standard bearing) is not a first-class component. Larger / better bearings can be modeled later from a table — they are not hidden parts of the print-kit exam |
 | Kinematics | `docs/goals.md` lists motion as needing assemblies and joints |
 
-The print-kit tutor (benchmark #1) is honest about this: it places six
-printable turntable bodies on one axis so a human can see how they go
-together. That placement is brittle on purpose. Closing the gap is a
+The print-kit tutor (benchmark #1) is honest about this: it places nine
+printable VAWT bodies on one axis so a human can see how the wings drop
+onto the hub. That placement is brittle on purpose. Closing the gap is a
 product project, not a prompt tweak.
 
 ## Fully printable first
