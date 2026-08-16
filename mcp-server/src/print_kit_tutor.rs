@@ -1,4 +1,4 @@
-//! CAD synthesis exam: a fully printed even spinner, built assembled.
+//! CAD synthesis exam: a printed turntable, built assembled.
 //!
 //! Spec: `scripts/fixtures/print-kit-tutor.spec.json`.
 //! Agents follow the same numbers via `prompts/get model_print_kit`.
@@ -22,11 +22,6 @@ pub struct Spec {
     pub bush_od: f64,
     pub bush_h: f64,
     pub bush_seat: f64,
-    pub post_d: f64,
-    pub post_hole: f64,
-    pub post_circle_r: f64,
-    pub post_count: usize,
-    pub post_proud: f64,
     pub base_d: f64,
     pub base_h: f64,
     pub plate_z: f64,
@@ -44,19 +39,17 @@ pub struct Spec {
     pub shaft_shoulder_d: f64,
     pub shaft_shoulder_h: f64,
     pub shaft_upper_h: f64,
-    pub hub_od: f64,
-    pub hub_h: f64,
+    pub platter_d: f64,
+    pub platter_h: f64,
+    pub rim_d: f64,
+    pub rim_depth: f64,
+    pub pocket_d: f64,
+    pub pocket_count: usize,
+    pub pocket_circle_r: f64,
     pub drive_across: f64,
     pub drive_across_hub: f64,
-    pub rotor_d: f64,
-    pub overlap: f64,
-    pub blade_wall: f64,
-    pub blade_h: f64,
-    pub blade_twist_deg: f64,
-    pub loft_stations: usize,
-    pub blade_count: usize,
-    pub top_plate_d: f64,
-    pub top_plate_h: f64,
+    pub keeper_d: f64,
+    pub keeper_h: f64,
     pub cap_d: f64,
     pub cap_h: f64,
     pub min_bodies: usize,
@@ -76,11 +69,8 @@ impl Spec {
     fn shoulder_top(&self) -> f64 {
         self.shoulder_z() + self.shaft_shoulder_h
     }
-    fn post_extrude_h(&self) -> f64 {
-        self.plate_z - self.base_h + self.top_plate_h + self.post_proud
-    }
     fn plate_top(&self) -> f64 {
-        self.plate_z + self.top_plate_h
+        self.plate_z + self.keeper_h
     }
     fn bushing_z(&self) -> f64 {
         self.plate_top() - self.bush_h
@@ -91,21 +81,12 @@ impl Spec {
     fn shaft_top(&self) -> f64 {
         self.shoulder_top() + self.shaft_upper_h
     }
-    fn rotor_sweep_r(&self) -> f64 {
-        let extra = self.rotor_d * self.overlap;
-        let radius = (self.rotor_d + extra) / 4.0;
-        let center = radius - extra / 2.0;
-        center + radius
-    }
-    fn post_inner_r(&self) -> f64 {
-        self.post_circle_r - self.post_d / 2.0
-    }
-    fn post_xy(&self, index: usize) -> [f64; 2] {
-        let angle = (360.0 / self.post_count.max(1) as f64) * index as f64;
+    fn pocket_xy(&self, index: usize) -> [f64; 2] {
+        let angle = (360.0 / self.pocket_count.max(1) as f64) * index as f64;
         let radians = angle.to_radians();
         [
-            self.post_circle_r * radians.cos(),
-            self.post_circle_r * radians.sin(),
+            self.pocket_circle_r * radians.cos(),
+            self.pocket_circle_r * radians.sin(),
         ]
     }
 }
@@ -150,7 +131,6 @@ pub fn load_spec() -> Result<Spec, String> {
 pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Result<Report, String> {
     let spec = load_spec()?;
     if (spec.bush_id - spec.journal_d - spec.clearance_mm).abs() > 1e-9
-        || (spec.post_hole - spec.post_d - spec.clearance_mm).abs() > 1e-9
         || (spec.bush_seat - spec.bush_od - spec.clearance_mm).abs() > 1e-9
         || (spec.drive_across_hub - spec.drive_across - spec.clearance_mm).abs() > 1e-9
     {
@@ -175,8 +155,8 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
 
     let base_id = build_base(&mut call, &spec)?;
     let shaft_id = build_shaft(&mut call, &spec)?;
-    let rotor_id = build_rotor(&mut call, &spec, &[base_id, shaft_id])?;
-    let plate_id = build_top_plate(&mut call, &spec)?;
+    let platter_id = build_platter(&mut call, &spec, &[base_id, shaft_id])?;
+    let keeper_id = build_keeper(&mut call, &spec)?;
     let bush_id = build_bushing(&mut call, &spec)?;
     let cap_id = build_cap(&mut call, &spec)?;
 
@@ -187,8 +167,8 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
     for (id, preset) in [
         (base_id, "bambu.pla.basic.black"),
         (shaft_id, "bambu.pla.basic.jade_white"),
-        (rotor_id, "bambu.pla.basic.green"),
-        (plate_id, "bambu.pla.basic.black"),
+        (platter_id, "bambu.pla.basic.green"),
+        (keeper_id, "bambu.pla.basic.black"),
         (bush_id, "bambu.pla.matte.dark_gray"),
         (cap_id, "bambu.pla.basic.red"),
     ] {
@@ -205,7 +185,7 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
     let scene = call("solid_scene", json!({}))?;
     let document = call("cad_document", json!({}))?;
     Ok(grade(
-        &spec, &scene, &document, &preflight, &exported, rotor_id,
+        &spec, &scene, &document, &preflight, &exported, platter_id,
     ))
 }
 
@@ -280,59 +260,6 @@ fn build_base(
         )?,
         "cone relief",
     )?;
-
-    let top = offset_xy(call, spec.base_h)?;
-    begin_datum(call, top)?;
-    add_circle(call, spec.post_xy(0), spec.post_d)?;
-    let post_sketch = finish_sketch(call)?;
-    let update = require_clean(
-        call(
-            "solid_extrude",
-            json!({
-                "sketch_name": post_sketch,
-                "profile_indices": [0],
-                "operation": "new_body",
-                "extent": { "type": "distance", "distance": spec.post_extrude_h() },
-                "taper_angle_deg": 0.0,
-                "flip": false,
-                "target_body_ids": []
-            }),
-        )?,
-        "post",
-    )?;
-    let post_id = newest_body_id(&update, &[base_id])?;
-    let patterned = require_clean(
-        call(
-            "solid_circular_pattern",
-            json!({
-                "body_ids": [post_id],
-                "axis_origin": { "x": 0.0, "y": 0.0, "z": 0.0 },
-                "axis_direction": { "x": 0.0, "y": 0.0, "z": 1.0 },
-                "count": spec.post_count,
-                "total_angle_deg": 360.0
-            }),
-        )?,
-        "even posts",
-    )?;
-    let post_ids: Vec<u64> = patterned["scene"]["bodies"]
-        .as_array()
-        .unwrap_or(&Vec::new())
-        .iter()
-        .filter_map(|body| body["id"].as_u64())
-        .filter(|id| *id != base_id)
-        .collect();
-    require_clean(
-        call(
-            "solid_combine",
-            json!({
-                "target_body_id": base_id,
-                "tool_body_ids": post_ids,
-                "operation": "join",
-                "keep_tools": false
-            }),
-        )?,
-        "join posts",
-    )?;
     Ok(base_id)
 }
 
@@ -365,21 +292,21 @@ fn build_shaft(
         call,
         shaft_id,
         spec.shoulder_top(),
-        spec.hub_h + 0.2,
+        spec.platter_h + 0.2,
         spec.drive_across / 2.0,
         8.0,
     )?;
     Ok(shaft_id)
 }
 
-fn build_rotor(
+fn build_platter(
     call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
     spec: &Spec,
     known: &[u64],
 ) -> Result<u64, String> {
     let hub_deck = offset_xy(call, spec.shoulder_top())?;
     begin_datum(call, hub_deck.clone())?;
-    add_circle(call, [0.0, 0.0], spec.hub_od)?;
+    add_circle(call, [0.0, 0.0], spec.platter_d)?;
     add_circle(call, [0.0, 0.0], spec.bush_id)?;
     let hub_sketch = finish_sketch(call)?;
     let update = require_clean(
@@ -389,118 +316,75 @@ fn build_rotor(
                 "sketch_name": hub_sketch,
                 "profile_indices": [0],
                 "operation": "new_body",
-                "extent": { "type": "distance", "distance": spec.hub_h },
+                "extent": { "type": "distance", "distance": spec.platter_h },
                 "taper_angle_deg": 0.0,
                 "flip": false,
                 "target_body_ids": []
             }),
         )?,
-        "rotor hub",
+        "platter",
     )?;
-    let hub_id = newest_body_id(&update, known)?;
+    let platter_id = newest_body_id(&update, known)?;
 
-    let stations = spec.loft_stations.max(2);
-    let mut section_names = Vec::new();
-    for i in 0..stations {
-        let z = spec.shoulder_top() + spec.blade_h * (i as f64) / ((stations - 1) as f64);
-        let ang = spec.blade_twist_deg * (i as f64) / ((stations - 1) as f64);
-        let station = offset_xy(call, z)?;
-        begin_datum(call, station)?;
-        add_c(call, spec, ang, [0.0, 0.0])?;
-        section_names.push(finish_sketch(call)?);
-    }
-    let catalog = call("sketch_profiles", json!({}))?;
-    let entries = catalog.as_array().cloned().unwrap_or_default();
-    for name in &section_names {
-        let entry = entries.iter().find(|item| item["sketch_name"] == *name);
-        let profile_count = entry
-            .and_then(|item| item["profiles"].as_array())
-            .map(Vec::len)
-            .unwrap_or(0);
-        if profile_count == 0 {
-            return Err(format!(
-                "loft section {name} has no closed profile — hold ctrl on radial bucket walls so they do not ortho-snap"
-            ));
-        }
-    }
-    let update = require_clean(
-        call(
-            "solid_loft",
-            json!({
-                "sections": section_names.iter().map(|name| json!({
-                    "sketch_name": name,
-                    "profile_index": 0
-                })).collect::<Vec<_>>(),
-                "ruled": false,
-                "operation": "new_body",
-                "target_body_ids": [],
-                "continuity": "g1",
-                "centerline": null,
-                "guide_rail": null
-            }),
-        )?,
-        "rotor bucket",
-    )?;
-    let mut skip = known.to_vec();
-    skip.push(hub_id);
-    let blade_id = newest_body_id(&update, &skip)?;
-    let patterned = require_clean(
-        call(
-            "solid_circular_pattern",
-            json!({
-                "body_ids": [blade_id],
-                "axis_origin": { "x": 0.0, "y": 0.0, "z": 0.0 },
-                "axis_direction": { "x": 0.0, "y": 0.0, "z": 1.0 },
-                "count": spec.blade_count,
-                "total_angle_deg": 360.0
-            }),
-        )?,
-        "even buckets",
-    )?;
-    skip.push(blade_id);
-    let blade_ids: Vec<u64> = patterned["scene"]["bodies"]
-        .as_array()
-        .unwrap_or(&Vec::new())
-        .iter()
-        .filter_map(|body| body["id"].as_u64())
-        .filter(|id| !skip.contains(id) || *id == blade_id)
-        .filter(|id| !known.contains(id) && *id != hub_id)
-        .collect();
-    let tools = if blade_ids.is_empty() {
-        vec![blade_id]
-    } else {
-        blade_ids
-    };
+    let rim_z = spec.shoulder_top() + spec.platter_h;
+    let rim_deck = offset_xy(call, rim_z)?;
+    begin_datum(call, rim_deck.clone())?;
+    add_circle(call, [0.0, 0.0], spec.rim_d)?;
+    let rim_sketch = finish_sketch(call)?;
     require_clean(
         call(
-            "solid_combine",
+            "solid_extrude",
             json!({
-                "target_body_id": hub_id,
-                "tool_body_ids": tools,
-                "operation": "join",
-                "keep_tools": false
+                "sketch_name": rim_sketch,
+                "profile_indices": [0],
+                "operation": "cut",
+                "extent": { "type": "distance", "distance": spec.rim_depth },
+                "taper_angle_deg": 0.0,
+                "flip": true,
+                "target_body_ids": [platter_id]
             }),
         )?,
-        "join rotor",
+        "platter rim well",
+    )?;
+
+    begin_datum(call, rim_deck)?;
+    for i in 0..spec.pocket_count {
+        add_circle(call, spec.pocket_xy(i), spec.pocket_d)?;
+    }
+    let pockets = finish_sketch(call)?;
+    require_clean(
+        call(
+            "solid_extrude",
+            json!({
+                "sketch_name": pockets,
+                "profile_indices": (0..spec.pocket_count).collect::<Vec<_>>(),
+                "operation": "cut",
+                "extent": { "type": "distance", "distance": spec.platter_h + 1.0 },
+                "taper_angle_deg": 0.0,
+                "flip": true,
+                "target_body_ids": [platter_id]
+            }),
+        )?,
+        "even wells",
     )?;
     cut_flats(
         call,
-        hub_id,
+        platter_id,
         spec.shoulder_top(),
-        spec.hub_h + 0.2,
+        spec.platter_h + 0.2,
         spec.drive_across_hub / 2.0,
         spec.bush_id / 2.0 + 1.0,
     )?;
-    Ok(hub_id)
+    Ok(platter_id)
 }
 
-fn build_top_plate(
+fn build_keeper(
     call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
     spec: &Spec,
 ) -> Result<u64, String> {
     let deck = offset_xy(call, spec.plate_z)?;
     begin_datum(call, deck.clone())?;
-    add_circle(call, [0.0, 0.0], spec.top_plate_d)?;
+    add_circle(call, [0.0, 0.0], spec.keeper_d)?;
     let sketch = finish_sketch(call)?;
     let update = require_clean(
         call(
@@ -509,37 +393,34 @@ fn build_top_plate(
                 "sketch_name": sketch,
                 "profile_indices": [0],
                 "operation": "new_body",
-                "extent": { "type": "distance", "distance": spec.top_plate_h },
+                "extent": { "type": "distance", "distance": spec.keeper_h },
                 "taper_angle_deg": 0.0,
                 "flip": false,
                 "target_body_ids": []
             }),
         )?,
-        "top plate",
+        "keeper",
     )?;
-    let plate_id = newest_body_id(&update, &[])?;
+    let keeper_id = newest_body_id(&update, &[])?;
 
     let top = offset_xy(call, spec.plate_top())?;
     begin_datum(call, top.clone())?;
     add_circle(call, [0.0, 0.0], spec.journal_d + spec.clearance_mm)?;
-    for i in 0..spec.post_count {
-        add_circle(call, spec.post_xy(i), spec.post_hole)?;
-    }
     let holes = finish_sketch(call)?;
     require_clean(
         call(
             "solid_extrude",
             json!({
                 "sketch_name": holes,
-                "profile_indices": (0..=spec.post_count).collect::<Vec<_>>(),
+                "profile_indices": [0],
                 "operation": "cut",
-                "extent": { "type": "distance", "distance": spec.top_plate_h + 1.0 },
+                "extent": { "type": "distance", "distance": spec.keeper_h + 1.0 },
                 "taper_angle_deg": 0.0,
                 "flip": true,
-                "target_body_ids": [plate_id]
+                "target_body_ids": [keeper_id]
             }),
         )?,
-        "plate through holes",
+        "keeper journal",
     )?;
     begin_datum(call, top)?;
     add_circle(call, [0.0, 0.0], spec.bush_seat)?;
@@ -554,12 +435,12 @@ fn build_top_plate(
                 "extent": { "type": "distance", "distance": spec.bush_h },
                 "taper_angle_deg": 0.0,
                 "flip": true,
-                "target_body_ids": [plate_id]
+                "target_body_ids": [keeper_id]
             }),
         )?,
         "bushing seat",
     )?;
-    Ok(plate_id)
+    Ok(keeper_id)
 }
 
 fn build_bushing(
@@ -622,13 +503,13 @@ fn grade(
     document: &Value,
     preflight: &Value,
     exported: &Value,
-    rotor_id: u64,
+    platter_id: u64,
 ) -> Report {
     let bodies = scene["bodies"].as_array().cloned().unwrap_or_default();
     let features = document["features"].as_array().cloned().unwrap_or_default();
-    let rotor = bodies
+    let platter = bodies
         .iter()
-        .find(|body| body["id"].as_u64() == Some(rotor_id));
+        .find(|body| body["id"].as_u64() == Some(platter_id));
     let bytes = exported["bytes_base64"]
         .as_str()
         .and_then(|b64| {
@@ -642,31 +523,23 @@ fn grade(
         &mut lessons,
         "clearance",
         (spec.bush_id - spec.journal_d - spec.clearance_mm).abs() < 1e-9
-            && (spec.post_hole - spec.post_d - spec.clearance_mm).abs() < 1e-9
             && (spec.bush_seat - spec.bush_od - spec.clearance_mm).abs() < 1e-9
             && (spec.drive_across_hub - spec.drive_across - spec.clearance_mm).abs() < 1e-9,
         format!(
-            "journal {:.1} in bush {:.1}; post {:.1} in hole {:.1}; bush {:.1} in seat {:.1}",
-            spec.journal_d,
-            spec.bush_id,
-            spec.post_d,
-            spec.post_hole,
-            spec.bush_od,
-            spec.bush_seat
+            "journal {:.1} in bush {:.1}; bush {:.1} in seat {:.1}",
+            spec.journal_d, spec.bush_id, spec.bush_od, spec.bush_seat
         ),
     );
     push_lesson(
         &mut lessons,
         "no_press",
-        spec.clearance_mm >= spec.nozzle_mm
-            && spec.bush_id > spec.journal_d
-            && spec.post_hole > spec.post_d,
+        spec.clearance_mm >= spec.nozzle_mm && spec.bush_id > spec.journal_d,
         "printed interfaces are +0.40 slip; cone and cap retain the stack".to_string(),
     );
 
-    let proper_stack = spec.top_plate_h > spec.bush_h
-        && spec.post_extrude_h() + spec.base_h > spec.plate_top()
-        && spec.rotor_sweep_r() + 1.0 < spec.post_inner_r()
+    let proper_stack = spec.keeper_h > spec.bush_h
+        && spec.platter_d > spec.base_d + 8.0
+        && spec.keeper_d < spec.platter_d * 0.5
         && spec.thrust_float > 0.0
         && spec.cap_float > 0.0;
     let stacked = bodies.len() >= spec.min_bodies
@@ -680,10 +553,11 @@ fn grade(
         "assemble",
         stacked,
         format!(
-            "{} coaxial bodies; posts through plate; rotor sweep {:.1} < post inner {:.1}",
+            "{} coaxial bodies; platter Ø{:.0} on foot Ø{:.0}; keeper Ø{:.0}",
             bodies.len(),
-            spec.rotor_sweep_r(),
-            spec.post_inner_r()
+            spec.platter_d,
+            spec.base_d,
+            spec.keeper_d
         ),
     );
     push_lesson(
@@ -705,28 +579,28 @@ fn grade(
     push_lesson(
         &mut lessons,
         "even",
-        spec.post_count == 3 && spec.blade_count == 2 && spec.drive_across_hub > spec.drive_across,
-        "3 posts at 120°, 2 buckets at 180°, double-D drive".to_string(),
+        spec.pocket_count == 3 && spec.drive_across_hub > spec.drive_across,
+        "3 wells at 120°, double-D drive".to_string(),
     );
     push_lesson(
         &mut lessons,
         "printed_bearings",
-        spec.bush_od < 20.0 && spec.bush_h < spec.top_plate_h && spec.cone_h >= 3.0,
+        spec.bush_od < 20.0 && spec.bush_h < spec.keeper_h && spec.cone_h >= 3.0,
         "printed sleeve on a 2 mm land + printed cone/land thrust; no metal 608".to_string(),
     );
 
-    let rotor_faces = rotor
+    let platter_faces = platter
         .and_then(|body| body["faces"].as_array().map(|faces| faces.len()))
         .unwrap_or(0);
-    let rotor_h = rotor
+    let platter_span = platter
         .and_then(bbox)
         .map(|box3| box3[1][2] - box3[0][2])
         .unwrap_or(0.0);
     push_lesson(
         &mut lessons,
         "not_2d",
-        rotor_faces >= spec.min_rotor_faces && rotor_h > spec.hub_h - 1.0,
-        format!("mounted rotor faces={rotor_faces} height={rotor_h:.1}"),
+        platter_faces >= spec.min_rotor_faces && platter_span > spec.platter_h - 1.0,
+        format!("mounted platter faces={platter_faces} height={platter_span:.1}"),
     );
 
     let timeline_ok = features.iter().all(|feature| {
@@ -836,50 +710,6 @@ fn cut_flats(
             }),
         )?,
         "double-D flats",
-    )?;
-    Ok(())
-}
-
-fn add_c(
-    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
-    spec: &Spec,
-    deg: f64,
-    origin: [f64; 2],
-) -> Result<(), String> {
-    let e = spec.rotor_d * spec.overlap;
-    let radius = (spec.rotor_d + e) / 4.0;
-    let inner = radius - spec.blade_wall;
-    let center = radius - e / 2.0;
-    let a = deg.to_radians();
-    let cx = center * a.cos();
-    let cy = center * a.sin();
-    let len = (cx * cx + cy * cy).sqrt().max(1e-9);
-    let ux = cx / len;
-    let uy = cy / len;
-    let vx = -uy;
-    let vy = ux;
-    let p = |x: f64, y: f64| json!({ "x": x + origin[0], "y": y + origin[1] });
-    let s = p(cx + radius * vx, cy + radius * vy);
-    let f = p(cx + radius * ux, cy + radius * uy);
-    let ept = p(cx - radius * vx, cy - radius * vy);
-    let si = p(cx + inner * vx, cy + inner * vy);
-    let fi = p(cx + inner * ux, cy + inner * uy);
-    let ei = p(cx - inner * vx, cy - inner * vy);
-    call(
-        "sketch_add_arc_3pt",
-        json!({ "p1": s, "p2": f, "p3": ept, "ctrl_held": true }),
-    )?;
-    call(
-        "sketch_add_line",
-        json!({ "from": ept, "to_raw": ei, "ctrl_held": true }),
-    )?;
-    call(
-        "sketch_add_arc_3pt",
-        json!({ "p1": ei, "p2": fi, "p3": si, "ctrl_held": true }),
-    )?;
-    call(
-        "sketch_add_line",
-        json!({ "from": si, "to_raw": s, "ctrl_held": true }),
     )?;
     Ok(())
 }
@@ -1115,31 +945,29 @@ mod spec_tests {
     #[test]
     fn print_kit_spec_encodes_0_4_nozzle_stack() {
         let spec = load_spec().unwrap();
-        assert_eq!(spec.id, "fdm-print-spinner");
+        assert_eq!(spec.id, "fdm-print-turntable");
         assert_eq!(spec.nozzle_mm, 0.4);
         assert_eq!(spec.clearance_mm, 0.4);
         assert!((spec.bush_id - spec.journal_d - spec.clearance_mm).abs() < 1e-12);
-        assert!((spec.post_hole - spec.post_d - spec.clearance_mm).abs() < 1e-12);
         assert!((spec.bush_seat - spec.bush_od - spec.clearance_mm).abs() < 1e-12);
         assert!((spec.drive_across_hub - spec.drive_across - spec.clearance_mm).abs() < 1e-12);
         assert_eq!(spec.cone_half_deg, 45.0);
         assert!(spec.male_cone_r + 0.15 < spec.cone_r());
-        assert!(spec.top_plate_h > spec.bush_h);
-        assert!(spec.post_extrude_h() + spec.base_h > spec.plate_top());
-        assert!(spec.rotor_sweep_r() + 1.0 < spec.post_inner_r());
+        assert!(spec.keeper_h > spec.bush_h);
+        assert!(spec.platter_d > spec.base_d + 8.0);
+        assert!(spec.keeper_d < spec.platter_d * 0.5);
         assert!(
             (spec.plate_z
                 - (spec.base_h
                     + spec.shaft_lower_h
                     + spec.shaft_shoulder_h
-                    + spec.hub_h
+                    + spec.platter_h
                     + spec.rotor_to_plate_gap))
                 .abs()
                 < 1e-9
         );
         assert!(spec.shaft_top() > spec.plate_top() + spec.cap_float + spec.cap_h);
-        assert_eq!(spec.post_count, 3);
-        assert_eq!(spec.blade_count, 2);
+        assert_eq!(spec.pocket_count, 3);
         assert!(spec.min_bodies >= 6);
         assert!(spec.bush_od < 20.0);
     }

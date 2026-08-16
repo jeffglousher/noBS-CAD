@@ -1,5 +1,13 @@
 # noBS CAD knowledge update log
 
+## 2026-08-16
+
+- **Update**: Replaced the leftover VAWT-in-a-cage print-kit with a
+  printed turntable (`fdm-print-turntable`). Same 0.4 mm FDM stack
+  (cone/land thrust, printed sleeve, double-D). The platter is the part;
+  the foot is smaller; the keeper is a collar. Record:
+  [docs/agentic/PRINT_KIT_GDT.md](../docs/agentic/PRINT_KIT_GDT.md).
+
 ## 2026-08-15
 
 - **Update**: GD&T / printability study closed the first assembled-spinner

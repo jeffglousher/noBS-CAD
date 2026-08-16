@@ -1,6 +1,6 @@
 {
-  "id": "fdm-print-spinner",
-  "title": "Fully printed even spinner",
+  "id": "fdm-print-turntable",
+  "title": "Printed turntable",
   "document_name": "Print Kit Tutor",
   "slicer_target": "bambu_studio",
   "nozzle_mm": 0.4,
@@ -10,15 +10,10 @@
   "bush_od": 14.0,
   "bush_h": 4.0,
   "bush_seat": 14.4,
-  "post_d": 8.0,
-  "post_hole": 8.4,
-  "post_circle_r": 38.0,
-  "post_count": 3,
-  "post_proud": 2.0,
-  "base_d": 90.0,
+  "base_d": 48.0,
   "base_h": 6.0,
-  "plate_z": 30.0,
-  "rotor_to_plate_gap": 2.0,
+  "plate_z": 23.5,
+  "rotor_to_plate_gap": 1.5,
   "cone_h": 5.0,
   "cone_half_deg": 45.0,
   "cone_relief_d": 3.0,
@@ -28,43 +23,40 @@
   "thrust_land_h": 0.8,
   "thrust_float": 0.2,
   "cap_float": 0.2,
-  "shaft_lower_h": 10.0,
+  "shaft_lower_h": 8.0,
   "shaft_shoulder_d": 16.0,
   "shaft_shoulder_h": 2.0,
-  "shaft_upper_h": 22.0,
-  "hub_od": 20.0,
-  "hub_h": 10.0,
+  "shaft_upper_h": 18.0,
+  "platter_d": 72.0,
+  "platter_h": 6.0,
+  "rim_d": 64.0,
+  "rim_depth": 1.2,
+  "pocket_d": 16.0,
+  "pocket_count": 3,
+  "pocket_circle_r": 22.0,
   "drive_across": 6.0,
   "drive_across_hub": 6.4,
-  "rotor_d": 56.0,
-  "overlap": 0.15,
-  "blade_wall": 1.8,
-  "blade_h": 10.0,
-  "blade_twist_deg": 20.0,
-  "loft_stations": 3,
-  "blade_count": 2,
-  "top_plate_d": 90.0,
-  "top_plate_h": 6.0,
+  "keeper_d": 28.0,
+  "keeper_h": 6.0,
   "cap_d": 20.0,
   "cap_h": 2.4,
   "min_bodies": 6,
   "min_rotor_faces": 10,
-  "assembly_order": ["base", "shaft", "rotor", "top_plate", "bushing", "cap"],
+  "assembly_order": ["base", "shaft", "platter", "keeper", "bushing", "cap"],
   "gdt": {
     "datums": {
-      "A": "Base bottom (primary). Print bed for the frame.",
-      "B": "Journal / cone axis (secondary). Common axis of the spinner.",
-      "C": "3× Ø8 posts on Ø76 PCD at 120° (tertiary). Locates the top plate."
+      "A": "Base bottom (primary). Foot print bed.",
+      "B": "Journal / cone axis (secondary). Turntable axis.",
+      "C": "3× Ø16 wells on Ø44 PCD at 120° (tertiary). Even platter."
     },
     "fits_mm": {
       "running_journal_bushing": "+0.40 diametral (Ø8.0 / Ø8.4)",
-      "location_posts_plate": "+0.40 diametral (Ø8.0 / Ø8.4), posts through the plate",
-      "location_bushing_seat": "+0.40 diametral (Ø14.0 / Ø14.4) with a 2 mm land",
+      "location_bushing_seat": "+0.40 diametral (Ø14.0 / Ø14.4) with a 2 mm land in the keeper",
       "drive_double_d": "+0.40 across flats (6.0 / 6.4)",
       "centering_cone": "0.20 radial at the cup mouth (male r 4.8 in female r 5.0)",
       "axial_thrust_and_cap": "0.20 float — running faces do not occupy the same volume"
     },
-    "position": "Post pattern positional Ø0.4 MMC to B (one nozzle). FDM cannot hold tighter without a gauge print."
+    "position": "Pocket pattern positional Ø0.4 MMC to B (one nozzle). FDM cannot hold tighter without a gauge print."
   },
   "lessons": [
     {
@@ -75,12 +67,12 @@
     {
       "id": "no_press",
       "title": "No FDM press fits",
-      "teach": "Press fits fail from elephant foot and shrinkage. Use +0.40 slip and retain with a shoulder, land, plate, or cap. Do not assume a metal bearing will appear later."
+      "teach": "Press fits fail from elephant foot and shrinkage. Use +0.40 slip and retain with a shoulder, land, keeper, or cap. Do not assume a metal bearing will appear later."
     },
     {
       "id": "assemble",
-      "title": "Build a proper assembled stack",
-      "teach": "Bodies sit on one axis with real location: posts go through the top plate (not a butt joint), the rotor sweep clears the posts, the bushing sits on a land (not a through-pocket), and running faces have modeled gaps. Assembly order: base → shaft → rotor → top plate → bushing → cap."
+      "title": "Build a product, not a cage",
+      "teach": "The platter is the part. The foot is smaller than the platter. The keeper is a small collar on the journal — not a second Ø90 lid. The hub sits on the shoulder. Running faces have modeled gaps. Assembly order: base → shaft → platter → keeper → bushing → cap."
     },
     {
       "id": "thrust",
@@ -90,22 +82,22 @@
     {
       "id": "even",
       "title": "Keep the machine even",
-      "teach": "Three posts at 120° and two rotor buckets at 180°. Double-D drive so the rotor turns the shaft. An odd one-sided vane will not run true."
+      "teach": "Three wells at 120° on the platter and a double-D so the platter turns the shaft. An odd one-sided vane is not a turntable."
     },
     {
       "id": "printed_bearings",
       "title": "Print the bearings too",
-      "teach": "Printed cone + land for thrust, printed sleeve in a shouldered seat for radial. Plate thicker than the bushing so the seat has a land. Metal 608 / catalog bearings are a later table, not a hidden part."
+      "teach": "Printed cone + land for thrust, printed sleeve in a shouldered keeper for radial. Keeper thicker than the bushing so the seat has a land. Metal 608 / catalog bearings are a later table, not a hidden part."
     },
     {
       "id": "not_2d",
-      "title": "The rotor is a part that mounts",
-      "teach": "A lone C-loft coupon is not a rotor. The even spinner has a hub on a double-D, sitting on the shaft shoulder, with two helical buckets joined to that hub."
+      "title": "The platter is a part that mounts",
+      "teach": "A lone C-loft coupon is not a product. The turntable platter sits on the shaft shoulder, carries three even wells and a rim, and is driven by a double-D."
     },
     {
       "id": "export",
       "title": "Export a printable package",
-      "teach": "Assign appearances, run solid_export_preflight, then solid_export_3mf for bambu_studio. Print each body in its own orientation (base/plate flat, shaft on the land, bushing as a ring, rotor on the hub face). 3MF is the manufacturing handoff."
+      "teach": "Assign appearances, run solid_export_preflight, then solid_export_3mf for bambu_studio. Print each body in its own orientation (base/platter/keeper flat, shaft on the land, bushing as a ring). 3MF is the manufacturing handoff."
     }
   ]
 }

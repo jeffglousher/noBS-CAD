@@ -21,9 +21,9 @@ multi-body part, not an assembly.
 | Kinematics | `docs/goals.md` lists motion as needing assemblies and joints |
 
 The print-kit tutor (benchmark #1) is honest about this: it places six
-printable bodies on one axis so a human can see how they go together. That
-placement is brittle on purpose. Closing the gap is a product project, not a
-prompt tweak.
+printable turntable bodies on one axis so a human can see how they go
+together. That placement is brittle on purpose. Closing the gap is a
+product project, not a prompt tweak.
 
 ## Fully printable first
 

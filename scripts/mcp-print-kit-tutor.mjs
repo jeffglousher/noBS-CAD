@@ -2,7 +2,7 @@
 /**
  * CAD synthesis tutor — rerunnable MCP integration exam.
  *
- * Builds the FDM-tolerant journal kit from
+ * Builds the printed turntable from
  * scripts/fixtures/print-kit-tutor.spec.json through nbcad-mcp (headless).
  * This is the agent-shaped path: server/discover → tools/call → grade lessons.
  *
@@ -252,11 +252,8 @@ function shoulderZ() {
 function shoulderTop() {
   return shoulderZ() + spec.shaft_shoulder_h;
 }
-function postExtrudeH() {
-  return spec.plate_z - spec.base_h + spec.top_plate_h + spec.post_proud;
-}
 function plateTop() {
-  return spec.plate_z + spec.top_plate_h;
+  return spec.plate_z + spec.keeper_h;
 }
 function bushingZ() {
   return plateTop() - spec.bush_h;
@@ -267,17 +264,9 @@ function capZ() {
 function shaftTop() {
   return shoulderTop() + spec.shaft_upper_h;
 }
-function rotorSweepR() {
-  const extra = spec.rotor_d * spec.overlap;
-  const radius = (spec.rotor_d + extra) / 4;
-  return radius - extra / 2 + radius;
-}
-function postInnerR() {
-  return spec.post_circle_r - spec.post_d / 2;
-}
-function postXY(index) {
-  const angle = ((360 / spec.post_count) * index * Math.PI) / 180;
-  return [spec.post_circle_r * Math.cos(angle), spec.post_circle_r * Math.sin(angle)];
+function pocketXY(index) {
+  const angle = ((360 / spec.pocket_count) * index * Math.PI) / 180;
+  return [spec.pocket_circle_r * Math.cos(angle), spec.pocket_circle_r * Math.sin(angle)];
 }
 function shaftProfile() {
   const journal = spec.journal_d / 2;
@@ -337,31 +326,6 @@ function newestBody(update, known) {
   const ids = (update.scene?.bodies ?? []).map((body) => body.id).filter((id) => !skip.has(id));
   if (!ids.length) throw new Error("no new body");
   return Math.max(...ids);
-}
-async function addC(deg, ox, oy) {
-  const overlap = spec.rotor_d * spec.overlap;
-  const radius = (spec.rotor_d + overlap) / 4;
-  const inner = radius - spec.blade_wall;
-  const center = radius - overlap / 2;
-  const angle = (deg * Math.PI) / 180;
-  const cx = center * Math.cos(angle);
-  const cy = center * Math.sin(angle);
-  const length = Math.hypot(cx, cy) || 1;
-  const ux = cx / length;
-  const uy = cy / length;
-  const vx = -uy;
-  const vy = ux;
-  const point = (x, y) => ({ x: x + ox, y: y + oy });
-  const S = point(cx + radius * vx, cy + radius * vy);
-  const F = point(cx + radius * ux, cy + radius * uy);
-  const E = point(cx - radius * vx, cy - radius * vy);
-  const Si = point(cx + inner * vx, cy + inner * vy);
-  const Fi = point(cx + inner * ux, cy + inner * uy);
-  const Ei = point(cx - inner * vx, cy - inner * vy);
-  await call("sketch_add_arc_3pt", { p1: S, p2: F, p3: E, ctrl_held: true });
-  await call("sketch_add_line", { from: E, to_raw: Ei, ctrl_held: true });
-  await call("sketch_add_arc_3pt", { p1: Ei, p2: Fi, p3: Si, ctrl_held: true });
-  await call("sketch_add_line", { from: Si, to_raw: S, ctrl_held: true });
 }
 
 function record(lessons, id, pass, detail) {
@@ -446,44 +410,6 @@ try {
     "cone relief",
   );
 
-  const [px, py] = postXY(0);
-  await beginDatum(await offsetXY(spec.base_h));
-  await addCircle(px, py, spec.post_d);
-  sketch = await finishSketch();
-  update = requireClean(
-    await call("solid_extrude", {
-      sketch_name: sketch,
-      profile_indices: [0],
-      operation: "new_body",
-      extent: { type: "distance", distance: postExtrudeH() },
-      taper_angle_deg: 0,
-      flip: false,
-      target_body_ids: [],
-    }),
-    "post",
-  );
-  const postId = newestBody(update, [baseId]);
-  update = requireClean(
-    await call("solid_circular_pattern", {
-      body_ids: [postId],
-      axis_origin: { x: 0, y: 0, z: 0 },
-      axis_direction: { x: 0, y: 0, z: 1 },
-      count: spec.post_count,
-      total_angle_deg: 360,
-    }),
-    "even posts",
-  );
-  const postIds = (update.scene?.bodies ?? []).map((body) => body.id).filter((id) => id !== baseId);
-  requireClean(
-    await call("solid_combine", {
-      target_body_id: baseId,
-      tool_body_ids: postIds,
-      operation: "join",
-      keep_tools: false,
-    }),
-    "join posts",
-  );
-
   await beginXZ();
   await addPoly(shaftProfile());
   sketch = await finishSketch();
@@ -502,10 +428,10 @@ try {
     "shaft",
   );
   const shaftId = newestBody(update, [baseId]);
-  await cutFlats(shaftId, shoulderTop(), spec.hub_h + 0.2, spec.drive_across / 2, 8);
+  await cutFlats(shaftId, shoulderTop(), spec.platter_h + 0.2, spec.drive_across / 2, 8);
 
   await beginDatum(await offsetXY(shoulderTop()));
-  await addCircle(0, 0, spec.hub_od);
+  await addCircle(0, 0, spec.platter_d);
   await addCircle(0, 0, spec.bush_id);
   sketch = await finishSketch();
   update = requireClean(
@@ -513,100 +439,86 @@ try {
       sketch_name: sketch,
       profile_indices: [0],
       operation: "new_body",
-      extent: { type: "distance", distance: spec.hub_h },
+      extent: { type: "distance", distance: spec.platter_h },
       taper_angle_deg: 0,
       flip: false,
       target_body_ids: [],
     }),
-    "rotor hub",
+    "platter",
   );
-  const hubId = newestBody(update, [baseId, shaftId]);
-
-  const sectionNames = [];
-  for (let i = 0; i < spec.loft_stations; i++) {
-    const z = shoulderTop() + (spec.blade_h * i) / (spec.loft_stations - 1);
-    const ang = (spec.blade_twist_deg * i) / (spec.loft_stations - 1);
-    await beginDatum(await offsetXY(z));
-    await addC(ang, 0, 0);
-    sectionNames.push(await finishSketch());
-  }
-  update = requireClean(
-    await call("solid_loft", {
-      sections: sectionNames.map((name) => ({ sketch_name: name, profile_index: 0 })),
-      ruled: false,
-      operation: "new_body",
-      target_body_ids: [],
-      continuity: "g1",
-      centerline: null,
-      guide_rail: null,
-    }),
-    "rotor bucket",
-  );
-  const bladeId = newestBody(update, [baseId, shaftId, hubId]);
-  update = requireClean(
-    await call("solid_circular_pattern", {
-      body_ids: [bladeId],
-      axis_origin: { x: 0, y: 0, z: 0 },
-      axis_direction: { x: 0, y: 0, z: 1 },
-      count: spec.blade_count,
-      total_angle_deg: 360,
-    }),
-    "even buckets",
-  );
-  const bladeIds = (update.scene?.bodies ?? [])
-    .map((body) => body.id)
-    .filter((id) => id !== baseId && id !== shaftId && id !== hubId);
+  const platterId = newestBody(update, [baseId, shaftId]);
+  const rimZ = shoulderTop() + spec.platter_h;
+  await beginDatum(await offsetXY(rimZ));
+  await addCircle(0, 0, spec.rim_d);
+  sketch = await finishSketch();
   requireClean(
-    await call("solid_combine", {
-      target_body_id: hubId,
-      tool_body_ids: bladeIds,
-      operation: "join",
-      keep_tools: false,
+    await call("solid_extrude", {
+      sketch_name: sketch,
+      profile_indices: [0],
+      operation: "cut",
+      extent: { type: "distance", distance: spec.rim_depth },
+      taper_angle_deg: 0,
+      flip: true,
+      target_body_ids: [platterId],
     }),
-    "join rotor",
+    "platter rim well",
+  );
+  await beginDatum(await offsetXY(rimZ));
+  for (let i = 0; i < spec.pocket_count; i++) {
+    const [hx, hy] = pocketXY(i);
+    await addCircle(hx, hy, spec.pocket_d);
+  }
+  sketch = await finishSketch();
+  requireClean(
+    await call("solid_extrude", {
+      sketch_name: sketch,
+      profile_indices: [...Array(spec.pocket_count).keys()],
+      operation: "cut",
+      extent: { type: "distance", distance: spec.platter_h + 1 },
+      taper_angle_deg: 0,
+      flip: true,
+      target_body_ids: [platterId],
+    }),
+    "even wells",
   );
   await cutFlats(
-    hubId,
+    platterId,
     shoulderTop(),
-    spec.hub_h + 0.2,
+    spec.platter_h + 0.2,
     spec.drive_across_hub / 2,
     spec.bush_id / 2 + 1,
   );
 
   await beginDatum(await offsetXY(spec.plate_z));
-  await addCircle(0, 0, spec.top_plate_d);
+  await addCircle(0, 0, spec.keeper_d);
   sketch = await finishSketch();
   update = requireClean(
     await call("solid_extrude", {
       sketch_name: sketch,
       profile_indices: [0],
       operation: "new_body",
-      extent: { type: "distance", distance: spec.top_plate_h },
+      extent: { type: "distance", distance: spec.keeper_h },
       taper_angle_deg: 0,
       flip: false,
       target_body_ids: [],
     }),
-    "top plate",
+    "keeper",
   );
-  const plateId = newestBody(update, [baseId, shaftId, hubId]);
+  const keeperId = newestBody(update, [baseId, shaftId, platterId]);
   await beginDatum(await offsetXY(plateTop()));
   await addCircle(0, 0, spec.journal_d + spec.clearance_mm);
-  for (let i = 0; i < spec.post_count; i++) {
-    const [hx, hy] = postXY(i);
-    await addCircle(hx, hy, spec.post_hole);
-  }
   sketch = await finishSketch();
   requireClean(
     await call("solid_extrude", {
       sketch_name: sketch,
-      profile_indices: [...Array(spec.post_count + 1).keys()],
+      profile_indices: [0],
       operation: "cut",
-      extent: { type: "distance", distance: spec.top_plate_h + 1 },
+      extent: { type: "distance", distance: spec.keeper_h + 1 },
       taper_angle_deg: 0,
       flip: true,
-      target_body_ids: [plateId],
+      target_body_ids: [keeperId],
     }),
-    "plate through holes",
+    "keeper journal",
   );
   await beginDatum(await offsetXY(plateTop()));
   await addCircle(0, 0, spec.bush_seat);
@@ -619,7 +531,7 @@ try {
       extent: { type: "distance", distance: spec.bush_h },
       taper_angle_deg: 0,
       flip: true,
-      target_body_ids: [plateId],
+      target_body_ids: [keeperId],
     }),
     "bushing seat",
   );
@@ -640,7 +552,7 @@ try {
     }),
     "printed bushing",
   );
-  const bushId = newestBody(update, [baseId, shaftId, hubId, plateId]);
+  const bushId = newestBody(update, [baseId, shaftId, platterId, keeperId]);
 
   await beginDatum(await offsetXY(capZ()));
   await addCircle(0, 0, spec.cap_d);
@@ -658,14 +570,14 @@ try {
     }),
     "cap",
   );
-  const capId = newestBody(update, [baseId, shaftId, hubId, plateId, bushId]);
+  const capId = newestBody(update, [baseId, shaftId, platterId, keeperId, bushId]);
 
   await call("cad_set_focus", { focus: "print", explicit: true });
   const presets = [
     [baseId, "bambu.pla.basic.black"],
     [shaftId, "bambu.pla.basic.jade_white"],
-    [hubId, "bambu.pla.basic.green"],
-    [plateId, "bambu.pla.basic.black"],
+    [platterId, "bambu.pla.basic.green"],
+    [keeperId, "bambu.pla.basic.black"],
     [bushId, "bambu.pla.matte.dark_gray"],
     [capId, "bambu.pla.basic.red"],
   ];
@@ -701,7 +613,7 @@ try {
 
   const bodies = scene.bodies ?? [];
   const features = document.features ?? [];
-  const rotor = bodies.find((body) => body.id === hubId);
+  const platter = bodies.find((body) => body.id === platterId);
   const nearAxis = (body) => {
     const box = bboxOf(body);
     if (!box) return false;
@@ -713,10 +625,9 @@ try {
     report.lessons,
     "clearance",
     Math.abs(spec.bush_id - spec.journal_d - spec.clearance_mm) < 1e-9 &&
-      Math.abs(spec.post_hole - spec.post_d - spec.clearance_mm) < 1e-9 &&
       Math.abs(spec.bush_seat - spec.bush_od - spec.clearance_mm) < 1e-9 &&
       Math.abs(spec.drive_across_hub - spec.drive_across - spec.clearance_mm) < 1e-9,
-    `journal ${spec.journal_d} in bush ${spec.bush_id}; post ${spec.post_d} in hole ${spec.post_hole}`,
+    `journal ${spec.journal_d} in bush ${spec.bush_id}; bush ${spec.bush_od} in seat ${spec.bush_seat}`,
   );
   record(
     report.lessons,
@@ -725,9 +636,9 @@ try {
     "printed interfaces are +0.40 slip; cone and cap retain the stack",
   );
   const properStack =
-    spec.top_plate_h > spec.bush_h &&
-    postExtrudeH() + spec.base_h > plateTop() &&
-    rotorSweepR() + 1 < postInnerR() &&
+    spec.keeper_h > spec.bush_h &&
+    spec.platter_d > spec.base_d + 8 &&
+    spec.keeper_d < spec.platter_d * 0.5 &&
     spec.thrust_float > 0 &&
     spec.cap_float > 0;
   record(
@@ -737,7 +648,7 @@ try {
       bodies.some((body) => (bboxOf(body)?.max[2] ?? 0) > plateTop() - 1) &&
       bodies.every(nearAxis) &&
       properStack,
-    `${bodies.length} coaxial bodies; posts through plate; rotor sweep ${rotorSweepR().toFixed(1)} < post inner ${postInnerR().toFixed(1)}`,
+    `${bodies.length} coaxial bodies; platter Ø${spec.platter_d} on foot Ø${spec.base_d}; keeper Ø${spec.keeper_d}`,
   );
   record(
     report.lessons,
@@ -752,21 +663,23 @@ try {
   record(
     report.lessons,
     "even",
-    spec.post_count === 3 && spec.blade_count === 2 && spec.drive_across_hub > spec.drive_across,
-    "3 posts at 120°, 2 buckets at 180°, double-D drive",
+    spec.pocket_count === 3 && spec.drive_across_hub > spec.drive_across,
+    "3 wells at 120°, double-D drive",
   );
   record(
     report.lessons,
     "printed_bearings",
-    spec.bush_od < 20 && spec.bush_h < spec.top_plate_h && spec.cone_h >= 3,
+    spec.bush_od < 20 && spec.bush_h < spec.keeper_h && spec.cone_h >= 3,
     "printed sleeve on a 2 mm land + printed cone/land thrust; no metal 608",
   );
-  const rotorBox = bboxOf(rotor);
+  const platterBox = bboxOf(platter);
   record(
     report.lessons,
     "not_2d",
-    (rotor?.faces?.length ?? 0) >= spec.min_rotor_faces && !!rotorBox && rotorBox.span[2] > spec.hub_h - 1,
-    { faces: rotor?.faces?.length, bbox: rotorBox },
+    (platter?.faces?.length ?? 0) >= spec.min_rotor_faces &&
+      !!platterBox &&
+      platterBox.span[2] > spec.platter_h - 1,
+    { faces: platter?.faces?.length, bbox: platterBox },
   );
   record(
     report.lessons,
