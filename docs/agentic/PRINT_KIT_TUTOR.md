@@ -34,6 +34,13 @@ npm run test:mcp-print-kit
 
 Optional live desktop: `node scripts/mcp-print-kit-tutor.mjs --live`
 
+The exam also writes a reusable project next to the 3MF (override with
+`NBCAD_PROJECT_OUT`):
+
+```text
+%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor.nbcad
+```
+
 Agents start with `prompts/get model_print_kit`.
 
 ## Lessons the grader checks

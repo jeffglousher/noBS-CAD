@@ -14,9 +14,11 @@
  */
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { strToU8, zipSync } from "fflate";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "..");
@@ -35,10 +37,38 @@ function defaultBin() {
 
 const bin = defaultBin();
 const live = process.argv.includes("--live");
+const defaultKitDir = path.join(os.homedir(), "Documents", "noBS-CAD");
 const out3mf =
-  process.env.NBCAD_3MF_OUT || path.join(process.env.TEMP || "/tmp", "Print-Kit-Tutor.3mf");
+  process.env.NBCAD_3MF_OUT || path.join(defaultKitDir, "Print-Kit-Tutor.3mf");
+const outProject =
+  process.env.NBCAD_PROJECT_OUT || path.join(defaultKitDir, "Print-Kit-Tutor.nbcad");
 const outReport =
-  process.env.NBCAD_TUTOR_OUT || path.join(process.env.TEMP || "/tmp", "Print-Kit-Tutor-report.json");
+  process.env.NBCAD_TUTOR_OUT || path.join(defaultKitDir, "Print-Kit-Tutor-report.json");
+
+function writeNbcadArchive(modelJson, destination) {
+  const model = JSON.parse(modelJson);
+  if (model.format !== "nbcad-project" || !Number.isInteger(model.schema_version)) {
+    throw new Error("cad_project_model did not return a .nbcad model.json payload");
+  }
+  const manifest = {
+    format: "nbcad-project",
+    container_version: 1,
+    model: "model.json",
+    application: "noBS CAD",
+    application_version: "0.1.0",
+    saved_at: new Date().toISOString(),
+  };
+  const bytes = zipSync(
+    {
+      "manifest.json": strToU8(`${JSON.stringify(manifest, null, 2)}\n`),
+      "model.json": strToU8(modelJson.endsWith("\n") ? modelJson : `${modelJson}\n`),
+    },
+    { level: 6 },
+  );
+  mkdirSync(path.dirname(destination), { recursive: true });
+  writeFileSync(destination, bytes);
+  return bytes.length;
+}
 
 if (!bin) {
   console.error("nbcad-mcp binary not found. Build mcp-server or set NBCAD_MCP_BIN.");
@@ -405,9 +435,19 @@ try {
     include_appearance: true,
   });
   const bytes = Buffer.from(exported.bytes_base64, "base64");
+  mkdirSync(path.dirname(out3mf), { recursive: true });
   writeFileSync(out3mf, bytes);
   const scene = await call("solid_scene");
   const document = await call("cad_document");
+  const project = await call("cad_project_model");
+  const modelJson =
+    typeof project === "string"
+      ? project
+      : typeof project?.model_json === "string"
+        ? project.model_json
+        : JSON.stringify(project);
+  mkdirSync(path.dirname(out3mf), { recursive: true });
+  const projectBytes = writeNbcadArchive(modelJson, outProject);
   if (live) {
     try {
       await call("cad_detach");
@@ -478,7 +518,12 @@ try {
     faces: body.faces?.length,
     bbox: bboxOf(body),
   }));
-  report.export = { path: out3mf, byte_length: bytes.length };
+  report.export = {
+    path: out3mf,
+    byte_length: bytes.length,
+    project: outProject,
+    project_bytes: projectBytes,
+  };
   report.ok = report.lessons.every((lesson) => lesson.pass);
 } catch (error) {
   report.error = String(error?.stack ?? error);
@@ -490,6 +535,7 @@ try {
     }
   }
 } finally {
+  mkdirSync(path.dirname(outReport), { recursive: true });
   writeFileSync(outReport, JSON.stringify(report, null, 2));
   console.log(`\nCAD synthesis tutor — ${spec.title}`);
   console.log(`Spec ${spec.id}  nozzle ${spec.nozzle_mm} mm  clearance +${spec.clearance_mm} mm`);
