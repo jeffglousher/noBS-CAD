@@ -56,6 +56,8 @@
   "min_bodies": 8,
   "min_rotor_faces": 16,
   "min_print_plates": 5,
+  "print_plates": ["01-base", "02-axle", "03-rotor", "04-roller-cartridge", "05-retainer"],
+  "retired_print_plates": ["02-shaft", "03-hub", "04-wings", "05-plate", "06-bushing", "07-cap"],
   "assembly_order": ["base", "axle", "roller_cage", "rotor", "retainer"],
   "gdt": {
     "datums": {
@@ -134,7 +136,7 @@
     {
       "id": "export",
       "title": "Export one plate per part",
-      "teach": "Assign appearances, preflight, then solid_export_3mf per functional part. The roller cartridge is one plate (cage + PIP rollers). Do not export the assembled nest as the print job."
+      "teach": "Wipe Print-Kit-Tutor/ first so leftover shaft/hub/wings/plate/bushing/cap plates are gone. Then solid_export_3mf per functional part. The roller cartridge is one plate (cage + PIP rollers). Do not export the assembled nest as the print job."
     }
   ]
 }

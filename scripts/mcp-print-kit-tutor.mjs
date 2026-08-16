@@ -14,7 +14,7 @@
  */
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
-import { mkdirSync, readFileSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, existsSync, unlinkSync, readdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -48,6 +48,52 @@ const outReport =
   process.env.NBCAD_TUTOR_OUT || path.join(defaultKitDir, "Print-Kit-Tutor-report.json");
 const outDesign =
   process.env.NBCAD_DESIGN_OUT || path.join(defaultKitDir, "Print-Kit-Tutor-design.md");
+const currentPlates = spec.print_plates ?? [
+  "01-base",
+  "02-axle",
+  "03-rotor",
+  "04-roller-cartridge",
+  "05-retainer",
+];
+const retiredPlates = spec.retired_print_plates ?? [
+  "02-shaft",
+  "03-hub",
+  "04-wings",
+  "05-plate",
+  "06-bushing",
+  "07-cap",
+];
+
+function removeFile(file) {
+  if (!existsSync(file)) return false;
+  try {
+    unlinkSync(file);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Drop the assembled nest and any retired/extra plates before writing this run. */
+function cleanKitOutputs() {
+  const removed = [];
+  if (removeFile(out3mfLegacy)) removed.push(path.basename(out3mfLegacy));
+  mkdirSync(out3mfDir, { recursive: true });
+  const keep = new Set(currentPlates.map((name) => `${name}.3mf`.toLowerCase()));
+  for (const name of readdirSync(out3mfDir)) {
+    if (keep.has(name.toLowerCase())) continue;
+    if (removeFile(path.join(out3mfDir, name))) removed.push(name);
+  }
+  for (const name of retiredPlates) {
+    if (removeFile(path.join(out3mfDir, `${name}.3mf`))) removed.push(`${name}.3mf`);
+  }
+  return removed;
+}
+
+function plateDirListing() {
+  if (!existsSync(out3mfDir)) return [];
+  return readdirSync(out3mfDir).filter((name) => name.toLowerCase().endsWith(".3mf"));
+}
 
 function writeNbcadArchive(modelJson, destination) {
   const model = JSON.parse(modelJson);
@@ -983,7 +1029,7 @@ Assumptions: ${spec.filament.name}, ${spec.filament.density_g_cm3} g/cm³, $${sp
 | Estimated print mass | ${estimatedPrintMassG().toFixed(1)} g |
 | Filament cost | **$${usd}** |
 
-Print plates in \`${out3mfDir}\` (cartridge is PIP; do not print the assembled nest):
+Print plates in \`${out3mfDir}\` (folder wiped first; cartridge is PIP; do not print the assembled nest):
 
 ${plateFiles.map((file) => `- \`${file}\``).join("\n")}
 
@@ -1077,17 +1123,19 @@ try {
     await call("set_body_appearance", { body_id: id, preset_id: "bambu.pla.basic.orange" });
   }
   const preflight = await call("solid_export_preflight");
-  mkdirSync(out3mfDir, { recursive: true });
-  const plateJobs = [
-    ["01-base", [baseId]],
-    ["02-axle", [axleId]],
-    ["03-rotor", [rotorId]],
-    ["04-roller-cartridge", [cageId, ...rollerIds]],
-    ["05-retainer", [retainerId]],
-  ];
+  const removedPlates = cleanKitOutputs();
+  const plateBodies = {
+    "01-base": [baseId],
+    "02-axle": [axleId],
+    "03-rotor": [rotorId],
+    "04-roller-cartridge": [cageId, ...rollerIds],
+    "05-retainer": [retainerId],
+  };
   const plateFiles = [];
   const plateBytes = [];
-  for (const [name, bodyIds] of plateJobs) {
+  for (const name of currentPlates) {
+    const bodyIds = plateBodies[name];
+    if (!bodyIds) throw new Error(`no bodies mapped for plate ${name}`);
     const exported = await call("solid_export_3mf", {
       slicer_target: spec.slicer_target,
       include_appearance: true,
@@ -1099,13 +1147,9 @@ try {
     plateFiles.push(dest);
     plateBytes.push(bytes);
   }
-  if (existsSync(out3mfLegacy)) {
-    try {
-      unlinkSync(out3mfLegacy);
-    } catch {
-      /* ignore locked assembled nest */
-    }
-  }
+  const leftoverPlates = plateDirListing().filter(
+    (name) => !currentPlates.includes(name.replace(/\.3mf$/i, "")),
+  );
   const scene = await call("solid_scene");
   const document = await call("cad_document");
   const assembly = await call("assembly_document").catch(() => ({}));
@@ -1220,17 +1264,24 @@ try {
   const platesOk =
     plateBytes.length >= spec.min_print_plates &&
     plateBytes.every((bytes) => bytes[0] === 0x50 && bytes[1] === 0x4b && bytes.length > 32);
+  const dirClean =
+    leftoverPlates.length === 0 &&
+    !existsSync(out3mfLegacy) &&
+    plateDirListing().length === currentPlates.length;
   record(
     report.lessons,
     "export",
     features.every((feature) => feature.status?.state !== "error") &&
       (preflight.ok === true || (preflight.timeline_errors ?? []).length === 0) &&
-      platesOk,
+      platesOk &&
+      dirClean,
     {
       plates: plateFiles.length,
       bytes: plateBytes.reduce((sum, bytes) => sum + bytes.length, 0),
       preflight: preflight.ok,
       dir: out3mfDir,
+      removed: removedPlates,
+      leftover: leftoverPlates,
     },
   );
   report.bodies = bodies.map((body) => ({

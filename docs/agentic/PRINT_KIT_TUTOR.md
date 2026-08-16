@@ -43,9 +43,10 @@ Then: `assembly_create_component` / `assembly_create_occurrence`, ground
 the base, revolute on the axis. Ship an A3 assembly drawing with notes.
 
 Print each functional part in its own orientation. The cartridge is
-print-in-place. The exam writes five print-plate 3MFs under
-`%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor\` and a design report
-next to the project.
+print-in-place. The exam **wipes** `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor\`
+first (retired `02-shaft` / `03-hub` / `04-wings` / `05-plate` /
+`06-bushing` / `07-cap` and any assembled `Print-Kit-Tutor.3mf`), then
+writes the five current plates and a design report next to the project.
 
 ## How to rerun
 

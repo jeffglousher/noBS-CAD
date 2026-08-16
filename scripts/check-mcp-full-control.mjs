@@ -307,6 +307,20 @@ if (spec.fit_running_mm !== 0.4) {
 if (!(spec.fit_friction_mm < spec.fit_slip_mm && spec.fit_slip_mm < spec.fit_running_mm)) {
   fail('print-kit tutor spec must keep friction < slip < running fits');
 }
+if (!Array.isArray(spec.print_plates) || spec.print_plates.length !== 5) {
+  fail('print-kit tutor spec must list the five current print plates');
+}
+if (
+  !Array.isArray(spec.retired_print_plates) ||
+  !spec.retired_print_plates.includes('02-shaft') ||
+  !spec.retired_print_plates.includes('06-bushing')
+) {
+  fail('print-kit tutor spec must list retired plates so the exam can wipe them');
+}
+const tutorSrc = await read('scripts/mcp-print-kit-tutor.mjs');
+if (!tutorSrc.includes('cleanKitOutputs') || !tutorSrc.includes('retired_print_plates')) {
+  fail('print-kit Node exam must wipe retired plates before writing the current set');
+}
 if (!mainSrc.includes('mod print_kit_tutor')) {
   fail('mcp-server must compile the print-kit tutor exam');
 }

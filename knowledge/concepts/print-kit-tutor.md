@@ -22,7 +22,8 @@ nozzle fits by building a printed VAWT **assembly** and grading it.
 
 Five functional parts (base, axle puck, one-piece helical rotor, PIP
 roller cartridge, retainer), then components / occurrences / a revolute
-and an A3 drawing. Fits are per role (running +0.40, slip +0.28, friction
+and an A3 drawing. Reruns wipe retired plates (`02-shaft` … `07-cap`)
+so `Print-Kit-Tutor/` holds only the current five 3MFs. Fits are per role (running +0.40, slip +0.28, friction
 +0.16). Scale 1.0 is Bambu Lab X2D-max; the exam runs at 0.4. No FDM
 press fits. No metal 608s. The recipe is adversarial
 ([PRINT_KIT_DESIGN.md](../../docs/agentic/PRINT_KIT_DESIGN.md)); the exam

@@ -59,6 +59,8 @@ pub struct Spec {
     pub min_bodies: usize,
     pub min_rotor_faces: usize,
     pub min_print_plates: usize,
+    pub print_plates: Vec<String>,
+    pub retired_print_plates: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -1592,6 +1594,9 @@ mod spec_tests {
         assert!(spec.estimated_filament_usd() > 0.05);
         assert!(spec.min_bodies >= 8);
         assert!(spec.min_print_plates >= 5);
+        assert_eq!(spec.print_plates.len(), 5);
+        assert!(spec.retired_print_plates.iter().any(|name| name == "02-shaft"));
+        assert!(spec.retired_print_plates.iter().any(|name| name == "06-bushing"));
         assert!((spec.wing_offset_deg + spec.helix_deg * 0.5 - 60.0).abs() < 1e-9);
         assert!(spec.rotor_print_h() / spec.scale <= spec.usable_bed()[2] + 1e-6);
         assert!(spec.cage_od() < spec.hub_bore());

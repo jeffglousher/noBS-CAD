@@ -2,6 +2,9 @@
 
 ## 2026-08-16
 
+- **Update**: Print-kit exam wipes `Documents/noBS-CAD/Print-Kit-Tutor/`
+  before writing plates so retired shaft/hub/wings/plate/bushing/cap
+  3MFs cannot sit next to the current five-plate kit.
 - **Update**: Print-kit tutor is now a five-part **assembly**: one-piece
   helical rotor, short square stator, flanged inner-race puck, PIP roller
   cartridge, retainer. Role-based fits (running +0.40 / slip +0.28 /

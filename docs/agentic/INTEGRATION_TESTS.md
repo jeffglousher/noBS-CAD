@@ -33,7 +33,8 @@ CI (`.github/workflows/mcp-server.yml`) runs #2, then #3, then the Node half
 of #1. Optional live desktop for #1: `node scripts/mcp-print-kit-tutor.mjs --live`.
 The Node exam also writes `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor.nbcad`
 and five print-plate 3MFs under `Print-Kit-Tutor\` (override with
-`NBCAD_PROJECT_OUT` / `NBCAD_3MF_DIR`). The roller cartridge is PIP.
+`NBCAD_PROJECT_OUT` / `NBCAD_3MF_DIR`). The exam deletes retired plates
+from earlier kits before writing. The roller cartridge is PIP.
 Do not print the assembled nest.
 
 Supporting crate jobs (export, xtask `install-mcp`) are packaging checks, not

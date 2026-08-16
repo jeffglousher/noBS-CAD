@@ -38,7 +38,8 @@ Five functional parts: base → axle → roller cartridge → rotor → retainer
 
 Open in CAD: `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor.nbcad`
 
-Print plates under `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor\`:
+Print plates under `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor\`
+(the exam wipes this folder first — no leftover shaft/hub/wings/plate/bushing/cap):
 
 - `01-base.3mf`
 - `02-axle.3mf`

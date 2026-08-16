@@ -36,6 +36,7 @@ Do not ship any of these. They have already been built. They are not turbines.
 - A full cookie plate when a Y-frame (hub + ribs + pads) will hold the stand
 - Straight prismatic airfoils (a fence). Helix is required
 - A single assembled 3MF sold as the print job. Separate print plates (the roller cartridge is one PIP plate)
+- Leftover plates from a previous kit (`02-shaft`, `03-hub`, `04-wings`, `05-plate`, `06-bushing`, `07-cap`, or `Print-Kit-Tutor.3mf`). Wipe `Print-Kit-Tutor/` before you write the five current plates
 
 If the solid looks like a broken rim, a fence slat, or a lid, start over.
 
@@ -122,12 +123,12 @@ Minimum wall 1.6 mm (4 nozzles). Functional holes are complete XY circles. Disab
 4. Rotor: hub ring (outer race) JOIN three helical **NACA 0021** lofts, open drafted tips, print standing
 5. Roller cage + PIP rollers on a large PCD. Retainer ring
 6. cad_set_focus assembly. Components / occurrences / revolute. cad_set_focus drawing. Sheet + auto-layout + notes
-7. cad_set_focus print. set_body_appearance. solid_export_preflight. solid_export_3mf **once per print plate** with body_ids (base, axle, rotor, cartridge, retainer)
+7. cad_set_focus print. set_body_appearance. solid_export_preflight. **Delete** any prior `Print-Kit-Tutor/` 3MFs (and `Print-Kit-Tutor.3mf`). Then `solid_export_3mf` **once per print plate** with body_ids (base, axle, rotor, cartridge, retainer) only. The folder must contain exactly those five files.
 8. Write the design report. Include role-based fits, scale vs X2D, roller PCD, and why the rotor is one piece
 
 ## Design report (required deliverable)
 
-Write `%USERPROFILE%/Documents/noBS-CAD/Print-Kit-Tutor-design.md` (and the JSON report beside the project). List the five print-plate 3MFs. The exam fails if this is missing, empty, or cost-free.
+Write `%USERPROFILE%/Documents/noBS-CAD/Print-Kit-Tutor-design.md` (and the JSON report beside the project). List the five print-plate 3MFs. The exam fails if this is missing, empty, or cost-free, or if retired plates are still on disk.
 
 The report must include:
 
