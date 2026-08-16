@@ -68,6 +68,14 @@ on post tips in the slicer if they hang on the plate.
 
 If those five steps are not visible in the solid, the exam failed.
 
+## Assembled park
+
+![Assembled park, isometric](images/assembled-park-iso.png)
+
+![Assembled park, front](images/assembled-park-front.png)
+
+![Assembled park, top](images/assembled-park-top.png)
+
 ## As-built stack (Node exam, 2026-08-15)
 
 | Body | z min–max | Notes |
