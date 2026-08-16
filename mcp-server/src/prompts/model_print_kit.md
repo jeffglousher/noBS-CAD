@@ -22,6 +22,8 @@ Do not ship any of these. They have already been built. They are not turbines.
 - Press fits, same-angle lifted cones (parallel surfaces never touch), hub swallowing the shoulder
 - A report that only says READY TO PRINT
 - A fat frame: plate or base OD > 1.55 × rotor tip diameter (the Ø90 cookie around 12 mm slats)
+- A full cookie plate when a Y-frame (hub + ribs + pads) will hold the posts
+- A short sleeve (L/D < 1) that rubs a full cylinder. Two-land + relief is required
 - Posts thicker than 0.40 × chord
 - Straight prismatic airfoils (a fence). Helix is required
 
@@ -61,10 +63,10 @@ The rotor is the product. The frame is a stand. Size the stand to the rotor.
 | Section | NACA 0021, t/c 0.21, TE ≥ 0.8 mm, 8 stations, ctrl held |
 | Rotor | N=3, c=16 mm, R=24 mm, span=48 mm, σ≈0.32, 60° helix, 3 loft stations |
 | Bay | Root azimuth 30°/150°/270°. Helix +60° so mid-span is mid-bay. Tip ~R25.3 |
-| Stand | Base/plate **Ø72 × 5 / 6**, not Ø90. Posts **Ø5 on R32** (inner R29.5). ≥4 mm air to tip |
-| Girth gates | plate/rotor D ≤ 1.55; post/chord ≤ 0.40; span/chord ≥ 2.5 |
-| Fits | +{nozzle} mm every running/slip. Printed cup+land + printed sleeve. No 608 |
-| Stack | plate_z = 67 (5+10+2+48+2). Hub sits on the shoulder. Tenon at the **root** station |
+| Stand | **Y-frame**, not a cookie. Hub Ø32 + 5 mm ribs + Ø10 pads. Envelope ~Ø74. Posts **Ø5 on R32** (inner R29.5). ≥4 mm air to tip |
+| Girth gates | envelope/rotor D ≤ 1.55; post/chord ≤ 0.40; span/chord ≥ 2.5; no unused plate |
+| Fits | +{nozzle} mm every running/slip. Printed cup+land + two-land sleeve. No 608. Do not tighten |
+| Stack | plate_z = 67 (5+10+2+48+2). Arms 4 mm; hanging boss 6 mm so the 8 mm seat keeps a 2 mm land. Hub sits on the shoulder. Tenon at the **root** station |
 
 Sanity: if the plates look like cookies and the blades look like garnish, the girth gates failed.
 
@@ -88,14 +90,14 @@ Prefer **printed bushings** over roller / ball bearings at this size. No 608, no
 
 Required running set (two-bearing stand):
 
-- **Thrust**: 45° cup in the base (female r5) + smaller male cone (r4.8) + Ø13 × 0.8 annular land with 0.20 float. Relief Ø3 at the apex. A lifted same-angle cone is not a bearing
+- **Thrust**: 45° cup in the base (female r5) + smaller male cone (r4.8) + **narrow** Ø12 × 0.8 annular land with 0.20 float. Relief Ø3 at the apex. A lifted same-angle cone is not a bearing. A wide land is extra drag
 - **Lower radial**: the land + cup center the shaft. Do not add a hidden roller under the hub
-- **Upper radial**: printed sleeve Ø8.4 / Ø14 × 4 in a shouldered seat (Ø14.4 × 4, 2 mm land). L/D of the sleeve is 0.5 — the exam minimum. If you lengthen the sleeve, thicken the plate so the land remains
+- **Upper radial**: **two-land** printed sleeve Ø8.4 / Ø14 × **8** (L/D = **1.0**) in a hanging boss. Seat Ø14.4 × 8, 2 mm land. Mid-groove relief Ø9.2 so it does not rub a full cylinder. Arms stay 4 mm — do not pour a 10 mm cookie just to get L
 - **Drive**: double-D 6.0 / 6.4 in the hub zone only
 - **Wing mount**: socket 8 × 6 × 5, tenon 7.6 × 4.8 (+{nozzle} / 0.20 axial float). The wing **drops** in. It is not a press and not a screw
-- **Retain**: cap Ø20 × 2.4, 0.20 float. No fasteners
+- **Retain**: cap Ø16 × 1.6, 0.20 float. No fasteners
 
-Clearance is a design input: +{nozzle} mm diametral on every printed-to-printed running or slip interface, including the tenon. PLA-on-PLA is a demo spin, not a 1000 h bearing. Say that in the report. PETG / nylon bushings are a later material swap, not a reason to import a 608.
+Clearance is a design input: +{nozzle} mm diametral on every printed-to-printed running or slip interface, including the tenon. **Do not tighten for “low friction.”** Tight FDM binds (elephant foot, shrinkage). Low friction here is geometry: two lands, narrow thrust, 0.20 float, bushing printed as a ring (XY bore), shaft printed on the land. PLA-on-PLA is a demo spin, not a 1000 h bearing. Say that in the report. PETG / nylon bushings are a later material swap, not a reason to import a 608.
 
 ## Print and assemble — no additional hardware
 
@@ -109,18 +111,18 @@ Print each body in its own orientation. The exam shows the assembled park so the
 
 Minimum wall 1.6 mm (4 nozzles). Functional holes are complete XY circles. Disable grid snap. Prefer locked circles. Draw airfoil, socket, and tenon polylines with **ctrl held** or ortho-snap will square the section into a plate.
 
-## Frame (keep the stand, shrink the girth)
+## Frame (keep the stand, cut unused plastic)
 
-The two-bearing idea stays. The Ø90 cookie does not.
+The two-bearing idea stays. The cookie plate does not.
 
 1. prompts/get model_print_kit. cad_list_all_tools. cad_new_project. cad_set_document_name Print Kit Tutor
-2. Base Ø72 × 5. Cut the 45° cup. Join three Ø5 posts on R32 at 120° that continue **through** the top plate and stand 2 mm proud
-3. Shaft: revolve on XZ. Male cone r4.8, land, Ø8 journal, Ø16 shoulder, double-D, upper journal through the plate
+2. Base **Y-frame** (Ø32 hub + 5 mm ribs + Ø10 pads). Cut the 45° cup. Join three Ø5 posts on R32 at 120° that continue **through** the top plate and stand 2 mm proud
+3. Shaft: revolve on XZ. Male cone r4.8, **Ø12** land, Ø8 journal, Ø16 shoulder, double-D, upper journal through the plate
 4. Hub Ø28 × 8 **sits on** the shoulder. Ø8.4 bore, double-D 6.4, three sockets at the **root** azimuths (30°/150°/270°)
-5. Each wing: loft **NACA 0021** at 3 stations, 60° helix on the R24 cylinder, chord tangent, blunt TE, tenon into the root socket. Ø22 windows at mid-helix
-6. Top plate Ø72 × 6 at z=67. Post holes that locate. Bushing seat with a land. Sleeve. Cap
+5. Each wing: loft **NACA 0021** at 3 stations, 60° helix on the R24 cylinder, chord tangent, blunt TE, tenon into the root socket. The Y-frame is already open — no window cuts
+6. Top **Y-frame** 4 mm at z=67 + hanging Ø20 × 6 boss. Post holes that locate. Seat 8 mm from the top (2 mm land in the boss). Two-land sleeve. Cap
 7. cad_set_focus print. set_body_appearance. solid_export_preflight. solid_export_3mf slicer_target=bambu_studio
-8. Write the design report. Include the girth ratios and why helix. A green export with a fat frame or a straight fence is still a fail
+8. Write the design report. Include the girth ratios, L/D, and why helix. A green export with a cookie plate or a short full-cylinder sleeve is still a fail
 
 ## Design report (required deliverable)
 

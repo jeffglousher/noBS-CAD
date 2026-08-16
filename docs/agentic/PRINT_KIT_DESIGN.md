@@ -16,8 +16,8 @@ fence, is also a **fail**.
 | Section | NACA 0021, TE ≥ 0.8 mm | 2026 thick-symmetric band; printable |
 | Rotor | c=16, R=24, span=48, N=3, 60° helix | σ≈0.32; AR=3; always some blade working |
 | Bay | Root 30°, helix +60° | Stays between Ø5 posts on R32 |
-| Stand | Ø72 plates, Ø5 posts | Frame/rotor ≤ 1.55; post/chord ≤ 0.40 |
-| Fits | +0.40 mm, printed bushings | No 608, no screws |
+| Stand | Y-frame (hub+ribs+pads), Ø5 posts | Envelope/rotor ≤ 1.55; no cookie plate |
+| Fits | +0.40 mm, two-land sleeve L/D 1.0 | No 608, no screws; do not tighten |
 
 Straight H-rotor is the wrong default at this Re: torque ripple and
 dead azimuths. Helix is required. Mid-chord stays on the cylinder;
@@ -41,7 +41,7 @@ the same family of torque. That requires:
 
 Savonius-only is directionless and inefficient (drag). HAWT sections are
 the wrong physics. H-Darrieus with a thick symmetric section is the
-required architecture on the Ø90 printed stand.
+required architecture on the printed Y-frame stand.
 
 Optional inner drag starter (Savonius cup, or the 2026 adaptive
 Darrieus–Savonius flap) must not replace the airfoil and must assemble
@@ -83,8 +83,8 @@ At this size, prefer printed sleeves and a printed thrust land. Metal
 
 | Station | What | Why not a roller |
 |---------|------|------------------|
-| Thrust | 45° cup + smaller male + Ø13 land, 0.20 float | Ball thrust needs a race we do not have |
-| Upper radial | Printed bushing Ø8.4/Ø14, L/D = 0.5, 2 mm land | 608 is hidden hardware |
+| Thrust | 45° cup + smaller male + **Ø12** land, 0.20 float | Wide land is extra drag; ball thrust needs a race we do not have |
+| Upper radial | Two-land sleeve Ø8.4/Ø14 × 8, L/D = **1.0**, relief Ø9.2 | Full-cylinder rub and L/D 0.5 were the last cookie. 608 is hidden hardware |
 | Drive | Double-D +0.40 | Set screw is hardware |
 | Wing | Tenon/socket +0.40 | Screw is hardware |
 

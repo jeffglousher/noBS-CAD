@@ -635,6 +635,8 @@ mod tests {
             "Reject list",
             "helical",
             "girth",
+            "two-land",
+            "Y-frame",
         ] {
             assert!(
                 print_kit.contains(needle),

@@ -2,6 +2,10 @@
 
 ## 2026-08-16
 
+- **Update**: Print-kit slim / low-friction pass: Y-frame stand (no
+  cookie plate), two-land printed sleeve L/D 1.0 with a mid-groove
+  relief, narrow Ø12 thrust land. Fits stay +0.40 — tight FDM binds.
+  Contract: [PRINT_KIT_DESIGN.md](../docs/agentic/PRINT_KIT_DESIGN.md).
 - **Update**: Print-kit sanity pass: helical NACA 0021 (60° on R24),
   stand shrunk to Ø72 / Ø5 posts so the frame no longer out-girths the
   rotor (plate/rotor 1.42, post/chord 0.31). Straight fence + Ø90 cookie

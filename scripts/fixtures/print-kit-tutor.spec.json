@@ -8,15 +8,20 @@
   "journal_d": 8.0,
   "bush_id": 8.4,
   "bush_od": 14.0,
-  "bush_h": 4.0,
+  "bush_h": 8.0,
+  "bush_land_h": 1.6,
+  "bush_relief_id": 9.2,
   "bush_seat": 14.4,
   "post_d": 5.0,
   "post_hole": 5.4,
   "post_circle_r": 32.0,
   "post_count": 3,
   "post_proud": 2.0,
-  "base_d": 72.0,
+  "base_d": 74.0,
   "base_h": 5.0,
+  "hub_d": 32.0,
+  "rib_w": 5.0,
+  "pad_d": 10.0,
   "plate_z": 67.0,
   "rotor_to_plate_gap": 2.0,
   "cone_h": 5.0,
@@ -24,14 +29,14 @@
   "cone_relief_d": 3.0,
   "male_cone_r": 4.8,
   "tip_r": 0.5,
-  "thrust_land_od": 13.0,
+  "thrust_land_od": 12.0,
   "thrust_land_h": 0.8,
   "thrust_float": 0.2,
   "cap_float": 0.2,
   "shaft_lower_h": 10.0,
   "shaft_shoulder_d": 16.0,
   "shaft_shoulder_h": 2.0,
-  "shaft_upper_h": 61.0,
+  "shaft_upper_h": 58.0,
   "hub_od": 28.0,
   "hub_h": 8.0,
   "socket_w": 8.0,
@@ -54,10 +59,12 @@
   "airfoil_te_min_mm": 0.8,
   "airfoil_stations": 8,
   "window_d": 22.0,
-  "top_plate_d": 72.0,
-  "top_plate_h": 6.0,
-  "cap_d": 20.0,
-  "cap_h": 2.4,
+  "top_plate_d": 74.0,
+  "top_plate_h": 4.0,
+  "plate_boss_d": 20.0,
+  "plate_boss_h": 6.0,
+  "cap_d": 16.0,
+  "cap_h": 1.6,
   "min_bodies": 9,
   "min_rotor_faces": 12,
   "filament": {
@@ -113,12 +120,12 @@
     {
       "id": "printed_bearings",
       "title": "Prefer printed bushings",
-      "teach": "Printed cone + land for thrust, printed sleeve in a shouldered top plate for radial. Plate thicker than the bushing so the seat has a land. Prefer bushings over roller/ball bearings at this size. Metal 608 / catalog bearings are a later table, not a hidden part."
+      "teach": "Two-land printed sleeve, L/D ≥ 1.0, relief groove so it does not rub a full cylinder. Narrow thrust land, 0.20 float. Y-frame stand — no cookie of unused plate. Prefer bushings over rollers. Metal 608 is a later table."
     },
     {
       "id": "not_2d",
       "title": "The wing is a part that mounts",
-      "teach": "A leftover helical C-loft is not a wing. A concentric ring sector is not a wing. A flat plate is a vane, not an airfoil. The wing is a named symmetric section (NACA 0021 or the 2026 0024–4.5/3.5 family), chord tangential, span up the bay, tenon into the hub. Windows in the top plate keep the blades visible."
+      "teach": "A leftover helical C-loft is not a wing. A concentric ring sector is not a wing. A flat plate is a vane, not an airfoil. The wing is a named symmetric section (NACA 0021 or the 2026 0024–4.5/3.5 family), chord tangential, span up the bay, tenon into the hub. The Y-frame is open — do not add a cookie plate just to cut windows."
     },
     {
       "id": "airfoil",
@@ -128,7 +135,7 @@
     {
       "id": "sanity",
       "title": "Frame girth vs the rotor",
-      "teach": "The stand is subordinate to the rotor. Plate OD ≤ 1.55 × rotor tip diameter. Posts ≤ 0.40 × chord. A Ø90 cookie around 12 mm slats is a fail even if it spins."
+      "teach": "The stand is subordinate to the rotor. Envelope OD ≤ 1.55 × rotor tip diameter. Posts ≤ 0.40 × chord. A full cookie plate is unused plastic — Y-frame (hub + ribs + pads) only. A Ø90 cookie around 12 mm slats is a fail even if it spins."
     },
     {
       "id": "helix",

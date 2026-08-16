@@ -18,7 +18,7 @@ C-buckets joined to a hub also failed: they were leftover loft, not a
 mount. A concentric ring sector is also not a wing: the concave face
 points at the axis and cannot catch wind. The wing is a **vertical
 blade** (chord tangential, span up the bay) with a tenon into a hub
-socket. Windows in the top plate keep the blades visible.
+socket. The stand is a Y-frame — open bays, no cookie plate.
 
 ## Faults found (and closed)
 
@@ -30,8 +30,10 @@ socket. Windows in the top plate keep the blades visible.
 | Product (flat plate) | 12 × 2.4 × 32 rectangle. A vane, not a section. Directionless VAWT sees reversing α. | **NACA 0021** (t/c 0.21), blunt TE ≥ 0.8 mm. 2026 band is t/c 21–24%. |
 | Rotor vs posts | C-buckets sweep ~Ø56. Posts on R24 × Ø6 occupy R21–27. They collide. | Posts **Ø5 on R32**. Inner wall R29.5. Helical tip ~**R25.3**. ≥4 mm air. Root at 30° so the 60° helix stays in the bay. |
 | Posts vs plate | Posts stopped at the plate bottom. Holes did not locate. | Posts continue **through** the 6 mm plate and stand **2 mm proud**. |
-| Bushing seat | Plate and seat were both 4 mm. Seat was a through-hole. Bushing falls. | Plate **6 mm**. Seat **4 mm** from the top. **2 mm land** under the sleeve. |
-| Cone “seat” | Same 45° + tip lift = parallel cones. No contact. Shaft falls. | Female 45° r5. Male r**4.8** (0.20 radial). Thrust on a **Ø13 × 0.8 land** with **0.20 float**. |
+| Bushing seat | Plate and seat were both 4 mm. Seat was a through-hole. Bushing falls. | Hanging boss. Seat **8 mm** from the top. **2 mm land** under a two-land sleeve. |
+| Short full sleeve | L/D 0.5 rubbed a full Ø8.4 cylinder. Extra drag, little alignment. | Sleeve **8 mm** (L/D **1.0**), relief Ø9.2, two 1.6 mm lands. Fits stay **+0.40**. |
+| Cookie plate | Ø72 / Ø90 disc around three posts. Plastic that is not a bearing or a rib. | **Y-frame**: hub + ribs + pads. Envelope still ~Ø74. |
+| Cone “seat” | Same 45° + tip lift = parallel cones. No contact. Shaft falls. | Female 45° r5. Male r**4.8** (0.20 radial). Thrust on a **Ø12 × 0.8 land** with **0.20 float**. |
 | Rotor drive | Round-on-round slip. Rotor need not turn the shaft. | **Double-D** 6.0 / 6.4 in the hub zone only. |
 | Wing mount | No interface. Blade was a leftover solid. | Hub **sockets** 8 × 6 × 5. Wing **tenon** 7.6 × 4.8 (+0.40 / 0.20 float). |
 | Hub vs shoulder | Hub started at the shoulder plane with an Ø8.4 bore around the Ø16 shoulder. They occupy the same volume. | Hub **sits on the shoulder top**. `plate_z` includes the 2 mm shoulder. |
@@ -43,7 +45,7 @@ socket. Windows in the top plate keep the blades visible.
 |-------|---------|------|
 | **A** | Base bottom | Primary. Frame print bed. |
 | **B** | Journal / cone axis | Secondary. Turbine axis. |
-| **C** | 3× Ø8 posts, Ø76 PCD, 120° | Tertiary. Top-plate location. Wings sit in the bays. |
+| **C** | 3× Ø5 posts, Ø64 PCD, 120° | Tertiary. Top-plate location. Wings sit in the bays. |
 
 Position of C to B: **Ø0.4 MMC** (one 0.4 mm nozzle). Tighter than that is a
 gauge-print problem, not a CAD problem.
@@ -112,12 +114,12 @@ only. The section is **NACA 0021**, not a hoop and not a flat plate.
 
 | Body | z min–max | Notes |
 |------|-----------|--------|
-| Base + posts | 0–75 | Ø72 plate. Ø5 posts through the 67–73 plate, 2 mm proud |
-| Shaft | 0.5–78 | Land above the cup; journal through the cap |
+| Base + posts | 0–73 | Y-frame. Ø5 posts through the 67–71 arms, 2 mm proud |
+| Shaft | 0.5–75 | Narrow land above the cup; journal through the cap |
 | Hub | 17–25 | Sits on the shoulder; sockets from the top |
 | Wings | 17–65 | Helical NACA 0021, 60° twist; tenon at the root; 2 mm air to the plate |
-| Top plate | 67–73 | Ø72 × 6 with Ø22 windows at mid-helix |
-| Bushing | 69–73 | On the 2 mm land |
-| Cap | 73.2–75.6 | 0.20 float |
+| Top plate | 61–71 | Y-frame 67–71 + hanging boss 61–67 |
+| Bushing | 63–71 | Two-land sleeve on the 2 mm land |
+| Cap | 71.2–72.8 | 0.20 float |
 
-Blade tip ~R25.3 < post inner R29.5. Frame/rotor 1.42. Nine coaxial bodies.
+Blade tip ~R25.3 < post inner R29.5. Envelope/rotor ~1.46. Nine coaxial bodies.

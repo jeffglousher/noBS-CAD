@@ -242,6 +242,60 @@ async function addPoly(points, ctrlHeld = false) {
     await call("sketch_add_line", { from: points[i], to_raw: points[i + 1], ctrl_held: ctrlHeld });
   }
 }
+async function addYFrame(z, height, flip, known, label) {
+  const deck = await offsetXY(z);
+  await beginDatum(deck);
+  await addCircle(0, 0, spec.hub_d);
+  let sketch = await finishSketch();
+  let update = requireClean(
+    await call("solid_extrude", {
+      sketch_name: sketch,
+      profile_indices: [0],
+      operation: "new_body",
+      extent: { type: "distance", distance: height },
+      taper_angle_deg: 0,
+      flip,
+      target_body_ids: [],
+    }),
+    `${label} hub`,
+  );
+  const frameId = newestBody(update, known);
+  for (let i = 0; i < spec.post_count; i++) {
+    const angle = (360 / spec.post_count) * i;
+    const [px, py] = postXY(i);
+    await beginDatum(deck);
+    await addOrientedRect([px * 0.5, py * 0.5], spec.post_circle_r, spec.rib_w, angle);
+    sketch = await finishSketch();
+    requireClean(
+      await call("solid_extrude", {
+        sketch_name: sketch,
+        profile_indices: [0],
+        operation: "join",
+        extent: { type: "distance", distance: height },
+        taper_angle_deg: 0,
+        flip,
+        target_body_ids: [frameId],
+      }),
+      `${label} rib ${i}`,
+    );
+    await beginDatum(deck);
+    await addCircle(px, py, spec.pad_d);
+    sketch = await finishSketch();
+    requireClean(
+      await call("solid_extrude", {
+        sketch_name: sketch,
+        profile_indices: [0],
+        operation: "join",
+        extent: { type: "distance", distance: height },
+        taper_angle_deg: 0,
+        flip,
+        target_body_ids: [frameId],
+      }),
+      `${label} pad ${i}`,
+    );
+  }
+  return frameId;
+}
 async function addOrientedRect(center, length, width, angleDeg) {
   const angle = (angleDeg * Math.PI) / 180;
   const ux = [Math.cos(angle), Math.sin(angle)];
@@ -270,9 +324,6 @@ function bladeCenter(index) {
 function bladeAngleDeg(index) {
   return helixAzimuthDeg(index, 0) + 90;
 }
-function windowXY(index) {
-  return helixCenter(index, 0.5);
-}
 function rotorD() {
   return bladeTipR() * 2;
 }
@@ -289,7 +340,36 @@ function sanityOk() {
     spec.wing_h + 1e-9 >= spec.wing_chord * 2.5 &&
     solidity() >= 0.27 &&
     spec.top_plate_d <= 76 &&
-    spec.post_d <= 5.5
+    spec.post_d <= 5.5 &&
+    yFrameOk()
+  );
+}
+function yFrameOk() {
+  return (
+    spec.hub_d + 1e-9 <= 36 &&
+    spec.rib_w + 1e-9 <= 6 &&
+    spec.hub_d < spec.top_plate_d * 0.55 &&
+    spec.pad_d + 1e-9 <= 12
+  );
+}
+function plateStackH() {
+  return spec.top_plate_h + spec.plate_boss_h;
+}
+function bushLd() {
+  return spec.bush_h / spec.journal_d;
+}
+function bushReliefH() {
+  return Math.max(0, spec.bush_h - 2 * spec.bush_land_h);
+}
+function printedBearingOk() {
+  return (
+    spec.bush_od < 20 &&
+    bushLd() + 1e-9 >= 1 &&
+    spec.bush_relief_id > spec.bush_id &&
+    spec.bush_land_h + 1e-9 >= 1.2 &&
+    plateStackH() + 1e-9 >= spec.bush_h + 2 &&
+    spec.cone_h >= 3 &&
+    spec.thrust_land_od + 1e-9 <= 13
   );
 }
 function helixOk() {
@@ -346,8 +426,15 @@ function airfoilOk() {
     spec.airfoil_te_min_mm + 1e-9 >= spec.nozzle_mm * 2
   );
 }
+function yFrameVolume(height) {
+  const hub = Math.PI * (spec.hub_d * 0.5) ** 2 * height;
+  const ribLen = Math.max(0, spec.post_circle_r - spec.hub_d * 0.5);
+  const ribs = spec.post_count * spec.rib_w * ribLen * height;
+  const pads = spec.post_count * Math.PI * (spec.pad_d * 0.5) ** 2 * height;
+  return hub + ribs + pads;
+}
 function estimatedSolidCm3() {
-  const base = Math.PI * (spec.base_d * 0.5) ** 2 * spec.base_h;
+  const base = yFrameVolume(spec.base_h);
   const posts =
     spec.post_count * Math.PI * (spec.post_d * 0.5) ** 2 * postExtrudeH();
   const shaft =
@@ -356,9 +443,16 @@ function estimatedSolidCm3() {
   const hub =
     Math.PI * ((spec.hub_od * 0.5) ** 2 - (spec.bush_id * 0.5) ** 2) * spec.hub_h;
   const wing = spec.wing_count * 0.7 * spec.wing_chord * spec.wing_thick * spec.wing_h;
-  const plate = Math.PI * (spec.top_plate_d * 0.5) ** 2 * spec.top_plate_h;
-  const bush =
+  const plate =
+    yFrameVolume(spec.top_plate_h) +
+    Math.PI * (spec.plate_boss_d * 0.5) ** 2 * spec.plate_boss_h;
+  const bushTube =
     Math.PI * ((spec.bush_od * 0.5) ** 2 - (spec.bush_id * 0.5) ** 2) * spec.bush_h;
+  const bushRelief =
+    Math.PI *
+    ((spec.bush_relief_id * 0.5) ** 2 - (spec.bush_id * 0.5) ** 2) *
+    bushReliefH();
+  const bush = Math.max(0, bushTube - bushRelief);
   const cap =
     Math.PI * ((spec.cap_d * 0.5) ** 2 - (spec.bush_id * 0.5) ** 2) * spec.cap_h;
   return (base + posts + shaft + hub + wing + plate + bush + cap) / 1000;
@@ -516,8 +610,12 @@ function writeDesignReport({
     ["Flat plate 12×2.4×32", "A vane, not a 2026 symmetric section. Directionless VAWT needs an airfoil."],
     ["Straight NACA in a Ø90 cage", "Section was right; girth was wrong. Posts Ø8 vs chord 12. Prismatic blades idle most of the rev."],
     [
-      `Helical ${kit.airfoil} on a Ø${kit.top_plate_d} stand`,
-      `${kit.helix_deg}° helix, chord ${kit.wing_chord} mm, span ${kit.wing_h} mm, posts Ø${kit.post_d} on R${kit.post_circle_r}.`,
+      `Helical ${kit.airfoil} on a Ø${kit.top_plate_d} cookie`,
+      `Section and helix were right; the stand was still a full plate. Short sleeve L/D 0.5 rubbed a full cylinder.`,
+    ],
+    [
+      `Y-frame + two-land sleeve L/D ${(kit.bush_h / kit.journal_d).toFixed(1)}`,
+      `Hub Ø${kit.hub_d} + ${kit.rib_w} mm ribs + Ø${kit.pad_d} pads. Sleeve ${kit.bush_h} mm with Ø${kit.bush_relief_id} relief. Fits stay +${kit.clearance_mm}.`,
     ],
   ];
   const usd = costUsd.toFixed(2);
@@ -537,7 +635,7 @@ ${iterations.map(([name, why]) => `| ${name} | ${why} |`).join("\n")}
 - **Airfoil:** ${kit.airfoil} (t/c ${kit.airfoil_t_c}). 2026 VAWT dynamic-stall work favors t/c 21–24%, xt/c 27.5–35%, reduced LE radius (NACA 0024–4.5/3.5 best in that study). ${kit.airfoil} is the printable stand-in; TE blunt to ${kit.airfoil_te_min_mm} mm (≥ 2 nozzles).
 - **Rotor:** helical ${kit.airfoil}, N=${kit.wing_count}, c=${kit.wing_chord} mm, R=${kit.wing_radius} mm, span=${kit.wing_h} mm, helix ${kit.helix_deg}°, σ=${solidity().toFixed(3)}. Frame/rotor ${frameGirthRatio().toFixed(2)}, post/chord ${postChordRatio().toFixed(2)}. Desk Re ~7e3–1.4e4 at 3–5 m/s, TSR ~2.
 - **Fits:** every printed-to-printed running/slip interface is +${kit.clearance_mm} mm diametral, including the tenon. No press. No metal 608.
-- **Bushings:** printed 45° cup + land (thrust), printed sleeve Ø${kit.bush_id}/${kit.bush_od} (upper radial). Prefer bushings over rollers at this size. PLA-on-PLA is a demo spin.
+- **Bushings:** printed 45° cup + narrow Ø${kit.thrust_land_od} land (thrust), two-land sleeve Ø${kit.bush_id}/${kit.bush_od} × ${kit.bush_h} (L/D ${(kit.bush_h / kit.journal_d).toFixed(2)}, relief Ø${kit.bush_relief_id}). Do not tighten below +${kit.clearance_mm} — tight FDM binds. PLA-on-PLA is a demo spin.
 - **Service finish:** blades printed so layer lines run spanwise; sand PLA 400→1000 on skins (or ABS vapor, not immersion). Do not vapor-smooth a running fit and keep +${kit.clearance_mm}.
 - **Later, not this exam:** catalog bearings, higher AR, modified 0024–4.5/3.5, optional adaptive Darrieus–Savonius starter (*Flow* 2026).
 
@@ -547,12 +645,12 @@ Nine coaxial bodies, assembly order: ${kit.assembly_order.join(" → ")}.
 
 | Body | Count | Role |
 |------|------:|------|
-| Base + posts | 1 | Two-bearing stand. Cup + 3× Ø${kit.post_d} on R${kit.post_circle_r}. |
+| Base + posts | 1 | Y-frame stand. Cup + 3× Ø${kit.post_d} on R${kit.post_circle_r}. |
 | Shaft | 1 | Cone/land thrust, journal, shoulder, double-D. |
 | Hub | 1 | Sits on the shoulder. Three sockets. |
 | Wing (${kit.airfoil}) | ${kit.wing_count} | Mid-chord R${kit.wing_radius}, chord tangential, tenon drop-in. |
-| Top plate | 1 | Posts through, windows, bushing land. |
-| Bushing | 1 | Printed sleeve. |
+| Top plate | 1 | Y-frame + hanging boss. Posts through. Two-land seat. |
+| Bushing | 1 | Two-land printed sleeve, L/D ${(kit.bush_h / kit.journal_d).toFixed(2)}. |
 | Cap | 1 | 0.20 float retain. |
 
 Wing bbox (exam): ${wingBox ? `${wingBox.span.map((n) => n.toFixed(1)).join(" × ")} mm` : "n/a"}; faces=${wingFaces}. Bodies=${bodies.length}.
@@ -586,7 +684,7 @@ try {
   if (!/thrust|cone|clearance|nozzle/i.test(recipe)) {
     throw new Error("model_print_kit prompt is missing the FDM curriculum");
   }
-  if (!/airfoil|NACA 0021|directionless|bushing|design report|service finish|helical|girth/i.test(recipe)) {
+  if (!/airfoil|NACA 0021|directionless|bushing|design report|service finish|helical|girth|two-land|Y-frame/i.test(recipe)) {
     throw new Error("model_print_kit prompt is missing the 2026 VAWT design contract");
   }
 
@@ -603,22 +701,9 @@ try {
   await call("cad_new_project");
   await call("cad_set_document_name", { name: spec.document_name });
 
-  await beginXY();
-  await addCircle(0, 0, spec.base_d);
-  let sketch = await finishSketch();
-  let update = requireClean(
-    await call("solid_extrude", {
-      sketch_name: sketch,
-      profile_indices: [0],
-      operation: "new_body",
-      extent: { type: "distance", distance: spec.base_h },
-      taper_angle_deg: 0,
-      flip: false,
-      target_body_ids: [],
-    }),
-    "base plate",
-  );
-  const baseId = update.scene.bodies[0].id;
+  let sketch;
+  let update;
+  const baseId = await addYFrame(0, spec.base_h, false, [], "base");
 
   await beginXZ();
   await addPoly([
@@ -816,40 +901,36 @@ try {
     wingIds.push(wingId);
   }
 
+  const plateId = await addYFrame(spec.plate_z, spec.top_plate_h, false, known, "top plate");
+  known.push(plateId);
   await beginDatum(await offsetXY(spec.plate_z));
-  await addCircle(0, 0, spec.top_plate_d);
+  await addCircle(0, 0, spec.plate_boss_d);
   sketch = await finishSketch();
-  update = requireClean(
+  requireClean(
     await call("solid_extrude", {
       sketch_name: sketch,
       profile_indices: [0],
-      operation: "new_body",
-      extent: { type: "distance", distance: spec.top_plate_h },
+      operation: "join",
+      extent: { type: "distance", distance: spec.plate_boss_h },
       taper_angle_deg: 0,
-      flip: false,
-      target_body_ids: [],
+      flip: true,
+      target_body_ids: [plateId],
     }),
-    "top plate",
+    "plate boss",
   );
-  const plateId = newestBody(update, known);
-  known.push(plateId);
   await beginDatum(await offsetXY(plateTop()));
   await addCircle(0, 0, spec.journal_d + spec.clearance_mm);
   for (let i = 0; i < spec.post_count; i++) {
     const [hx, hy] = postXY(i);
     await addCircle(hx, hy, spec.post_hole);
   }
-  for (let i = 0; i < spec.wing_count; i++) {
-    const [wx, wy] = windowXY(i);
-    await addCircle(wx, wy, spec.window_d);
-  }
   sketch = await finishSketch();
   requireClean(
     await call("solid_extrude", {
       sketch_name: sketch,
-      profile_indices: [...Array(1 + spec.post_count + spec.wing_count).keys()],
+      profile_indices: [...Array(1 + spec.post_count).keys()],
       operation: "cut",
-      extent: { type: "distance", distance: spec.top_plate_h + 1 },
+      extent: { type: "distance", distance: plateStackH() + 1 },
       taper_angle_deg: 0,
       flip: true,
       target_body_ids: [plateId],
@@ -890,6 +971,23 @@ try {
   );
   const bushId = newestBody(update, known);
   known.push(bushId);
+  if (bushReliefH() > 0 && spec.bush_relief_id > spec.bush_id) {
+    await beginDatum(await offsetXY(bushingZ() + spec.bush_land_h));
+    await addCircle(0, 0, spec.bush_relief_id);
+    sketch = await finishSketch();
+    requireClean(
+      await call("solid_extrude", {
+        sketch_name: sketch,
+        profile_indices: [0],
+        operation: "cut",
+        extent: { type: "distance", distance: bushReliefH() },
+        taper_angle_deg: 0,
+        flip: false,
+        target_body_ids: [bushId],
+      }),
+      "bushing relief",
+    );
+  }
 
   await beginDatum(await offsetXY(capZ()));
   await addCircle(0, 0, spec.cap_d);
@@ -976,7 +1074,7 @@ try {
     "printed interfaces are +0.40 slip; wing drops into a socket",
   );
   const properStack =
-    spec.top_plate_h > spec.bush_h &&
+    plateStackH() + 1e-9 >= spec.bush_h + 2 &&
     postExtrudeH() + spec.base_h > plateTop() &&
     bladeTipR() + 1 < postInnerR() &&
     spec.thrust_float > 0 &&
@@ -1012,8 +1110,8 @@ try {
   record(
     report.lessons,
     "printed_bearings",
-    spec.bush_od < 20 && spec.bush_h < spec.top_plate_h && spec.cone_h >= 3,
-    "printed sleeve on a 2 mm land + printed cone/land thrust; no metal 608",
+    printedBearingOk(),
+    `two-land sleeve L/D ${bushLd().toFixed(2)}, relief Ø${spec.bush_relief_id}, land ${spec.bush_land_h} mm; plate stack ${plateStackH()} mm; no metal 608`,
   );
   const wingBox = bboxOf(wing);
   const wingXy = wingBox ? Math.max(wingBox.span[0], wingBox.span[1]) : Infinity;

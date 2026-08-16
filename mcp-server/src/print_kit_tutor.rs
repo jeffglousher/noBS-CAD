@@ -21,6 +21,8 @@ pub struct Spec {
     pub bush_id: f64,
     pub bush_od: f64,
     pub bush_h: f64,
+    pub bush_land_h: f64,
+    pub bush_relief_id: f64,
     pub bush_seat: f64,
     pub post_d: f64,
     pub post_hole: f64,
@@ -29,6 +31,9 @@ pub struct Spec {
     pub post_proud: f64,
     pub base_d: f64,
     pub base_h: f64,
+    pub hub_d: f64,
+    pub rib_w: f64,
+    pub pad_d: f64,
     pub plate_z: f64,
     pub rotor_to_plate_gap: f64,
     pub cone_h: f64,
@@ -68,6 +73,8 @@ pub struct Spec {
     pub window_d: f64,
     pub top_plate_d: f64,
     pub top_plate_h: f64,
+    pub plate_boss_d: f64,
+    pub plate_boss_h: f64,
     pub cap_d: f64,
     pub cap_h: f64,
     pub min_bodies: usize,
@@ -98,6 +105,15 @@ impl Spec {
     }
     fn plate_top(&self) -> f64 {
         self.plate_z + self.top_plate_h
+    }
+    fn plate_stack_h(&self) -> f64 {
+        self.top_plate_h + self.plate_boss_h
+    }
+    fn bush_ld(&self) -> f64 {
+        self.bush_h / self.journal_d
+    }
+    fn bush_relief_h(&self) -> f64 {
+        (self.bush_h - 2.0 * self.bush_land_h).max(0.0)
     }
     fn bushing_z(&self) -> f64 {
         self.plate_top() - self.bush_h
@@ -158,9 +174,6 @@ impl Spec {
         let outer = self.blade_inner_r() + 0.2;
         outer - inner
     }
-    fn window_xy(&self, index: usize) -> [f64; 2] {
-        self.helix_center(index, 0.5)
-    }
     fn rotor_d(&self) -> f64 {
         self.blade_tip_r() * 2.0
     }
@@ -177,6 +190,22 @@ impl Spec {
             && self.solidity() >= 0.27
             && self.top_plate_d <= 76.0
             && self.post_d <= 5.5
+            && self.y_frame_ok()
+    }
+    fn y_frame_ok(&self) -> bool {
+        self.hub_d + 1e-9 <= 36.0
+            && self.rib_w + 1e-9 <= 6.0
+            && self.hub_d < self.top_plate_d * 0.55
+            && self.pad_d + 1e-9 <= 12.0
+    }
+    fn printed_bearing_ok(&self) -> bool {
+        self.bush_od < 20.0
+            && self.bush_ld() + 1e-9 >= 1.0
+            && self.bush_relief_id > self.bush_id
+            && self.bush_land_h + 1e-9 >= 1.2
+            && self.plate_stack_h() + 1e-9 >= self.bush_h + 2.0
+            && self.cone_h >= 3.0
+            && self.thrust_land_od + 1e-9 <= 13.0
     }
     fn helix_ok(&self) -> bool {
         self.helix_deg >= 45.0 && self.helix_stations >= 2
@@ -195,8 +224,18 @@ impl Spec {
             && (self.wing_thick - self.wing_chord * self.airfoil_t_c).abs() < 0.15
             && self.airfoil_te_min_mm + 1e-9 >= self.nozzle_mm * 2.0
     }
+    fn y_frame_volume(&self, height: f64) -> f64 {
+        let hub = std::f64::consts::PI * (self.hub_d * 0.5).powi(2) * height;
+        let rib_len = (self.post_circle_r - self.hub_d * 0.5).max(0.0);
+        let ribs = (self.post_count as f64) * self.rib_w * rib_len * height;
+        let pads = (self.post_count as f64)
+            * std::f64::consts::PI
+            * (self.pad_d * 0.5).powi(2)
+            * height;
+        hub + ribs + pads
+    }
     fn estimated_solid_cm3(&self) -> f64 {
-        let base = std::f64::consts::PI * (self.base_d * 0.5).powi(2) * self.base_h;
+        let base = self.y_frame_volume(self.base_h);
         let posts = (self.post_count as f64)
             * std::f64::consts::PI
             * (self.post_d * 0.5).powi(2)
@@ -211,10 +250,15 @@ impl Spec {
             * self.wing_chord
             * self.wing_thick
             * self.wing_h;
-        let plate = std::f64::consts::PI * (self.top_plate_d * 0.5).powi(2) * self.top_plate_h;
-        let bush = std::f64::consts::PI
+        let plate = self.y_frame_volume(self.top_plate_h)
+            + std::f64::consts::PI * (self.plate_boss_d * 0.5).powi(2) * self.plate_boss_h;
+        let bush_tube = std::f64::consts::PI
             * ((self.bush_od * 0.5).powi(2) - (self.bush_id * 0.5).powi(2))
             * self.bush_h;
+        let bush_relief = std::f64::consts::PI
+            * ((self.bush_relief_id * 0.5).powi(2) - (self.bush_id * 0.5).powi(2))
+            * self.bush_relief_h();
+        let bush = (bush_tube - bush_relief).max(0.0);
         let cap = std::f64::consts::PI
             * ((self.cap_d * 0.5).powi(2) - (self.bush_id * 0.5).powi(2))
             * self.cap_h;
@@ -344,12 +388,18 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
     ))
 }
 
-fn build_base(
+fn build_y_frame(
     call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
     spec: &Spec,
+    z: f64,
+    height: f64,
+    flip: bool,
+    known: &[u64],
+    label: &str,
 ) -> Result<u64, String> {
-    begin_xy(call)?;
-    add_circle(call, [0.0, 0.0], spec.base_d)?;
+    let deck = offset_xy(call, z)?;
+    begin_datum(call, deck.clone())?;
+    add_circle(call, [0.0, 0.0], spec.hub_d)?;
     let sketch = finish_sketch(call)?;
     let update = require_clean(
         call(
@@ -358,15 +408,69 @@ fn build_base(
                 "sketch_name": sketch,
                 "profile_indices": [0],
                 "operation": "new_body",
-                "extent": { "type": "distance", "distance": spec.base_h },
+                "extent": { "type": "distance", "distance": height },
                 "taper_angle_deg": 0.0,
-                "flip": false,
+                "flip": flip,
                 "target_body_ids": []
             }),
         )?,
-        "base plate",
+        &format!("{label} hub"),
     )?;
-    let base_id = first_body_id(&update)?;
+    let frame_id = newest_body_id(&update, known)?;
+    for index in 0..spec.post_count {
+        let angle = (360.0 / spec.post_count.max(1) as f64) * index as f64;
+        let [px, py] = spec.post_xy(index);
+        begin_datum(call, deck.clone())?;
+        add_oriented_rect(
+            call,
+            [px * 0.5, py * 0.5],
+            spec.post_circle_r,
+            spec.rib_w,
+            angle,
+        )?;
+        let rib = finish_sketch(call)?;
+        require_clean(
+            call(
+                "solid_extrude",
+                json!({
+                    "sketch_name": rib,
+                    "profile_indices": [0],
+                    "operation": "join",
+                    "extent": { "type": "distance", "distance": height },
+                    "taper_angle_deg": 0.0,
+                    "flip": flip,
+                    "target_body_ids": [frame_id]
+                }),
+            )?,
+            &format!("{label} rib {index}"),
+        )?;
+        begin_datum(call, deck.clone())?;
+        add_circle(call, [px, py], spec.pad_d)?;
+        let pad = finish_sketch(call)?;
+        require_clean(
+            call(
+                "solid_extrude",
+                json!({
+                    "sketch_name": pad,
+                    "profile_indices": [0],
+                    "operation": "join",
+                    "extent": { "type": "distance", "distance": height },
+                    "taper_angle_deg": 0.0,
+                    "flip": flip,
+                    "target_body_ids": [frame_id]
+                }),
+            )?,
+            &format!("{label} pad {index}"),
+        )?;
+    }
+    Ok(frame_id)
+}
+
+fn build_base(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    spec: &Spec,
+) -> Result<u64, String> {
+    let base_id = build_y_frame(call, spec, 0.0, spec.base_h, false, &[], "base")?;
 
     begin_xz(call)?;
     add_poly(
@@ -647,26 +751,34 @@ fn build_top_plate(
     call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
     spec: &Spec,
 ) -> Result<u64, String> {
+    let plate_id = build_y_frame(
+        call,
+        spec,
+        spec.plate_z,
+        spec.top_plate_h,
+        false,
+        &[],
+        "top plate",
+    )?;
     let deck = offset_xy(call, spec.plate_z)?;
-    begin_datum(call, deck.clone())?;
-    add_circle(call, [0.0, 0.0], spec.top_plate_d)?;
-    let sketch = finish_sketch(call)?;
-    let update = require_clean(
+    begin_datum(call, deck)?;
+    add_circle(call, [0.0, 0.0], spec.plate_boss_d)?;
+    let boss = finish_sketch(call)?;
+    require_clean(
         call(
             "solid_extrude",
             json!({
-                "sketch_name": sketch,
+                "sketch_name": boss,
                 "profile_indices": [0],
-                "operation": "new_body",
-                "extent": { "type": "distance", "distance": spec.top_plate_h },
+                "operation": "join",
+                "extent": { "type": "distance", "distance": spec.plate_boss_h },
                 "taper_angle_deg": 0.0,
-                "flip": false,
-                "target_body_ids": []
+                "flip": true,
+                "target_body_ids": [plate_id]
             }),
         )?,
-        "top plate",
+        "plate boss",
     )?;
-    let plate_id = newest_body_id(&update, &[])?;
 
     let top = offset_xy(call, spec.plate_top())?;
     begin_datum(call, top.clone())?;
@@ -674,18 +786,15 @@ fn build_top_plate(
     for i in 0..spec.post_count {
         add_circle(call, spec.post_xy(i), spec.post_hole)?;
     }
-    for i in 0..spec.wing_count {
-        add_circle(call, spec.window_xy(i), spec.window_d)?;
-    }
     let holes = finish_sketch(call)?;
     require_clean(
         call(
             "solid_extrude",
             json!({
                 "sketch_name": holes,
-                "profile_indices": (0..(1 + spec.post_count + spec.wing_count)).collect::<Vec<_>>(),
+                "profile_indices": (0..(1 + spec.post_count)).collect::<Vec<_>>(),
                 "operation": "cut",
-                "extent": { "type": "distance", "distance": spec.top_plate_h + 1.0 },
+                "extent": { "type": "distance", "distance": spec.plate_stack_h() + 1.0 },
                 "taper_angle_deg": 0.0,
                 "flip": true,
                 "target_body_ids": [plate_id]
@@ -738,7 +847,29 @@ fn build_bushing(
         )?,
         "printed bushing",
     )?;
-    newest_body_id(&update, &[])
+    let bush_id = newest_body_id(&update, &[])?;
+    if spec.bush_relief_h() > 0.0 && spec.bush_relief_id > spec.bush_id {
+        let relief_deck = offset_xy(call, spec.bushing_z() + spec.bush_land_h)?;
+        begin_datum(call, relief_deck)?;
+        add_circle(call, [0.0, 0.0], spec.bush_relief_id)?;
+        let relief = finish_sketch(call)?;
+        require_clean(
+            call(
+                "solid_extrude",
+                json!({
+                    "sketch_name": relief,
+                    "profile_indices": [0],
+                    "operation": "cut",
+                    "extent": { "type": "distance", "distance": spec.bush_relief_h() },
+                    "taper_angle_deg": 0.0,
+                    "flip": false,
+                    "target_body_ids": [bush_id]
+                }),
+            )?,
+            "bushing relief",
+        )?;
+    }
+    Ok(bush_id)
 }
 
 fn build_cap(
@@ -810,7 +941,7 @@ fn grade(
         "printed interfaces are +0.40 slip; wing drops into a socket".to_string(),
     );
 
-    let proper_stack = spec.top_plate_h > spec.bush_h
+    let proper_stack = spec.plate_stack_h() + 1e-9 >= spec.bush_h + 2.0
         && spec.post_extrude_h() + spec.base_h > spec.plate_top()
         && spec.blade_tip_r() + 1.0 < spec.post_inner_r()
         && spec.thrust_float > 0.0
@@ -860,8 +991,14 @@ fn grade(
     push_lesson(
         &mut lessons,
         "printed_bearings",
-        spec.bush_od < 20.0 && spec.bush_h < spec.top_plate_h && spec.cone_h >= 3.0,
-        "printed sleeve on a 2 mm land + printed cone/land thrust; no metal 608".to_string(),
+        spec.printed_bearing_ok(),
+        format!(
+            "two-land sleeve L/D {:.2}, relief Ø{:.1}, land {:.1} mm; plate stack {:.0} mm; no metal 608",
+            spec.bush_ld(),
+            spec.bush_relief_id,
+            spec.bush_land_h,
+            spec.plate_stack_h()
+        ),
     );
 
     let wing_faces = wing
@@ -1276,6 +1413,7 @@ fn require_clean(update: Value, label: &str) -> Result<Value, String> {
     Ok(update)
 }
 
+#[allow(dead_code)]
 fn first_body_id(update: &Value) -> Result<u64, String> {
     update["scene"]["bodies"]
         .as_array()
@@ -1372,7 +1510,9 @@ mod spec_tests {
         assert!((spec.socket_w - spec.tenon_w - spec.clearance_mm).abs() < 1e-12);
         assert_eq!(spec.cone_half_deg, 45.0);
         assert!(spec.male_cone_r + 0.15 < spec.cone_r());
-        assert!(spec.top_plate_h > spec.bush_h);
+        assert!(spec.printed_bearing_ok());
+        assert!(spec.y_frame_ok());
+        assert!(spec.plate_stack_h() + 1e-9 >= spec.bush_h + 2.0);
         assert!(spec.blade_tip_r() + 1.0 < spec.post_inner_r());
         assert!(spec.wing_h > spec.wing_chord * 2.0);
         assert!(spec.wing_thick < spec.wing_chord / 3.0);

@@ -23,13 +23,13 @@ placed **assembled on one axis**:
 
 | Body | Role | How it mates |
 |------|------|----------------|
-| Base | Ø72 × 5 plate, 45° cup (r5), 3× Ø5 posts on R32 | Cup centers the shaft. Posts locate through the top plate and stand 2 mm proud. |
-| Shaft | Male cone r4.8, Ø13 × 0.8 land (0.20 float), Ø8 journal, Ø16 shoulder, double-D 6.0 in the hub zone | Land takes thrust; journal runs in the sleeve; double-D drives the hub |
-| Hub | Ø28 × 8, Ø8.4 bore, **sits on the shoulder**, double-D 6.4, 3 sockets at 60°/180°/300° | The wing mount. Sockets open to the OD. |
+| Base | Y-frame (Ø32 hub + 5 mm ribs + Ø10 pads), 45° cup (r5), 3× Ø5 posts on R32 | Cup centers the shaft. Posts locate through the top plate and stand 2 mm proud. No cookie. |
+| Shaft | Male cone r4.8, Ø12 × 0.8 land (0.20 float), Ø8 journal, Ø16 shoulder, double-D 6.0 in the hub zone | Narrow land takes thrust; journal runs in the two-land sleeve; double-D drives the hub |
+| Hub | Ø28 × 8, Ø8.4 bore, **sits on the shoulder**, double-D 6.4, 3 sockets at 30°/150°/270° | The wing mount. Sockets open to the OD. |
 | Wing ×3 | Helical **NACA 0021**, chord 16, span 48, 60° twist on R24, blunt TE 0.8, 7.6 × 4.8 tenon | Drops into a hub socket. Stays in a post bay for the whole helix. |
-| Top plate | Ø72 × 6 at z=67, Ø5.4 post holes, Ø22 windows at mid-helix, Ø14.4 × 4 seat | Drops onto the three posts; windows keep the rotor visible; seat holds the sleeve |
-| Printed bushing | Ø8.4 / Ø14 × 4 sleeve | Sits on the land; upper radial bearing; no metal 608 |
-| Cap | Ø20 × 2.4 washer, 0.20 float above the plate | Slips onto the journal and keeps the stack down |
+| Top plate | Y-frame 4 mm at z=67 + hanging Ø20 × 6 boss, Ø5.4 post holes, Ø14.4 × 8 seat | Drops onto the three posts; boss keeps a 2 mm land under an 8 mm sleeve |
+| Printed bushing | Two-land Ø8.4 / Ø14 × 8, relief Ø9.2, L/D = 1.0 | Sits on the land; does not rub a full cylinder; no metal 608 |
+| Cap | Ø16 × 1.6 washer, 0.20 float above the plate | Slips onto the journal and keeps the stack down |
 
 Every printed-to-printed running or slip fit is **+0.40 mm diametral** (one
 0.4 mm Bambu nozzle). Do not use press fits. Running faces have modeled
