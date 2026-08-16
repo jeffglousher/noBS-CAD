@@ -117,14 +117,15 @@ Minimum wall 1.6 mm (4 nozzles). Functional holes are complete XY circles. Disab
 
 ## Build (keep the stand, cut unused plastic)
 
-1. prompts/get model_print_kit. cad_list_all_tools. cad_new_project. cad_set_document_name Print Kit Tutor
+1. prompts/get model_print_kit. cad_list_all_tools. **cad_new_project on a blank document.** `solid_scene` must show **0 bodies** before the first extrude. Do not continue a recovered or older Print Kit Tutor (tan nest, red disc, leftover helix planes). Desktop: File → New, then build — or File → Open the current `Print-Kit-Tutor.nbcad` after this exam writes it. cad_set_document_name Print Kit Tutor
 2. Base **Y-frame** + square stator post. One piece, print flat
 3. Axle: flange + inner-race cylinder, square bore, print on the flange
 4. Rotor: hub ring (outer race) JOIN three helical **NACA 0021** lofts, open drafted tips, print standing
 5. Roller cage + PIP rollers on a large PCD. Retainer ring
 6. cad_set_focus assembly. Components / occurrences / revolute. cad_set_focus drawing. Sheet + auto-layout + notes
 7. cad_set_focus print. set_body_appearance. solid_export_preflight. **Delete** any prior `Print-Kit-Tutor/` 3MFs (and `Print-Kit-Tutor.3mf`). Then `solid_export_3mf` **once per print plate** with body_ids (base, axle, rotor, cartridge, retainer) only. The folder must contain exactly those five files.
-8. Write the design report. Include role-based fits, scale vs X2D, roller PCD, and why the rotor is one piece
+8. `cad_set_project_visibility`: hide every construction plane (`hidden_datum_plane_ids`) and finished loft sketches (`hidden_sketch_names`). The shipped `.nbcad` must read as the five-part kit, not orange datum stacks.
+9. Write the design report. Include role-based fits, scale vs X2D, roller PCD, and why the rotor is one piece
 
 ## Design report (required deliverable)
 

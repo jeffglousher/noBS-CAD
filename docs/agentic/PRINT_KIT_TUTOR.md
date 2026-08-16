@@ -15,7 +15,11 @@ moment. Contract: [PRINT_KIT_DESIGN.md](PRINT_KIT_DESIGN.md). Fits:
 `prompts/get model_print_kit` — that recipe is adversarial.
 
 The exam now **does** form a CAD assembly (components, occurrences, a
-revolute). See [ASSEMBLY.md](ASSEMBLY.md).
+revolute). See [ASSEMBLY.md](ASSEMBLY.md). It starts with
+`cad_new_project` and fails if the scene is not empty — do not continue
+a recovered or older Print Kit Tutor. Construction planes and finished
+loft sketches are hidden before the `.nbcad` is written so File → Open
+shows the five-part kit, not orange datum stacks.
 
 ## What to build
 
@@ -68,23 +72,30 @@ The exam also writes a reusable project next to the 3MF (override with
 %USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor.nbcad
 ```
 
+Desktop crash recovery can reopen an older nest (tan base, red disc,
+orange helix planes). That is not this kit. **File → New**, then
+**File → Open** the path above. The current kit is a black Y-frame,
+jade-white axle puck, green one-piece rotor, orange rollers, red
+retainer ring.
+
 Agents start with `prompts/get model_print_kit`.
 
 ## Lessons the grader checks
 
-1. Fits are per role and material (running +0.40, slip +0.28, friction +0.16)
-2. Snug is not a press
-3. Individual parts, then an assembly (5 components; rotor is one piece)
-4. Print a roller pack that takes tip moment (large PCD, no 608)
-5. Keep the machine even (3 blades at 120°, 60° helix from 30°)
-6. Blades and hub are one part
-7. The section is a 2026-appropriate airfoil
-8. Scale is a parameter; 1.0 fills an X2D
-9. Print rotational parts lying down (axle is a puck, not a tower)
-10. Helical blades, not a straight fence
-11. Ship an assembly drawing
-12. Publish the design report (iteration + plastic cost)
-13. Export one plate per functional part (cartridge is PIP)
+1. Start from a blank document (`cad_new_project`, 0 bodies; hide datums)
+2. Fits are per role and material (running +0.40, slip +0.28, friction +0.16)
+3. Snug is not a press
+4. Individual parts, then an assembly (5 components; rotor is one piece)
+5. Print a roller pack that takes tip moment (large PCD, no 608)
+6. Keep the machine even (3 blades at 120°, 60° helix from 30°)
+7. Blades and hub are one part
+8. The section is a 2026-appropriate airfoil
+9. Scale is a parameter; 1.0 fills an X2D
+10. Print rotational parts lying down (axle is a puck, not a tower)
+11. Helical blades, not a straight fence
+12. Ship an assembly drawing
+13. Publish the design report (iteration + plastic cost)
+14. Export one plate per functional part (cartridge is PIP)
 
 Later (not this exam): catalog metal bearings from a standard table at
 larger sizes.

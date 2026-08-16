@@ -982,6 +982,7 @@ function writeDesignReport({ bodies, rotorBox, rotorFaces, plateFiles }) {
     ["Uniform +0.40 on every hole", "Easy parts stayed easy; tight locates were sloppy. Role-based running/slip/friction."],
     ["Tenoned separate wings", "Three blades plus a hub is one printed rotor, not a puzzle."],
     ["Tall skinny shaft + two-land sleeve", "Cannot take blade-tip moment and needs a support tower. Short post + large-PCD roller pack."],
+    ["Recovered old nest in the desktop", "Crash recovery reopened the tan/red nine-body kit with orange helix planes. cad_new_project first (0 bodies). Hide datums before save."],
   ];
   const usd = estimatedFilamentUsd().toFixed(2);
   const markdown = `# Print Kit Tutor — design report
@@ -1049,6 +1050,44 @@ Electricity and machine time are not priced. No additional hardware.
   };
 }
 
+async function requireBlankDocument() {
+  const scene = await call("solid_scene");
+  const document = await call("cad_document");
+  const bodies = scene.bodies?.length ?? 0;
+  const features = document.features?.length ?? 0;
+  if (bodies !== 0) {
+    throw new Error(
+      `cad_new_project left ${bodies} bodies / ${features} features — do not continue a recovered document`,
+    );
+  }
+  return `blank: ${bodies} bodies, ${features} features`;
+}
+
+async function hideConstruction() {
+  const planes = await call("construction_plane_definitions");
+  const planeList = Array.isArray(planes) ? planes : (planes.planes ?? []);
+  const datumIds = planeList.map((plane) => plane.datum_id).filter((id) => id != null);
+  if (datumIds.length === 0) {
+    throw new Error("helix stations created no construction planes to hide");
+  }
+  const document = await call("cad_document");
+  const sketchNames = (document.features ?? [])
+    .filter((feature) => feature.kind === "sketch" && feature.name)
+    .map((feature) => feature.name);
+  const visibility = await call("cad_set_project_visibility", {
+    visibility: {
+      hidden_body_ids: [],
+      hidden_datum_plane_ids: datumIds,
+      hidden_sketch_names: sketchNames,
+    },
+  });
+  const hidden = visibility.hidden_datum_plane_ids?.length ?? 0;
+  if (hidden === 0) {
+    throw new Error("cad_set_project_visibility did not hide construction planes");
+  }
+  return `hid ${hidden} datums, ${sketchNames.length} sketches`;
+}
+
 function record(lessons, id, pass, detail) {
   lessons.push({ id, pass: !!pass, detail });
 }
@@ -1068,6 +1107,9 @@ try {
   ) {
     throw new Error("model_print_kit prompt is missing the 2026 VAWT design contract");
   }
+  if (!/blank document|0 bodies|recovered/i.test(recipe)) {
+    throw new Error("model_print_kit prompt must start from a blank document");
+  }
 
   if (live) {
     const sessions = await call("cad_list_sessions");
@@ -1080,6 +1122,7 @@ try {
   }
 
   await call("cad_new_project");
+  const blankDetail = await requireBlankDocument();
   await call("cad_set_document_name", { name: spec.document_name });
 
   const baseId = await buildBase();
@@ -1122,6 +1165,7 @@ try {
   for (const id of rollerIds) {
     await call("set_body_appearance", { body_id: id, preset_id: "bambu.pla.basic.orange" });
   }
+  const hideDetail = await hideConstruction();
   const preflight = await call("solid_export_preflight");
   const removedPlates = cleanKitOutputs();
   const plateBodies = {
@@ -1179,6 +1223,7 @@ try {
   const componentCount = assembly.component_structure?.definitions?.length ?? 0;
   const jointCount = assembly.joints?.length ?? 0;
 
+  record(report.lessons, "blank", true, `${blankDetail}; ${hideDetail}`);
   record(
     report.lessons,
     "fits",

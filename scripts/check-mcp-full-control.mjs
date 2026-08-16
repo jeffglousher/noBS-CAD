@@ -321,6 +321,20 @@ const tutorSrc = await read('scripts/mcp-print-kit-tutor.mjs');
 if (!tutorSrc.includes('cleanKitOutputs') || !tutorSrc.includes('retired_print_plates')) {
   fail('print-kit Node exam must wipe retired plates before writing the current set');
 }
+if (!tutorSrc.includes('requireBlankDocument') || !tutorSrc.includes('hideConstruction')) {
+  fail('print-kit Node exam must start from a blank document and hide construction planes');
+}
+const rustTutor = await read('mcp-server/src/print_kit_tutor.rs');
+if (!rustTutor.includes('require_blank_document') || !rustTutor.includes('hide_construction')) {
+  fail('print-kit cargo exam must start from a blank document and hide construction planes');
+}
+const printKitPrompt = await read('mcp-server/src/prompts/model_print_kit.md');
+if (!/blank document|0 bodies|recovered/i.test(printKitPrompt)) {
+  fail('model_print_kit prompt must start from a blank document');
+}
+if (!spec.lessons.some((lesson) => lesson.id === 'blank')) {
+  fail('print-kit tutor spec must include the blank-document lesson');
+}
 if (!mainSrc.includes('mod print_kit_tutor')) {
   fail('mcp-server must compile the print-kit tutor exam');
 }

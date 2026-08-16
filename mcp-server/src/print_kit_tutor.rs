@@ -371,6 +371,8 @@ struct Built {
     assembly_detail: String,
     drawing_ok: bool,
     drawing_detail: String,
+    blank_ok: bool,
+    blank_detail: String,
 }
 
 pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Result<Report, String> {
@@ -390,6 +392,7 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
     };
 
     call("cad_new_project", json!({}))?;
+    let blank_detail = require_blank_document(&mut call)?;
     call(
         "cad_set_document_name",
         json!({ "name": spec.document_name }),
@@ -444,6 +447,7 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
             json!({ "body_id": id, "preset_id": "bambu.pla.basic.orange" }),
         )?;
     }
+    let hide_detail = hide_construction(&mut call)?;
     let preflight = call("solid_export_preflight", json!({}))?;
     let plate_exports = export_print_plates(
         &mut call,
@@ -476,6 +480,8 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
             assembly_detail,
             drawing_ok,
             drawing_detail,
+            blank_ok: true,
+            blank_detail: format!("{blank_detail}; {hide_detail}"),
         },
     ))
 }
@@ -1104,6 +1110,12 @@ fn grade(
     let mut lessons = Vec::new();
     push_lesson(
         &mut lessons,
+        "blank",
+        built.blank_ok,
+        built.blank_detail.clone(),
+    );
+    push_lesson(
+        &mut lessons,
         "fits",
         spec.fits_ok(),
         format!(
@@ -1398,6 +1410,75 @@ fn add_poly(
         )?;
     }
     Ok(())
+}
+
+fn require_blank_document(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+) -> Result<String, String> {
+    let scene = call("solid_scene", json!({}))?;
+    let document = call("cad_document", json!({}))?;
+    let bodies = scene["bodies"]
+        .as_array()
+        .map(|items| items.len())
+        .unwrap_or(0);
+    let features = document["features"]
+        .as_array()
+        .map(|items| items.len())
+        .unwrap_or(0);
+    if bodies != 0 {
+        return Err(format!(
+            "cad_new_project left {bodies} bodies / {features} features — do not continue a recovered document"
+        ));
+    }
+    Ok(format!("blank: {bodies} bodies, {features} features"))
+}
+
+fn hide_construction(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+) -> Result<String, String> {
+    let planes = call("construction_plane_definitions", json!({}))?;
+    let plane_list = if let Some(items) = planes.as_array() {
+        items.clone()
+    } else {
+        planes["planes"].as_array().cloned().unwrap_or_default()
+    };
+    let datum_ids: Vec<Value> = plane_list
+        .iter()
+        .filter_map(|plane| plane.get("datum_id").cloned())
+        .collect();
+    if datum_ids.is_empty() {
+        return Err("helix stations created no construction planes to hide".to_string());
+    }
+    let document = call("cad_document", json!({}))?;
+    let sketch_names: Vec<String> = document["features"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|feature| feature["kind"] == "sketch")
+        .filter_map(|feature| feature["name"].as_str().map(str::to_string))
+        .collect();
+    let visibility = call(
+        "cad_set_project_visibility",
+        json!({
+            "visibility": {
+                "hidden_body_ids": [],
+                "hidden_datum_plane_ids": datum_ids,
+                "hidden_sketch_names": sketch_names
+            }
+        }),
+    )?;
+    let hidden = visibility["hidden_datum_plane_ids"]
+        .as_array()
+        .map(|items| items.len())
+        .unwrap_or(0);
+    if hidden == 0 {
+        return Err("cad_set_project_visibility did not hide construction planes".to_string());
+    }
+    Ok(format!(
+        "hid {hidden} datums, {} sketches",
+        sketch_names.len()
+    ))
 }
 
 fn add_circle(

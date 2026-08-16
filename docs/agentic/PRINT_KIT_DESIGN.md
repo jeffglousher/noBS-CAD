@@ -5,6 +5,10 @@ Adversarial contract for benchmark #1. The recipe is `prompts/get model_print_ki
 `scripts/fixtures/print-kit-tutor.spec.json`. Fits and closed faults:
 [PRINT_KIT_GDT.md](PRINT_KIT_GDT.md).
 
+Start from a **blank document** (`cad_new_project`, 0 bodies). Do not
+continue a recovered or older Print Kit Tutor. Hide construction planes
+before save.
+
 A kit that exports 3MF and cannot make directionless torque is a **fail**.
 A kit whose frame out-girths the rotor, whose blades are a straight
 fence, or whose only bearing is a short two-land sleeve, is also a

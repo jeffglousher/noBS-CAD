@@ -74,6 +74,11 @@
   },
   "lessons": [
     {
+      "id": "blank",
+      "title": "Start from a blank document",
+      "teach": "cad_new_project first. solid_scene must show 0 bodies before the first extrude. Do not continue a recovered or older Print Kit Tutor (tan nest, red disc, leftover helix planes). Hide construction planes and finished loft sketches before save so File → Open is the five-part kit, not orange datums."
+    },
+    {
       "id": "fits",
       "title": "Fits are per role and material",
       "teach": "Do not use one clearance for every hole. Running (rollers) is +0.40. Slip (axle / retainer) is +0.28. Friction locate (square drive, cage in base) is +0.16. That is PLA + 0.4 mm nozzle at design time. Slicer XY hole compensation stays 0 unless a gauge print says otherwise."

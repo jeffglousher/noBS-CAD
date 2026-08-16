@@ -2,6 +2,10 @@
 
 ## 2026-08-16
 
+- **Update**: Print-kit exam starts from a blank document
+  (`cad_new_project`, 0 bodies) and hides construction planes / loft
+  sketches before writing `Print-Kit-Tutor.nbcad`. Desktop crash recovery
+  of the old tan/red nest is not the current kit — File → New, then Open.
 - **Update**: Print-kit exam wipes `Documents/noBS-CAD/Print-Kit-Tutor/`
   before writing plates so retired shaft/hub/wings/plate/bushing/cap
   3MFs cannot sit next to the current five-plate kit.
