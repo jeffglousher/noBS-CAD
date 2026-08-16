@@ -941,32 +941,36 @@ fn form_assembly(
         json!({ "body_id": base_id }),
     );
     let scene = call("solid_scene", json!({}))?;
-    let axle_face = planar_face_on_axis(
+    let axle_axis = axis_revolute_connector(
         &scene,
         axle_id,
         spec.race_z() + spec.cage_h(),
-        spec.inner_race_d() * 0.5 + 2.0,
+        spec.inner_race_d() * 0.5,
     )
-    .ok_or_else(|| "no on-axis axle race face for the revolute".to_string())?;
-    let rotor_face = planar_face_on_axis(
+    .ok_or_else(|| "no on-axis axle race circle or cylinder for the revolute".to_string())?;
+    let rotor_axis = axis_revolute_connector(
         &scene,
         rotor_id,
         spec.hub_z() + spec.hub_h(),
-        spec.hub_od() * 0.5 + 1.0,
+        spec.hub_bore() * 0.5,
     )
-    .ok_or_else(|| "no on-axis hub face for the revolute".to_string())?;
-    require_axis_frame(&axle_face, "axle revolute")?;
-    require_axis_frame(&rotor_face, "rotor revolute")?;
+    .ok_or_else(|| "no on-axis hub bore circle or cylinder for the revolute".to_string())?;
     call(
         "assembly_create_joint",
         json!({
             "name": "rotor_spin",
             "kind": "revolute",
-            "connector_a": axle_face,
-            "connector_b": rotor_face,
+            "connector_a": axle_axis,
+            "connector_b": rotor_axis,
             "grounded_body_id": axle_id
         }),
     )?;
+    if let Some(occurrence_id) = base_occurrence_id {
+        let _ = call(
+            "assembly_set_occurrence_grounded",
+            json!({ "occurrence_id": occurrence_id, "grounded": true }),
+        );
+    }
     let document = call("assembly_document", json!({}))?;
     let defs = document["component_structure"]["definitions"]
         .as_array()
@@ -1080,51 +1084,119 @@ fn authored_occurrence_id(document: &Value, component_id: u64) -> Option<u64> {
         .and_then(|occurrence| occurrence["id"].as_u64())
 }
 
-fn require_axis_frame(connector: &Value, label: &str) -> Result<(), String> {
-    let origin = xyz(&connector["frame"]["origin"])
-        .ok_or_else(|| format!("{label}: connector frame missing origin"))?;
-    let radial = origin[0].hypot(origin[1]);
-    if radial > 4.0 {
-        return Err(format!(
-            "{label}: face is {radial:.1} mm off the axis — do not mate a blade spar"
-        ));
-    }
-    Ok(())
+fn axis_revolute_connector(
+    scene: &Value,
+    body_id: u64,
+    z: f64,
+    want_radius: f64,
+) -> Option<Value> {
+    circular_edge_on_axis(scene, body_id, z, want_radius)
+        .or_else(|| cylindrical_face_on_axis(scene, body_id, z, want_radius))
 }
 
-fn planar_face_on_axis(scene: &Value, body_id: u64, z: f64, max_xy: f64) -> Option<Value> {
+fn cylindrical_face_on_axis(
+    scene: &Value,
+    body_id: u64,
+    z: f64,
+    want_radius: f64,
+) -> Option<Value> {
     let body = scene["bodies"]
         .as_array()?
         .iter()
         .find(|body| body["id"].as_u64() == Some(body_id))?;
     let mut best: Option<(&Value, f64)> = None;
     for face in body["faces"].as_array()? {
-        let plane = face.get("plane")?;
-        let origin = xyz(&plane["origin"])?;
-        let normal = xyz(&plane["normal"])?;
-        if normal[2].abs() < 0.85 {
+        let Some(cylinder) = face.get("cylinder") else {
+            continue;
+        };
+        let Some(origin) = xyz(&cylinder["origin"]) else {
+            continue;
+        };
+        let Some(axis) = xyz(&cylinder["axis"]) else {
+            continue;
+        };
+        if axis[2].abs() < 0.85 {
             continue;
         }
-        let radial = origin[0].hypot(origin[1]);
-        if radial > max_xy {
+        if origin[0].hypot(origin[1]) > 3.0 {
             continue;
         }
-        let score = (origin[2] - z).abs() + radial * 0.05;
+        let Some(radius) = cylinder["radius"].as_f64() else {
+            continue;
+        };
+        let score = (radius - want_radius).abs();
         if best.is_none_or(|(_, current)| score < current) {
             best = Some((face, score));
         }
     }
     let (face, _) = best?;
-    let plane = face.get("plane")?;
+    let frame = json!({
+        "origin": [0.0, 0.0, z],
+        "primary_axis": [0.0, 0.0, 1.0],
+        "secondary_axis": [1.0, 0.0, 0.0]
+    });
     Some(json!({
         "body_id": body_id,
         "face_id": face["id"],
         "face_key": face["key"],
-        "kind": "planar_face",
+        "kind": "cylindrical_face",
+        "radius": face["cylinder"]["radius"],
+        "source_surface_frame": frame,
+        "frame": frame
+    }))
+}
+
+fn circular_edge_on_axis(
+    scene: &Value,
+    body_id: u64,
+    z: f64,
+    want_radius: f64,
+) -> Option<Value> {
+    let body = scene["bodies"]
+        .as_array()?
+        .iter()
+        .find(|body| body["id"].as_u64() == Some(body_id))?;
+    let mut best: Option<(&Value, f64, [f64; 3], f64)> = None;
+    for edge in body["edges"].as_array()? {
+        let Some(circle) = edge.get("circle") else {
+            continue;
+        };
+        if circle["closed"] != true {
+            continue;
+        }
+        let Some(center) = xyz(&circle["center"]) else {
+            continue;
+        };
+        let Some(normal) = xyz(&circle["normal"]) else {
+            continue;
+        };
+        if normal[2].abs() < 0.85 {
+            continue;
+        }
+        if center[0].hypot(center[1]) > 2.0 {
+            continue;
+        }
+        let Some(radius) = circle["radius"].as_f64() else {
+            continue;
+        };
+        let score = (center[2] - z).abs() + (radius - want_radius).abs();
+        if best.is_none_or(|(_, current, _, _)| score < current) {
+            best = Some((edge, score, center, radius));
+        }
+    }
+    let (edge, _, center, radius) = best?;
+    Some(json!({
+        "body_id": body_id,
+        "face_id": 0,
+        "face_key": "",
+        "edge_id": edge["id"],
+        "edge_key": edge["key"],
+        "kind": "circular_edge",
+        "radius": radius,
         "frame": {
-            "origin": plane["origin"],
-            "primary_axis": plane["normal"],
-            "secondary_axis": plane["u"]
+            "origin": [0.0, 0.0, center[2]],
+            "primary_axis": [0.0, 0.0, 1.0],
+            "secondary_axis": [1.0, 0.0, 0.0]
         }
     }))
 }

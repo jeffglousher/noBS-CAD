@@ -12,7 +12,8 @@ one occurrence per part, a revolute on the axis) and an annotated
 drawing. `assembly_create_component` already inserts the root
 occurrence — a second `assembly_create_occurrence` duplicates every
 part and the solver will yank a copy off-axis. Joint connectors must
-be hub/race faces on the turbine axis, not a blade spar. Fits stay
+be on-axis circular edges (hub bore / axle race), not a blade-spar
+face — planar face centroids yank the rotor off-axis. Fits stay
 numbers (running / slip / friction) — joints do not invent metal 608s.
 
 ## What the engine and MCP both have

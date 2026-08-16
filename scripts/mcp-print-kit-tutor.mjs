@@ -850,42 +850,74 @@ async function buildRetainer(known) {
   return newestBody(update, known);
 }
 
-function planarFaceOnAxis(scene, bodyId, z, maxXy) {
+function axisRevoluteConnector(scene, bodyId, z, wantRadius) {
+  return circularEdgeOnAxis(scene, bodyId, z, wantRadius) ?? cylindricalFaceOnAxis(scene, bodyId, z, wantRadius);
+}
+
+function cylindricalFaceOnAxis(scene, bodyId, z, wantRadius) {
   const body = (scene.bodies ?? []).find((item) => item.id === bodyId);
   if (!body) return null;
   let best = null;
   for (const face of body.faces ?? []) {
-    const plane = face.plane;
-    if (!plane) continue;
-    const origin = xyz(plane.origin);
-    const normal = xyz(plane.normal);
-    if (!origin || !normal || Math.abs(normal[2]) < 0.85) continue;
-    const radial = Math.hypot(origin[0], origin[1]);
-    if (radial > maxXy) continue;
-    const score = Math.abs(origin[2] - z) + radial * 0.05;
-    if (!best || score < best.score) best = { face, plane, score, radial };
+    const cylinder = face.cylinder;
+    if (!cylinder) continue;
+    const origin = xyz(cylinder.origin);
+    const axis = xyz(cylinder.axis);
+    if (!origin || !axis || Math.abs(axis[2]) < 0.85) continue;
+    if (Math.hypot(origin[0], origin[1]) > 3) continue;
+    const radius = Number(cylinder.radius);
+    if (!Number.isFinite(radius)) continue;
+    const score = Math.abs(radius - wantRadius);
+    if (!best || score < best.score) best = { face, radius, score };
   }
   if (!best) return null;
+  const frame = {
+    origin: [0, 0, z],
+    primary_axis: [0, 0, 1],
+    secondary_axis: [1, 0, 0],
+  };
   return {
     body_id: bodyId,
     face_id: best.face.id,
     face_key: best.face.key,
-    kind: "planar_face",
-    frame: {
-      origin: best.plane.origin,
-      primary_axis: best.plane.normal,
-      secondary_axis: best.plane.u,
-    },
+    kind: "cylindrical_face",
+    radius: best.radius,
+    source_surface_frame: frame,
+    frame,
   };
 }
 
-function requireAxisFrame(connector, label) {
-  const origin = xyz(connector?.frame?.origin);
-  if (!origin) throw new Error(`${label}: connector frame missing origin`);
-  const radial = Math.hypot(origin[0], origin[1]);
-  if (radial > 4) {
-    throw new Error(`${label}: face is ${radial.toFixed(1)} mm off the axis — do not mate a blade spar`);
+function circularEdgeOnAxis(scene, bodyId, z, wantRadius) {
+  const body = (scene.bodies ?? []).find((item) => item.id === bodyId);
+  if (!body) return null;
+  let best = null;
+  for (const edge of body.edges ?? []) {
+    const circle = edge.circle;
+    if (!circle?.closed) continue;
+    const center = xyz(circle.center);
+    const normal = xyz(circle.normal);
+    if (!center || !normal || Math.abs(normal[2]) < 0.85) continue;
+    if (Math.hypot(center[0], center[1]) > 2) continue;
+    const radius = Number(circle.radius);
+    if (!Number.isFinite(radius)) continue;
+    const score = Math.abs(center[2] - z) + Math.abs(radius - wantRadius);
+    if (!best || score < best.score) best = { edge, center, radius, score };
   }
+  if (!best) return null;
+  return {
+    body_id: bodyId,
+    face_id: 0,
+    face_key: "",
+    edge_id: best.edge.id,
+    edge_key: best.edge.key,
+    kind: "circular_edge",
+    radius: best.radius,
+    frame: {
+      origin: [0, 0, best.center[2]],
+      primary_axis: [0, 0, 1],
+      secondary_axis: [1, 0, 0],
+    },
+  };
 }
 
 function authoredOccurrenceId(document, componentId) {
@@ -937,19 +969,27 @@ async function formAssembly(ids) {
     /* optional on some hosts */
   }
   const scene = await call("solid_scene");
-  const axleFace = planarFaceOnAxis(scene, ids.axleId, raceZ() + cageH(), innerRaceD() * 0.5 + 2);
-  const rotorFace = planarFaceOnAxis(scene, ids.rotorId, hubZ() + hubH(), hubOd() * 0.5 + 1);
-  if (!axleFace) throw new Error("no on-axis axle race face for the revolute");
-  if (!rotorFace) throw new Error("no on-axis hub face for the revolute");
-  requireAxisFrame(axleFace, "axle revolute");
-  requireAxisFrame(rotorFace, "rotor revolute");
+  const axleAxis = axisRevoluteConnector(scene, ids.axleId, raceZ() + cageH(), innerRaceD() * 0.5);
+  const rotorAxis = axisRevoluteConnector(scene, ids.rotorId, hubZ() + hubH(), hubBore() * 0.5);
+  if (!axleAxis) throw new Error("no on-axis axle race circle or cylinder for the revolute");
+  if (!rotorAxis) throw new Error("no on-axis hub bore circle or cylinder for the revolute");
   await call("assembly_create_joint", {
     name: "rotor_spin",
     kind: "revolute",
-    connector_a: axleFace,
-    connector_b: rotorFace,
+    connector_a: axleAxis,
+    connector_b: rotorAxis,
     grounded_body_id: ids.axleId,
   });
+  if (baseOccurrenceId) {
+    try {
+      await call("assembly_set_occurrence_grounded", {
+        occurrence_id: baseOccurrenceId,
+        grounded: true,
+      });
+    } catch {
+      /* axle remains the kinematic ground */
+    }
+  }
   const document = await call("assembly_document");
   const defs = document.component_structure?.definitions?.length ?? 0;
   const occs = document.component_structure?.occurrences?.length ?? 0;

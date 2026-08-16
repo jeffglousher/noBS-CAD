@@ -327,8 +327,8 @@ if (!tutorSrc.includes('requireBlankDocument') || !tutorSrc.includes('hideConstr
 if (tutorSrc.includes('name: `${name}_1`') || /assembly_create_occurrence/.test(tutorSrc)) {
   fail('print-kit Node exam must not create a second occurrence of each part');
 }
-if (!tutorSrc.includes('planarFaceOnAxis') || !tutorSrc.includes('requireAxisFrame')) {
-  fail('print-kit Node exam must mate the revolute on the turbine axis');
+if (!tutorSrc.includes('axisRevoluteConnector') || !tutorSrc.includes('circularEdgeOnAxis')) {
+  fail('print-kit Node exam must mate the revolute on an on-axis circle or cylinder');
 }
 const rustTutor = await read('mcp-server/src/print_kit_tutor.rs');
 if (!rustTutor.includes('require_blank_document') || !rustTutor.includes('hide_construction')) {
@@ -337,8 +337,8 @@ if (!rustTutor.includes('require_blank_document') || !rustTutor.includes('hide_c
 if (rustTutor.includes('assembly_create_occurrence')) {
   fail('print-kit cargo exam must not create a second occurrence of each part');
 }
-if (!rustTutor.includes('planar_face_on_axis') || !rustTutor.includes('require_axis_frame')) {
-  fail('print-kit cargo exam must mate the revolute on the turbine axis');
+if (!rustTutor.includes('axis_revolute_connector') || !rustTutor.includes('circular_edge_on_axis')) {
+  fail('print-kit cargo exam must mate the revolute on an on-axis circle or cylinder');
 }
 const printKitPrompt = await read('mcp-server/src/prompts/model_print_kit.md');
 if (!/blank document|0 bodies|recovered/i.test(printKitPrompt)) {

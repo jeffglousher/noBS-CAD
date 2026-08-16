@@ -109,7 +109,7 @@ No screws, nuts, heat-set inserts, metal shafts, metal bearings, glue as a fit, 
 
 Assembly order: **base → axle → roller cartridge → rotor → retainer**.
 
-Then form the CAD assembly: `cad_set_focus assembly` (or `cad_set_workspace assembly`). `assembly_create_component` per part — that call already inserts the one root occurrence. **Do not** `assembly_create_occurrence` again or you get two copies of every part and the solver yanks one off-axis. Ground the base occurrence. `assembly_create_joint` revolute on the **turbine axis** (axle race + hub ring faces). Do not pick a blade-spar face at the same Z. Ship an assembly drawing: `cad_drawing_create_sheet` + `cad_drawing_auto_layout` + notes for fits, scale, print orientation, and BOM.
+Then form the CAD assembly: `cad_set_focus assembly` (or `cad_set_workspace assembly`). `assembly_create_component` per part — that call already inserts the one root occurrence. **Do not** `assembly_create_occurrence` again or you get two copies of every part and the solver yanks one off-axis. Ground the base occurrence. `assembly_create_joint` revolute on the **turbine axis** using on-axis circular edges (axle race + hub bore). Do not pick a blade-spar face — the engine uses face centroids and that yanks the rotor off-axis. Ship an assembly drawing: `cad_drawing_create_sheet` + `cad_drawing_auto_layout` + notes for fits, scale, print orientation, and BOM.
 
 Print each functional part in its own orientation. The roller cartridge is print-in-place (cage + rollers, one plate). Export five print-plate 3MFs (`solid_export_3mf` + `body_ids`). Do not export the assembled nest as the print job.
 
