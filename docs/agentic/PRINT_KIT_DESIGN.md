@@ -19,9 +19,9 @@ fence, or whose only bearing is a short two-land sleeve, is also a
 | Group | Number | Why |
 |-------|--------|-----|
 | Section | NACA 0021, TE ≥ 0.8 mm, root chord > tip | 2026 thick-symmetric band; drafted standing print |
-| Rotor | One body: root plate out to the blades, socket on the bushing flange, 3 helical blades ending on that plate. X2D-max R=85, span=220, scale 0.4 in the exam | Always some blade working; no tenons; no mid-air roots; no skinny-arm hangers |
+| Rotor | One body: root plate out to the blades, integral cup (thrust floor + outer race), 3 helical blades ending on that plate. X2D-max R=85, span=220, scale 0.4 in the exam | Always some blade working; no tenons; no mid-air roots; no skinny-arm hangers |
 | Stand | Y-frame + short square stator post | Envelope/rotor ≤ 1.55; no cookie; no tall mast |
-| Bearing | Distinct outer-race bushing + 6× printed PIP rollers, min Ø8, large PCD | Tip moment. Hub mounts on the bushing OD. Not a 608. Not a two-land sleeve alone |
+| Bearing | Rotor cup + 6× printed PIP rollers, min Ø8 / h8, large PCD. Cage height = roller height | Tip moment in one frame. Not a 608. Not a two-land sleeve. Not a loose bushing sandwich |
 | Fits | running +0.40 / PIP +0.80 / slip +0.28 / friction +0.16 | Role-based **and** same-plate vs assembled. 0.80 mm bed lead-in. Slicer XY hole comp = 0 |
 | Envelope | scale 1.0 fits Bambu Lab X2D 256×256×260 with 8 mm margin | `spec.scale` is the source parameter |
 
@@ -29,12 +29,12 @@ Straight H-rotor is the wrong default at this Re: torque ripple and
 dead azimuths. Helix is required. Mid-chord stays on the cylinder;
 chord stays tangent. Open drafted tips. Do not twist the section in place.
 
-The center is short on purpose. A stout roller pack inside a distinct
-bushing takes angular load from the blade tips. The hub friction-mounts
-on the bushing OD and sits on the shoulder — it is not the outer race.
-Rotational parts print lying down (flanged puck / ring). Only the rotor
-stands — on the deck that sits on the bushing — and its tips are open.
-Blade roots are XY airfoils on the bed, not overhangs.
+The center is short on purpose. A stout roller pack inside the **rotor
+cup** takes angular load from the blade tips. Thrust floor, outer race,
+and blade plate are one printed frame. A pile of unmatched-height races
+with no housing is not a bearing. Rotational parts print lying down
+(flanged puck / ring). Only the rotor stands — on that plate — and its
+tips are open. Blade roots are XY airfoils on the bed, not overhangs.
 
 ## Why this page exists
 
@@ -79,7 +79,7 @@ As-printed FDM skins are rough (Ra often 10–25 µm). That is Cd.
 - PLA: sand 400→1000 on blade skins; optional filler primer (consumable,
   not hardware)
 - Layer lines **parallel to span** on blades (print the rotor standing)
-- Race bores as XY circles (axle / bushing / cage / retainer printed flat)
+- Race bores as XY circles (axle / cage / retainer printed flat; cup is on the standing rotor)
 - Do not vapor-smooth a running fit and then keep the modeled clearance
 
 ## Printed roller pack, not a 608
@@ -90,11 +90,10 @@ cannot take the moment at the blade tips.
 
 | Station | What | Why |
 |---------|------|-----|
-| Thrust | Axle flange land, 0.20 float under the bushing | Flat land, not a lifted cone |
-| Radial + moment | PIP rollers in a cage, large PCD, **bushing ID** = outer race | Short center, stout pack |
-| Hub mount | Friction +0.16 on bushing OD; hub sits on the shoulder | Wheel-on-bearing. Not a running fit |
-| Stator | Square post on the base (friction in the axle puck) | Print-flat; bushing freewheels |
-| Retain | Slip washer on the post covering the open raceway | Not a press |
+| Thrust | Axle flange land, 0.20 float under the plate; rollers sit on the cup floor | Flat land, not a lifted cone |
+| Radial + moment | PIP rollers in a cage, large PCD, **cup ID** = outer race, height = roller height | One stiff frame for an overhung load |
+| Stator | Square post on the base (friction in the axle puck) | Print-flat; cup freewheels |
+| Retain | Slip washer on the post covering the open cup | Not a press |
 
 PLA-on-PLA is a demo spin. Say so. No glue-as-fit.
 

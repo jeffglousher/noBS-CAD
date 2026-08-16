@@ -54,7 +54,7 @@ gauge-print problem, not a CAD problem.
 
 | Joint | Class | CAD |
 |-------|-------|-----|
-| Journal ↔ bushing | Running | Ø8.0 / Ø8.4 (+0.40 diametral) |
+| Journal ↔ cup ID | Running | Ø8.0 / Ø8.4 (+0.40 diametral) |
 | Posts ↔ plate | Location slip | Ø8.0 / Ø8.4, through |
 | Bushing ↔ seat | Location slip | Ø14.0 / Ø14.4 + 2 mm land |
 | Double-D drive | Location slip | 6.0 / 6.4 across flats |
@@ -134,7 +134,7 @@ graded, but it was the wrong product for additive manufacturing:
 | Uniform +0.40 | Every hole used the running clearance. Locates were sloppy; nothing that should be tight was. | Role-based: running +0.40, slip +0.28, friction +0.16. Slicer XY hole comp stays 0. |
 | Tenoned wings | Three separate blades + hub is a puzzle, not a rotor. | Hub + 3 helical NACAs are **one body**. Open drafted tips. |
 | Tall skinny shaft | Support tower; weak in bending at the blade tips. | Short square stator post. Axle is a flanged inner-race **puck**, printed on the flange. |
-| Two-land sleeve only | L/D 1.0 is a journal, not a moment bearing. | Large-PCD printed roller cartridge (PIP, min Ø8) inside a distinct outer-race bushing. |
+| Two-land sleeve only | L/D 1.0 is a journal, not a moment bearing. | Large-PCD printed roller cartridge (PIP, min Ø8 / h8) inside a rotor cup. |
 | No CAD assembly | Multi-body nest, no components/joints, no drawing. | 5 components, grounded base, revolute, A3 sheet with notes. |
 | No scale | Desk-size only; not an X2D-max source. | Spec numbers are X2D-max (256×256×260, 8 mm margin). `scale` 0.4 in the exam. |
 
@@ -146,12 +146,12 @@ graded, but it was the wrong product for additive manufacturing:
 | Rollers ↔ cage pockets (PIP) | PIP | +0.80 diametral (2 nozzles). Not the assembled running number. |
 | Retainer ↔ square post | Slip | +0.28 |
 | Axle square bore ↔ post | Friction locate | +0.16 |
-| Hub bore ↔ bushing OD | Friction locate | +0.16. They spin together. |
-| Bushing / cage ↔ flange land | Thrust | 0.20 axial float |
-| Hub ↔ bushing shoulder | Sitting mount | Coincident. They do not spin relative to each other. |
-| Hub ↔ retainer washer | Thrust | 0.20 axial float; retainer covers the raceway, OD < hub OD |
+| Plate bore ↔ inner race | Running | +0.40. The plate is not keyed to the post. |
+| Plate / cage ↔ flange land | Thrust | 0.20 axial float under the plate |
+| Rollers ↔ cup floor | Thrust | Sit on the plate top. Cage height = roller height. |
+| Cup ↔ retainer washer | Thrust | 0.20 axial float; retainer covers the open cup, OD between cup ID and cup OD |
 | Axle ↔ base | Sitting stator | Coincident land. They do not spin relative to each other. |
-| Rollers ↔ inner race / bushing ID | Running | **Not a friction fit.** Friction here locks the bearing. |
+| Rollers ↔ inner race / cup ID | Running | **Not a friction fit.** Friction here locks the bearing. |
 
 ### Print (current)
 
@@ -159,18 +159,16 @@ graded, but it was the wrong product for additive manufacturing:
 |------|-------------|
 | Base | Flat (Y-frame + post) |
 | Axle | On the flange |
-| Bushing | Flat (shoulder on the bed) |
-| Rotor | Standing on the root plate, tips up. Blade bottoms are the sit-plane cut. |
+| Rotor | Standing on the root plate, tips up. Blade bottoms are the sit-plane cut. Cup faces up. |
 | Roller cartridge | Flat, PIP |
 | Retainer | Flat |
 
 ### Assembly (current)
 
 1. Axle puck onto the square post (friction locate). Flange **sits** on the base.
-2. Bushing over the inner race, 0.20 above the flange. Outer race is the bushing ID.
-3. Roller cartridge inside the bushing. Cage and each roller are linked (revolute).
-4. Drop the cartridge into the open-top bushing. Drop the rotor **root plate** on: socket over the flange, bore on the OD. Blades end on that plate. That is the rotating mount.
-5. Retainer washer **square-slip** on the post, floats 0.20 above the hub, and covers the open raceway.
+2. Drop the rotor on the axle: plate bore over the inner race, 0.20 above the flange. Cup faces up. Outer race is the cup ID.
+3. Drop the roller cartridge into the open-top cup. Cage height matches the rollers. Cage and each roller are linked (revolute).
+4. Retainer washer **square-slip** on the post, floats 0.20 above the cup, and covers the open raceway.
 
 If those steps are not visible in the solid, the exam failed.
 
@@ -186,19 +184,25 @@ If those steps are not visible in the solid, the exam failed.
 
 | Fault | Why it failed | Correction |
 |-------|---------------|------------|
-| Hub as the outer race | Cage stuffed inside the hub wall. No distinct bushing, no shoulder, no “wheel on a bearing.” | Outer-race bushing with an external shoulder. Hub friction-mounts on the OD and sits on the seat. Rollers stay inside the bushing ID. |
+| Hub as the outer race | Cage stuffed inside the hub wall. No housing, no shoulder, no “wheel on a bearing.” | First correction was a distinct bushing. That still had no attach path — see the cup pass. |
+
+### 2026-08-16 one-frame cup pass
+
+| Fault | Why it failed | Correction |
+|-------|---------------|------------|
+| Loose bushing sandwich | Separate orange ring, postage-stamp flange, cage taller than the rollers, blades not attached to the race. Unmatched heights. No way to take a heavy overhung load. | Rotor **is** the frame: plate = thrust floor, cup ID = outer race (height = roller + float), blades grow from that plate. Drop rotor, then cartridge, then retainer. |
 
 ### 2026-08-16 additive / FDM pass
 
 | Fault | Why it failed | Correction |
 |-------|---------------|------------|
 | PIP at assembled running | Cage pockets at +0.40 are 0.20 mm/side. Same-plate first layers weld. | PIP pockets +0.80 (2 nozzles). Assembled races stay +0.40. |
-| Bed-printed friction bore | Hub bore and axle square sit on the bed. Elephant foot closes +0.16. | 0.80 mm lead-in on hub bore, bushing ID, axle square, retainer square. Functional land starts above layer 1. |
-| Bushing nested around rollers | Race-to-roller at +0.40 is 0.10 mm/side on the same plate. They fuse. | Bushing is its own body. Cage+rollers are the PIP cluster. Axial capture is flange + retainer, not a top lip. |
+| Bed-printed friction bore | Plate bore and axle square sit on the bed. Elephant foot closes +0.16. | 0.80 mm lead-in on plate bore, axle square, retainer square. Functional land starts above layer 1. |
+| Race nested around rollers | Race-to-roller at +0.40 is 0.10 mm/side on the same plate. They fuse. | Cup is integral to the rotor. Cage+rollers are the PIP cluster dropped in after. Axial capture is flange + retainer, not a top lip. |
 
 ### 2026-08-16 blade root / deck pass
 
 | Fault | Why it failed | Correction |
 |-------|---------------|------------|
-| Overhung blade roots | Loft started mid-hub (`hub_h × 0.35`), out at wing radius. First layers of a standing print were air. Blades did not sit on the bushing seat. | Deck on the bushing shoulder (OD flush with the flange). Wide print arms + root stumps on the bed. Helical loft starts at `blade_root_z` = deck top. The deck is the rotating mount (`hub_mount` + `bushing_spin`). |
-| Tiny ring + blades from the surface above | Ø41 deck + skinny arms. Airfoils started from the arm top. No socket, no install path. | Root plate out to the blades. Socket drops over the bushing flange. Open-top bushing (cartridge first, then plate). Loft from `plate_z` so the draft ends on that flat. |
+| Overhung blade roots | Loft started mid-hub (`hub_h × 0.35`), out at wing radius. First layers of a standing print were air. | Root plate is the cup floor. Wide print arms + root stumps on the bed. Helical loft starts at `blade_root_z` = plate top. |
+| Tiny ring + blades from the surface above | Ø41 deck + skinny arms. Airfoils started from the arm top. No housing, no install path. | Root plate out to the blades. Integral open-top cup. Loft from plate top so the draft ends on that flat. |

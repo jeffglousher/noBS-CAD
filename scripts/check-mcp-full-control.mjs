@@ -340,17 +340,20 @@ if (!tutorSrc.includes('axisConnectorAt') || !tutorSrc.includes('circularEdgeAt'
 if (!tutorSrc.includes('axle_sit') || !tutorSrc.includes('cage_spin') || !tutorSrc.includes('createStableJoint')) {
   fail('print-kit Node exam must link the stator, rotor, cage, and rollers');
 }
-if (!tutorSrc.includes('bushing_spin') || !tutorSrc.includes('hub_mount') || !tutorSrc.includes('buildBushing')) {
-  fail('print-kit Node exam must mount the hub on a distinct outer-race bushing');
+if (!tutorSrc.includes('rotor_spin') || !tutorSrc.includes('cupId') || !tutorSrc.includes('plateBore')) {
+  fail('print-kit Node exam must mate the rotor cup (thrust floor + outer race) on the axle');
+}
+if (tutorSrc.includes('buildBushing') || tutorSrc.includes('bushing_spin') || tutorSrc.includes('hub_mount')) {
+  fail('print-kit Node exam must not keep a loose bushing sandwich (no buildBushing / bushing_spin / hub_mount)');
 }
 if (!tutorSrc.includes('cutBedReliefCircle') || !tutorSrc.includes('fit_pip_mm') || !tutorSrc.includes('bed_relief')) {
   fail('print-kit Node exam must model PIP clearance and elephant-foot lead-ins');
 }
-if (!tutorSrc.includes('hubDeckH') || !tutorSrc.includes('bladeRootZ') || !tutorSrc.includes('hub socket')) {
-  fail('print-kit Node exam must seat a root plate on the bushing with a socket and sit-plane blade cuts');
+if (!tutorSrc.includes('hubDeckH') || !tutorSrc.includes('bladeRootZ') || !tutorSrc.includes('rotor cup')) {
+  fail('print-kit Node exam must grow blades from a root plate that is the cup floor');
 }
-if (!tutorSrc.includes('plateZ') || !tutorSrc.includes('hubSocketOd')) {
-  fail('print-kit Node exam must model a bushing socket in the root plate');
+if (!tutorSrc.includes('plateZ') || !tutorSrc.includes('cupZ') || !tutorSrc.includes('cupH')) {
+  fail('print-kit Node exam must match cup height to the roller land');
 }
 if (!tutorSrc.includes('solid_move_copy') || !tutorSrc.includes('layoutPrintPlate')) {
   fail('print-kit Node exam must lay the kit out on one plate before export');
@@ -371,17 +374,20 @@ if (!rustTutor.includes('axis_connector_at') || !rustTutor.includes('circular_ed
 if (!rustTutor.includes('axle_sit') || !rustTutor.includes('cage_spin') || !rustTutor.includes('create_stable_joint')) {
   fail('print-kit cargo exam must link the stator, rotor, cage, and rollers');
 }
-if (!rustTutor.includes('bushing_spin') || !rustTutor.includes('hub_mount') || !rustTutor.includes('build_bushing')) {
-  fail('print-kit cargo exam must mount the hub on a distinct outer-race bushing');
+if (!rustTutor.includes('rotor_spin') || !rustTutor.includes('cup_id') || !rustTutor.includes('plate_bore')) {
+  fail('print-kit cargo exam must mate the rotor cup (thrust floor + outer race) on the axle');
+}
+if (rustTutor.includes('build_bushing') || rustTutor.includes('bushing_spin') || rustTutor.includes('hub_mount')) {
+  fail('print-kit cargo exam must not keep a loose bushing sandwich (no build_bushing / bushing_spin / hub_mount)');
 }
 if (!rustTutor.includes('cut_bed_relief_circle') || !rustTutor.includes('fit_pip_mm') || !rustTutor.includes('bed_relief')) {
   fail('print-kit cargo exam must model PIP clearance and elephant-foot lead-ins');
 }
-if (!rustTutor.includes('hub_deck_h') || !rustTutor.includes('blade_root_z') || !rustTutor.includes('hub socket')) {
-  fail('print-kit cargo exam must seat a root plate on the bushing with a socket and sit-plane blade cuts');
+if (!rustTutor.includes('hub_deck_h') || !rustTutor.includes('blade_root_z') || !rustTutor.includes('rotor cup')) {
+  fail('print-kit cargo exam must grow blades from a root plate that is the cup floor');
 }
-if (!rustTutor.includes('plate_z') || !rustTutor.includes('hub_socket_od')) {
-  fail('print-kit cargo exam must model a bushing socket in the root plate');
+if (!rustTutor.includes('plate_z') || !rustTutor.includes('cup_z') || !rustTutor.includes('cup_h')) {
+  fail('print-kit cargo exam must match cup height to the roller land');
 }
 if (!rustTutor.includes('solid_move_copy') || !rustTutor.includes('layout_print_plate')) {
   fail('print-kit cargo exam must lay the kit out on one plate before export');

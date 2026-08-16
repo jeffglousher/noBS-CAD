@@ -2,6 +2,12 @@
 
 ## 2026-08-16
 
+- **Update**: Print-kit bearing is one rotor cup, not a loose bushing
+  sandwich. Plate = thrust floor, cup ID = outer race, cage height =
+  roller height (floor Ø8 / h8). `rotor_spin` mates cup ↔ inner race.
+  11 bodies / 10 joints. Drop rotor, then cartridge, then retainer.
+  Unmatched roller/bushing heights with no attach path fail an overhung
+  load.
 - **Update**: Print-kit rotor is a root plate out to the blades with a
   socket over the bushing flange. Helical lofts start at `plate_z` so
   the airfoil draft ends on that flat sit plane, not from a surface
