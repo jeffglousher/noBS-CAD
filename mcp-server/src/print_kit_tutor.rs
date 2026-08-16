@@ -507,7 +507,8 @@ fn build_wing(
     let angle = spec.wing_angle_deg(index);
     let keep_start = angle - spec.wing_sweep_deg / 2.0;
     let keep_end = angle + spec.wing_sweep_deg / 2.0;
-    begin_datum(call, offset_xy(call, spec.shoulder_top())?)?;
+    let pie_deck = offset_xy(call, spec.shoulder_top())?;
+    begin_datum(call, pie_deck)?;
     add_pie_cut(call, keep_start, keep_end, 80.0)?;
     let pie = finish_sketch(call)?;
     require_clean(
