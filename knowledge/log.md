@@ -2,6 +2,10 @@
 
 ## 2026-08-16
 
+- **Update**: Print-kit bushing is a distinct outer-race ring with an
+  external shoulder. The hub friction-mounts on the bushing OD (`hub_mount`)
+  and sits on that seat. Rollers run inside the bushing ID (`bushing_spin`);
+  the hub is not the outer race. 12 components / 11 joints at exam scale.
 - **Update**: Print-kit is a linked assembly, not a nest that happens to
   spin. Rigid `axle_sit` / `retainer_sit`; revolute `rotor_spin`,
   `cage_spin`, and each `roller_*_spin`. Hub-on-rollers stays running

@@ -26,15 +26,15 @@ Contract: [PRINT_KIT_DESIGN.md](PRINT_KIT_DESIGN.md).
 - **Architecture:** Helical H-Darrieus, directionless (no yaw). Short fixed square post. Hub freewheels on a printed roller pack. No tall mast.
 - **Airfoil:** NACA 0021 (t/c 0.21). 2026 band is t/c 21–24%. TE blunt to 0.8 mm. Open drafted tips.
 - **Rotor:** one piece, N=3, 60° helix, σ in 0.24–0.45. Envelope/rotor ≤ 1.55.
-- **Fits:** running +0.40 (rollers), slip +0.28 (retainer), friction +0.16 (axle on post). Slicer XY hole compensation stays 0. No press. No 608.
-- **Bushing:** printed roller cartridge (6× min Ø8) on a large PCD. A two-land sleeve is not enough for tip moment.
+- **Fits:** running +0.40 (rollers on both races), slip +0.28 (retainer), friction +0.16 (axle on post, hub on bushing OD). Slicer XY hole compensation stays 0. No press. No 608.
+- **Bushing:** distinct outer-race ring with an external shoulder. PIP roller cartridge (6× min Ø8) on a large PCD inside the ID. Hub friction-mounts on the OD. A two-land sleeve is not enough for tip moment.
 - **Scale:** X2D-max source; exam scale 0.4. Feature floors clamped.
 - **Service finish:** rotor standing so layer lines run spanwise; sand PLA 400→1000 on skins.
 - **Assembly drawing:** A3 sheet, auto-layout, notes for fits / scale / print / BOM.
 
 ## 3. Final product
 
-Five functional parts: base → axle → roller cartridge → rotor → retainer.
+Six functional parts: base → axle → bushing → roller cartridge → rotor → retainer.
 
 Open in CAD: `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor.nbcad`
 

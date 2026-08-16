@@ -275,8 +275,23 @@ function rollerH() {
 function innerRaceD() {
   return mmMin(spec.inner_race_d, rollerD() + 4);
 }
-function hubBore() {
+function outerRaceId() {
   return innerRaceD() + 2 * rollerD() + spec.fit_running_mm;
+}
+function bushingOd() {
+  return outerRaceId() + 2 * wall();
+}
+function bushingFlangeOd() {
+  return Math.max(bushingOd() + 2 * wall() * 2, hubOd() + 2 * wall());
+}
+function bushingFlangeH() {
+  return mmMin(4, 1.6);
+}
+function bushingH() {
+  return cageH();
+}
+function hubBore() {
+  return bushingOd() + spec.fit_friction_mm;
 }
 function hubOd() {
   return hubBore() + 2 * wall() * 2;
@@ -291,7 +306,7 @@ function axleSquare() {
   return mm(spec.axle_square);
 }
 function axleFlangeD() {
-  return Math.max(mm(spec.axle_flange_d), hubOd() + 6);
+  return Math.max(mm(spec.axle_flange_d), hubOd() + 6, bushingFlangeOd() + 4);
 }
 function axleFlangeH() {
   return mmMin(spec.axle_flange_h, 2.4);
@@ -327,7 +342,7 @@ function baseBossD() {
   return Math.max(axleFlangeD(), hubOd() + 8, mm(spec.base_boss_d));
 }
 function cageOd() {
-  return hubBore() - spec.fit_running_mm;
+  return outerRaceId() - spec.fit_running_mm;
 }
 function cageId() {
   return innerRaceD() + spec.fit_slip_mm;
@@ -339,7 +354,7 @@ function cagePocket() {
   return rollerD() + spec.fit_running_mm;
 }
 function retainerOd() {
-  return Math.max(Math.min(hubBore() + 4, hubOd() - 1), hubBore() + 2);
+  return Math.max(Math.min(outerRaceId() + 4, hubOd() - 1), outerRaceId() + 2);
 }
 function retainerId() {
   return axleSquare() + spec.fit_slip_mm;
@@ -351,7 +366,7 @@ function retainerH() {
   return mmMin(spec.retainer_h, 2);
 }
 function pcd() {
-  return (innerRaceD() + hubBore()) * 0.5;
+  return (innerRaceD() + outerRaceId()) * 0.5;
 }
 function usableBed() {
   return spec.printer.bed_mm.map((n) => n - 2 * spec.printer.margin_mm);
@@ -377,8 +392,14 @@ function raceZ() {
 function raceH() {
   return cageH() + spec.thrust_float;
 }
-function hubZ() {
+function bushingZ() {
   return raceZ() + spec.thrust_float;
+}
+function cageZ() {
+  return bushingZ();
+}
+function hubZ() {
+  return bushingZ() + bushingFlangeH();
 }
 function retainerZ() {
   return hubZ() + hubH() + spec.thrust_float;
@@ -431,9 +452,12 @@ function rollersOk() {
     spec.roller_count >= 6 &&
     rollerD() + 1e-9 >= spec.roller_min_d &&
     pcd() > innerRaceD() &&
-    hubBore() > innerRaceD() + 2 * rollerD() &&
-    cageOd() + 1e-9 < hubBore() &&
-    axleFlangeD() + 1e-9 > hubOd()
+    outerRaceId() > innerRaceD() + 2 * rollerD() &&
+    cageOd() + 1e-9 < outerRaceId() &&
+    hubBore() + 1e-9 >= bushingOd() + spec.fit_friction_mm &&
+    bushingOd() > outerRaceId() &&
+    bushingFlangeOd() + 1e-9 > hubOd() &&
+    axleFlangeD() + 1e-9 > bushingFlangeOd()
   );
 }
 function helixOk() {
@@ -457,18 +481,20 @@ function printFlatOk() {
 function stackOk() {
   return (
     Math.abs(flangeZ() - baseH()) < 1e-9 &&
-    hubZ() + 1e-9 >= raceZ() + spec.thrust_float &&
+    bushingZ() + 1e-9 >= raceZ() + spec.thrust_float &&
+    Math.abs(hubZ() - (bushingZ() + bushingFlangeH())) < 1e-9 &&
     retainerZ() + 1e-9 >= hubZ() + hubH() + spec.thrust_float &&
     retainerOd() + 1e-9 < hubOd() &&
-    retainerOd() + 1e-9 > hubBore() &&
-    raceH() + 1e-9 >= cageH() + spec.thrust_float
+    retainerOd() + 1e-9 > outerRaceId() &&
+    raceH() + 1e-9 >= cageH() + spec.thrust_float &&
+    hubH() + 1e-9 >= bushingH() - bushingFlangeH()
   );
 }
 function assemblyComponentCount() {
-  return 5 + spec.roller_count;
+  return 6 + spec.roller_count;
 }
 function assemblyJointCount() {
-  return 4 + spec.roller_count;
+  return 5 + spec.roller_count;
 }
 function sanityOk() {
   return (
@@ -489,8 +515,11 @@ function estimatedSolidCm3() {
     Math.PI * (innerRaceD() * 0.5) ** 2 * raceH();
   const cage = Math.PI * ((cageOd() * 0.5) ** 2 - (cageId() * 0.5) ** 2) * cageH();
   const rollers = spec.roller_count * Math.PI * (rollerD() * 0.5) ** 2 * rollerH();
+  const bushing =
+    Math.PI * ((bushingOd() * 0.5) ** 2 - (outerRaceId() * 0.5) ** 2) * bushingH() +
+    Math.PI * ((bushingFlangeOd() * 0.5) ** 2 - (bushingOd() * 0.5) ** 2) * bushingFlangeH();
   const retainer = (Math.PI * (retainerOd() * 0.5) ** 2 - retainerSquare() ** 2) * retainerH();
-  return (hub + wings + base + axle + cage + rollers + retainer) / 1000;
+  return (hub + wings + base + axle + bushing + cage + rollers + retainer) / 1000;
 }
 function estimatedPrintMassG() {
   return estimatedSolidCm3() * spec.filament.density_g_cm3 * spec.filament.print_volume_factor;
@@ -718,6 +747,44 @@ async function buildAxle(known) {
   return axleId;
 }
 
+async function buildBushing(known) {
+  const deck = await offsetXY(bushingZ());
+  await beginDatum(deck);
+  await addCircle(0, 0, bushingOd());
+  await addCircle(0, 0, outerRaceId());
+  let sketch = await finishSketch();
+  let update = requireClean(
+    await call("solid_extrude", {
+      sketch_name: sketch,
+      profile_indices: [0],
+      operation: "new_body",
+      extent: { type: "distance", distance: bushingH() },
+      taper_angle_deg: 0,
+      flip: false,
+      target_body_ids: [],
+    }),
+    "bushing race",
+  );
+  const bushingId = newestBody(update, known);
+  await beginDatum(deck);
+  await addCircle(0, 0, bushingFlangeOd());
+  await addCircle(0, 0, bushingOd() - spec.nozzle_mm);
+  sketch = await finishSketch();
+  requireClean(
+    await call("solid_extrude", {
+      sketch_name: sketch,
+      profile_indices: [0],
+      operation: "join",
+      extent: { type: "distance", distance: bushingFlangeH() },
+      taper_angle_deg: 0,
+      flip: false,
+      target_body_ids: [bushingId],
+    }),
+    "bushing shoulder",
+  );
+  return bushingId;
+}
+
 async function buildRotor(known) {
   const z0 = hubZ();
   const deck = await offsetXY(z0);
@@ -791,7 +858,7 @@ async function buildRotor(known) {
 }
 
 async function buildCartridge(known) {
-  const deck = await offsetXY(hubZ());
+  const deck = await offsetXY(cageZ());
   await beginDatum(deck);
   await addCircle(0, 0, cageOd());
   await addCircle(0, 0, cageId());
@@ -985,9 +1052,9 @@ async function requireLinkedSolution() {
   }
 }
 
-async function createStableJoint(name, kind, connectorA, connectorB, groundedBodyId) {
+async function createStableJoint(name, kind, connectorA, connectorB, groundedBodyId, flips = [false, true]) {
   let lastError = `${name} failed`;
-  for (const flipped of [false, true]) {
+  for (const flipped of flips) {
     try {
       const joint = await call("assembly_create_joint", {
         name,
@@ -1028,6 +1095,7 @@ async function formAssembly(ids) {
   const parts = [
     ["base", [ids.baseId]],
     ["axle", [ids.axleId]],
+    ["bushing", [ids.bushingId]],
     ["rotor", [ids.rotorId]],
     ["cage", [ids.cageId]],
     ...ids.rollerIds.map((rollerId, index) => [`roller_${index}`, [rollerId]]),
@@ -1071,34 +1139,48 @@ async function formAssembly(ids) {
     ids.baseId,
   );
   await createStableJoint(
-    "rotor_spin",
+    "bushing_spin",
     "revolute",
     need(
       axisConnectorAt(scene, ids.axleId, [0, 0], raceZ() + raceH(), innerRaceD() * 0.5),
-      "no on-axis axle race for rotor_spin",
+      "no on-axis axle race for bushing_spin",
+    ),
+    need(
+      axisConnectorAt(scene, ids.bushingId, [0, 0], bushingZ() + bushingH(), outerRaceId() * 0.5),
+      "no on-axis bushing race for bushing_spin",
+    ),
+    ids.axleId,
+  );
+  await createStableJoint(
+    "hub_mount",
+    "rigid",
+    need(
+      axisConnectorAt(scene, ids.bushingId, [0, 0], hubZ() + hubH() * 0.5, bushingOd() * 0.5),
+      "no bushing OD for hub_mount",
     ),
     need(
       axisConnectorAt(scene, ids.rotorId, [0, 0], hubZ() + hubH(), hubBore() * 0.5),
-      "no on-axis hub bore for rotor_spin",
+      "no on-axis hub bore for hub_mount",
     ),
-    ids.axleId,
+    ids.bushingId,
+    [true, false],
   );
   await createStableJoint(
     "cage_spin",
     "revolute",
     need(
-      axisConnectorAt(scene, ids.axleId, [0, 0], hubZ() + cageH(), innerRaceD() * 0.5),
+      axisConnectorAt(scene, ids.axleId, [0, 0], cageZ() + cageH(), innerRaceD() * 0.5),
       "no on-axis axle race for cage_spin",
     ),
     need(
-      axisConnectorAt(scene, ids.cageId, [0, 0], hubZ() + cageH(), cageOd() * 0.5),
+      axisConnectorAt(scene, ids.cageId, [0, 0], cageZ() + cageH(), cageOd() * 0.5),
       "no on-axis cage circle for cage_spin",
     ),
     ids.axleId,
   );
   for (let index = 0; index < ids.rollerIds.length; index++) {
     const [x, y] = rollerXY(index);
-    const z = hubZ() + rollerH();
+    const z = cageZ() + rollerH();
     await createStableJoint(
       `roller_${index}_spin`,
       "revolute",
@@ -1169,14 +1251,16 @@ async function layoutPrintPlate(ids) {
   const baseR = baseEnvelope() * 0.5;
   const axleR = axleFlangeD() * 0.5;
   const cartR = pcd() * 0.5 + rollerD() * 0.5;
+  const bushR = bushingFlangeOd() * 0.5;
   const retR = retainerOd() * 0.5;
   const colX = rotorR + gap + Math.max(baseR, axleR);
-  const smallX = colX + Math.max(baseR, axleR) + gap + Math.max(cartR, retR);
+  const smallX = colX + Math.max(baseR, axleR) + gap + Math.max(cartR, retR, bushR);
   await moveBodies([ids.rotorId], [-rotorR - gap * 0.5, 0, -hubZ()]);
   await moveBodies([ids.baseId], [colX, baseR + gap * 0.5, 0]);
   await moveBodies([ids.axleId], [colX, -(axleR + gap * 0.5), -flangeZ()]);
-  await moveBodies([ids.cageId, ...ids.rollerIds], [smallX, -(axleR + gap * 0.5), -hubZ()]);
-  await moveBodies([ids.retainerId], [smallX, retR + gap, -retainerZ()]);
+  await moveBodies([ids.bushingId], [smallX, 0, -bushingZ()]);
+  await moveBodies([ids.cageId, ...ids.rollerIds], [smallX, -(cartR + bushR + gap), -cageZ()]);
+  await moveBodies([ids.retainerId], [smallX, bushR + gap + retR, -retainerZ()]);
 }
 
 async function makeAssemblyDrawing() {
@@ -1205,11 +1289,11 @@ async function makeAssemblyDrawing() {
     ],
     [
       [18, 58],
-      "GDT  axle SITS on base (stator). 0.20 float at flange/hub and hub/retainer. Hub-on-rollers is RUNNING, not friction.",
+      "GDT  axle SITS on base. Hub SITS on bushing shoulder (friction on OD). 0.20 float at flange/bushing and hub/retainer. Rollers RUNNING in the bushing.",
     ],
     [
       [18, 68],
-      `BOM  base (Y-frame + square post) · axle (inner-race puck) · rotor (hub+3×${spec.airfoil}) · roller cage + ${spec.roller_count} PIP rollers · retainer`,
+      `BOM  base (Y-frame + square post) · axle (inner-race puck) · bushing (outer race + shoulder) · rotor (hub+3×${spec.airfoil}) · roller cage + ${spec.roller_count} PIP rollers · retainer`,
     ],
     [
       [18, 78],
@@ -1239,6 +1323,7 @@ function writeDesignReport({ bodies, rotorBox, rotorFaces, plateFiles }) {
     ["Coincident running faces", "Hub sat on the flange and the retainer sat on the hub. Modeled 0.20 float at every running land."],
     ["Retainer cap through the hub", "Retainer OD covered the hub so the washer looked fused. Washer OD is now between hub bore and hub OD."],
     ["Five colors / five plates", "One laid-out plate. PLA Orange + PLA Glow only."],
+    ["Hub as the outer race", "Cage stuffed inside the hub wall looked like a colander, not a mount. Distinct bushing with an external shoulder; hub friction-mounts on the bushing OD."],
   ];
   const usd = estimatedFilamentUsd().toFixed(2);
   const markdown = `# Print Kit Tutor — design report
@@ -1256,26 +1341,27 @@ ${iterations.map(([name, why]) => `| ${name} | ${why} |`).join("\n")}
 - **Architecture:** Helical H-Darrieus, directionless (no yaw). Short fixed square post. Hub freewheels on a printed roller pack. No tall mast.
 - **Airfoil:** ${spec.airfoil} (t/c ${spec.airfoil_t_c}). 2026 VAWT dynamic-stall work favors t/c 21–24%. TE blunt to ${teMin()} mm (≥ 2 nozzles). Open drafted tips.
 - **Rotor:** one piece, N=${spec.wing_count}, c=${chordRoot().toFixed(1)}/${chordTip().toFixed(1)} mm, R=${wingRadius().toFixed(1)} mm, span=${wingH().toFixed(1)} mm, helix ${spec.helix_deg}°, σ=${solidity().toFixed(3)}. Envelope/rotor ${(baseEnvelope() / rotorD()).toFixed(2)}.
-- **Fits:** running +${spec.fit_running_mm} (rollers / hub bore — **not** a friction fit). Slip +${spec.fit_slip_mm} (square retainer on the post). Friction +${spec.fit_friction_mm} (axle square on the post only). Slicer XY hole compensation stays 0. Axle **sits** on the base (stator). Thrust float ${spec.thrust_float} at flange↔hub/cage and hub↔retainer. Retainer is a washer with a square slip hole.
-- **Loads:** weight/thrust on the flange land (Z). Radial + overturning moment on the large-PCD roller pack (XY and tip moment). Torque about Z stays in the rotor; the square post is the stator. Centrifugal blade load is taken by the one-piece hub spars — do not friction-fit blades or the hub onto the rollers.
-- **Links:** rigid axle_sit + retainer_sit; revolute rotor_spin + cage_spin + ${spec.roller_count}× roller_spin. assembly_solution must stay solved without yanking parts off-axis.
-- **Materials:** ${plaOrange} (base, axle, cage, rollers, retainer) and ${plaGlow} (rotor). Hardened nozzle for glow. AMS lite is not recommended for glow.
-- **Bushing:** printed roller cartridge ${spec.roller_count}× Ø${rollerD().toFixed(1)} on PCD ${pcd().toFixed(1)}. A two-land sleeve is not enough for tip moment.
+- **Fits:** running +${spec.fit_running_mm} (rollers on inner race + bushing ID — **not** a friction fit). Slip +${spec.fit_slip_mm} (square retainer on the post). Friction +${spec.fit_friction_mm} (axle square on the post, hub on bushing OD). Slicer XY hole compensation stays 0. Axle **sits** on the base (stator). Hub **sits** on the bushing shoulder. Thrust float ${spec.thrust_float} at flange↔bushing/cage and hub↔retainer. Retainer is a washer that covers the open raceway.
+- **Loads:** weight/thrust on the axle flange land (Z). Radial + overturning moment on the large-PCD roller pack inside the bushing (XY and tip moment). Torque about Z stays in the rotor; the square post is the stator. Centrifugal blade load is taken by the one-piece hub spars — do not friction-fit blades or the hub onto the rollers.
+- **Links:** rigid axle_sit + hub_mount + retainer_sit; revolute bushing_spin + cage_spin + ${spec.roller_count}× roller_spin. assembly_solution must stay solved without yanking parts off-axis.
+- **Materials:** ${plaOrange} (base, axle, bushing, cage, rollers, retainer) and ${plaGlow} (rotor). Hardened nozzle for glow. AMS lite is not recommended for glow.
+- **Bushing:** distinct outer-race ring (OD ${bushingOd().toFixed(1)}, shoulder ${bushingFlangeOd().toFixed(1)}) with PIP rollers ${spec.roller_count}× Ø${rollerD().toFixed(1)} on PCD ${pcd().toFixed(1)} inside the ID. Hub friction-mounts on the bushing OD. A two-land sleeve is not enough for tip moment.
 - **Scale:** source numbers are X2D-max (256×256×260, 8 mm margin). Exam scale ${spec.scale}. Feature floors: roller Ø${spec.roller_min_d}, TE ${spec.airfoil_te_min_mm}, 4-nozzle walls.
 - **Service finish:** rotor standing so layer lines run spanwise; sand PLA 400→1000 on skins. Do not vapor-smooth a running fit.
 - **Assembly drawing:** A3 sheet, auto-layout, notes for fits / scale / print / BOM.
 
 ## 3. Final product
 
-Five functional parts, assembly order: ${spec.assembly_order.join(" → ")}.
+Six functional parts, assembly order: ${spec.assembly_order.join(" → ")}.
 
 | Part | Count | Role |
 |------|------:|------|
 | Base | 1 | Y-frame + square stator post. Print flat. |
 | Axle | 1 | Inner-race puck, square bore, print on the flange. |
-| Rotor | 1 | Hub + 3× ${spec.airfoil}, open tips, print standing. |
-| Roller cartridge | 1 | Cage + ${spec.roller_count} PIP rollers. |
-| Retainer | 1 | Slip ring on the post. |
+| Bushing | 1 | Outer-race ring + external shoulder. Hub seats on the OD. Print flat. |
+| Rotor | 1 | Hub + 3× ${spec.airfoil}, open tips, print standing. Friction-mounts on the bushing. |
+| Roller cartridge | 1 | Cage + ${spec.roller_count} PIP rollers inside the bushing ID. |
+| Retainer | 1 | Washer on the post covering the open raceway. |
 
 Rotor bbox (exam): ${rotorBox ? `${rotorBox.span.map((n) => n.toFixed(1)).join(" × ")} mm` : "n/a"}; faces=${rotorFaces}. Bodies=${bodies.length}.
 
@@ -1293,7 +1379,7 @@ Print plate in \`${out3mfDir}\` (folder wiped first; parts laid out on one plate
 
 ${plateFiles.map((file) => `- \`${file}\``).join("\n")}
 
-Slicer: one plate, two materials (PLA Orange + PLA Glow). Base/axle/cage/retainer flat. Rotor standing on the hub, tips up.
+Slicer: one plate, two materials (PLA Orange + PLA Glow). Base/axle/bushing/cage/retainer flat. Rotor standing on the hub, tips up.
 
 Project: \`${outProject}\`
 
@@ -1386,16 +1472,17 @@ try {
 
   const baseId = await buildBase();
   const axleId = await buildAxle([baseId]);
-  const rotorId = await buildRotor([baseId, axleId]);
-  const { cageId, rollerIds } = await buildCartridge([baseId, axleId, rotorId]);
-  const retainerId = await buildRetainer([baseId, axleId, rotorId, cageId, ...rollerIds]);
+  const bushingId = await buildBushing([baseId, axleId]);
+  const rotorId = await buildRotor([baseId, axleId, bushingId]);
+  const { cageId, rollerIds } = await buildCartridge([baseId, axleId, bushingId, rotorId]);
+  const retainerId = await buildRetainer([baseId, axleId, bushingId, rotorId, cageId, ...rollerIds]);
 
   let assemblyOk = false;
   let assemblyDetail = "";
   try {
-    await formAssembly({ baseId, axleId, rotorId, cageId, rollerIds, retainerId });
+    await formAssembly({ baseId, axleId, bushingId, rotorId, cageId, rollerIds, retainerId });
     assemblyOk = true;
-    assemblyDetail = `${assemblyComponentCount()} linked parts, ≥${assemblyJointCount()} joints; axle sits on base; hub and cage freewheel; rollers spin in the cage`;
+    assemblyDetail = `${assemblyComponentCount()} linked parts, ≥${assemblyJointCount()} joints; axle sits on base; bushing freewheels; hub mounts on bushing; rollers spin in the cage`;
   } catch (error) {
     assemblyDetail = String(error?.message ?? error);
   }
@@ -1414,6 +1501,7 @@ try {
   const appearances = [
     [baseId, plaOrange],
     [axleId, plaOrange],
+    [bushingId, plaOrange],
     [rotorId, plaGlow],
     [cageId, plaOrange],
     [retainerId, plaOrange],
@@ -1445,8 +1533,8 @@ try {
     outProject,
   );
   const removedPlates = cleanKitOutputs();
-  await layoutPrintPlate({ baseId, axleId, rotorId, cageId, rollerIds, retainerId });
-  const kitBodies = [baseId, axleId, rotorId, cageId, retainerId, ...rollerIds];
+  await layoutPrintPlate({ baseId, axleId, bushingId, rotorId, cageId, rollerIds, retainerId });
+  const kitBodies = [baseId, axleId, bushingId, rotorId, cageId, retainerId, ...rollerIds];
   const plateFiles = [];
   const plateBytes = [];
   for (const name of currentPlates) {
@@ -1510,7 +1598,7 @@ try {
     report.lessons,
     "rollers",
     rollersOk() && rollerIds.length === spec.roller_count,
-    `${spec.roller_count}× Ø${rollerD().toFixed(1)} rollers on PCD ${pcd().toFixed(1)}; hub bore ${hubBore().toFixed(1)}`,
+    `${spec.roller_count}× Ø${rollerD().toFixed(1)} rollers on PCD ${pcd().toFixed(1)}; bushing OD ${bushingOd().toFixed(1)}; hub bore ${hubBore().toFixed(1)}`,
   );
   record(
     report.lessons,

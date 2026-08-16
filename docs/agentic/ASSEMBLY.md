@@ -8,13 +8,15 @@ MCP now wraps **every** one of those methods as a named tool in
 `FocusPack::Assembly` (`mcp-server/src/assembly_tools.rs`). Agents should
 call `assembly_create_joint`, not `cad_invoke`. The print-kit tutor now
 builds **individual parts**, then forms a linked assembly: one component
-and one occurrence per moving body, rigid stator joints, and revolutes
-for the rotor, cage, and each roller. `assembly_create_component` already inserts the root
+and one occurrence per moving body, rigid stator joints, a rigid hub
+mount on the bushing OD, and revolutes for the bushing, cage, and each
+roller. `assembly_create_component` already inserts the root
 occurrence — a second `assembly_create_occurrence` duplicates every
 part and the solver will yank a copy off-axis. Joint connectors must
-be on-axis circular edges (hub bore / axle race), not a blade-spar
-face — planar face centroids yank the rotor off-axis. Fits stay
-numbers (running / slip / friction) — joints do not invent metal 608s.
+be on-axis circular edges (bushing ID / OD, hub bore, axle race), not a
+blade-spar face — planar face centroids yank the rotor off-axis. Fits
+stay numbers (running / slip / friction) — joints do not invent metal
+608s. The hub is not the outer race.
 
 ## What the engine and MCP both have
 

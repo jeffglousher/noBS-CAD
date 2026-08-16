@@ -19,11 +19,11 @@ revolute). See [ASSEMBLY.md](ASSEMBLY.md). It starts with
 `cad_new_project` and fails if the scene is not empty — do not continue
 a recovered or older Print Kit Tutor. Construction planes and finished
 loft sketches are hidden before the `.nbcad` is written so File → Open
-shows the five-part kit, not orange datum stacks.
+shows the six-part kit, not orange datum stacks.
 
 ## What to build
 
-A five-part **printed VAWT assembly** (spec
+A six-part **printed VAWT assembly** (spec
 `scripts/fixtures/print-kit-tutor.spec.json`, id `fdm-print-vawt`).
 Linear numbers are the Bambu Lab X2D-max design (256×256×260, 8 mm
 margin). `spec.scale` shrinks the source (exam default **0.4**). Feature
@@ -32,24 +32,26 @@ floors (roller Ø8, TE 0.8, 4-nozzle walls) are clamped.
 | Part | Role | How it mates |
 |------|------|----------------|
 | Base | Y-frame + short square stator post, one piece | Post is the grounded axis. Print flat. |
-| Axle | Flanged inner-race puck, square bore | Friction on the post (+0.16). Hub floats 0.20 above the flange land. Print on the flange. |
-| Rotor | Hub + 3 helical **NACA 0021** blades, **one body**, open drafted tips | Hub bore is the outer race. Freewheels on the rollers. Print standing on the hub. PLA Glow. |
-| Roller cartridge | Cage + 6 PIP rollers, min Ø8, large PCD | Running +0.40 on rollers/races. PIP on the kit plate. |
-| Retainer | Washer (OD < hub OD) | Slip +0.28 on the post. Floats 0.20 above the hub. |
+| Axle | Flanged inner-race puck, square bore | Friction on the post (+0.16). Print on the flange. |
+| Bushing | Outer-race ring + external shoulder | Freewheels on the rollers. Hub friction-mounts on the OD and sits on the shoulder. Print flat. PLA Orange. |
+| Rotor | Hub + 3 helical **NACA 0021** blades, **one body**, open drafted tips | Bore = bushing OD + friction. Not the outer race. Print standing on the hub. PLA Glow. |
+| Roller cartridge | Cage + 6 PIP rollers, min Ø8, large PCD | Running +0.40 on rollers / inner race / bushing ID. PIP on the kit plate. |
+| Retainer | Washer covering the open raceway | Slip +0.28 on the post. Floats 0.20 above the hub. |
 
 Fits are **per role** (running / slip / friction). Do not use +0.40 on
 every hole. Slicer XY hole compensation stays 0. No metal 608s. No FDM
 press fits.
 
-Assembly order: **base → axle → roller cartridge → rotor → retainer**.
+Assembly order: **base → axle → bushing → roller cartridge → rotor → retainer**.
 
 Then: one `assembly_create_component` per **moving** body (base, axle,
-rotor, cage, each roller, retainer). That call already inserts the root
-occurrence — a second `assembly_create_occurrence` duplicates every
-part. Ground the base. **Rigid** the stator (axle sits on the base;
-retainer sits on the post). **Revolute** the rotor, cage, and each
-roller on the axis / pocket axes — not a blade spar. Hub-on-rollers is
-a running fit, not friction. Ship an A3 assembly drawing with notes.
+bushing, rotor, cage, each roller, retainer). That call already inserts
+the root occurrence — a second `assembly_create_occurrence` duplicates
+every part. Ground the base. **Rigid** the stator (axle sits on the
+base; retainer sits on the post) and **rigid** `hub_mount` (hub on
+bushing OD). **Revolute** the bushing, cage, and each roller on the
+axis / pocket axes — not a blade spar. Hub-on-rollers is a running fit,
+not friction. Ship an A3 assembly drawing with notes.
 
 Print each functional part in its own orientation on **one** plate.
 The cartridge is print-in-place. The exam **wipes**
@@ -82,9 +84,10 @@ The exam also writes a reusable project next to the 3MF (override with
 Desktop crash recovery can reopen an older nest (tan base, red disc,
 orange helix planes). That is not this kit. **File → New**, then
 **File → Open** the path above. The current kit is an orange Y-frame /
-axle / cage / retainer and a glow-green one-piece rotor, with 0.20 mm
-axial float at every running land. Switch workspace to **Assembly** to
-see the five parts.
+axle / bushing / cage / retainer and a glow-green one-piece rotor, with
+0.20 mm axial float at every running land. Switch workspace to **Assembly** to
+see the six parts. The orange bushing shoulder should stick out under
+the glow hub; rollers live in the bushing, not in the hub wall.
 
 Agents start with `prompts/get model_print_kit`.
 
@@ -93,8 +96,8 @@ Agents start with `prompts/get model_print_kit`.
 1. Start from a blank document (`cad_new_project`, 0 bodies; hide datums)
 2. Fits are per role and material (running +0.40, slip +0.28, friction +0.16)
 3. Snug is not a press
-4. Individual parts, then a linked assembly (stator rigid + rotor/cage/roller revolutes; rotor is one piece)
-5. Print a roller pack that takes tip moment (large PCD, no 608)
+4. Individual parts, then a linked assembly (stator rigid + bushing/hub mount + cage/roller revolutes; rotor is one piece)
+5. Print a roller pack inside a distinct bushing that takes tip moment (large PCD, no 608; hub is not the outer race)
 6. Keep the machine even (3 blades at 120°, 60° helix from 30°)
 7. Blades and hub are one part
 8. The section is a 2026-appropriate airfoil

@@ -107,8 +107,23 @@ impl Spec {
     fn inner_race_d(&self) -> f64 {
         self.mm_min(self.inner_race_d, self.roller_d() + 4.0)
     }
-    fn hub_bore(&self) -> f64 {
+    fn outer_race_id(&self) -> f64 {
         self.inner_race_d() + 2.0 * self.roller_d() + self.fit_running_mm
+    }
+    fn bushing_od(&self) -> f64 {
+        self.outer_race_id() + 2.0 * self.wall()
+    }
+    fn bushing_flange_od(&self) -> f64 {
+        (self.bushing_od() + 2.0 * self.wall() * 2.0).max(self.hub_od() + 2.0 * self.wall())
+    }
+    fn bushing_flange_h(&self) -> f64 {
+        self.mm_min(4.0, 1.6)
+    }
+    fn bushing_h(&self) -> f64 {
+        self.cage_h()
+    }
+    fn hub_bore(&self) -> f64 {
+        self.bushing_od() + self.fit_friction_mm
     }
     fn hub_od(&self) -> f64 {
         self.hub_bore() + 2.0 * self.wall() * 2.0
@@ -126,7 +141,9 @@ impl Spec {
         self.mm_min(self.axle_square_h, self.hub_h() + 2.0)
     }
     fn axle_flange_d(&self) -> f64 {
-        self.mm(self.axle_flange_d).max(self.hub_od() + 6.0)
+        self.mm(self.axle_flange_d)
+            .max(self.hub_od() + 6.0)
+            .max(self.bushing_flange_od() + 4.0)
     }
     fn axle_flange_h(&self) -> f64 {
         self.mm_min(self.axle_flange_h, 2.4)
@@ -164,7 +181,7 @@ impl Spec {
             .max(self.mm(self.base_boss_d))
     }
     fn cage_od(&self) -> f64 {
-        self.hub_bore() - self.fit_running_mm
+        self.outer_race_id() - self.fit_running_mm
     }
     fn cage_id(&self) -> f64 {
         self.inner_race_d() + self.fit_slip_mm
@@ -176,9 +193,9 @@ impl Spec {
         self.roller_d() + self.fit_running_mm
     }
     fn retainer_od(&self) -> f64 {
-        (self.hub_bore() + 4.0)
+        (self.outer_race_id() + 4.0)
             .min(self.hub_od() - 1.0)
-            .max(self.hub_bore() + 2.0)
+            .max(self.outer_race_id() + 2.0)
     }
     fn retainer_square(&self) -> f64 {
         self.axle_square() + self.fit_slip_mm
@@ -187,7 +204,7 @@ impl Spec {
         self.mm_min(self.retainer_h, 2.0)
     }
     fn pcd(&self) -> f64 {
-        (self.inner_race_d() + self.hub_bore()) * 0.5
+        (self.inner_race_d() + self.outer_race_id()) * 0.5
     }
     fn usable_bed(&self) -> [f64; 3] {
         [
@@ -223,8 +240,14 @@ impl Spec {
     fn race_h(&self) -> f64 {
         self.cage_h() + self.thrust_float
     }
-    fn hub_z(&self) -> f64 {
+    fn bushing_z(&self) -> f64 {
         self.race_z() + self.thrust_float
+    }
+    fn cage_z(&self) -> f64 {
+        self.bushing_z()
+    }
+    fn hub_z(&self) -> f64 {
+        self.bushing_z() + self.bushing_flange_h()
     }
     fn retainer_z(&self) -> f64 {
         self.hub_z() + self.hub_h() + self.thrust_float
@@ -274,9 +297,12 @@ impl Spec {
         self.roller_count >= 6
             && self.roller_d() + 1e-9 >= self.roller_min_d
             && self.pcd() > self.inner_race_d()
-            && self.hub_bore() > self.inner_race_d() + 2.0 * self.roller_d()
-            && self.cage_od() + 1e-9 < self.hub_bore()
-            && self.axle_flange_d() + 1e-9 > self.hub_od()
+            && self.outer_race_id() > self.inner_race_d() + 2.0 * self.roller_d()
+            && self.cage_od() + 1e-9 < self.outer_race_id()
+            && self.hub_bore() + 1e-9 >= self.bushing_od() + self.fit_friction_mm
+            && self.bushing_od() > self.outer_race_id()
+            && self.bushing_flange_od() + 1e-9 > self.hub_od()
+            && self.axle_flange_d() + 1e-9 > self.bushing_flange_od()
     }
     fn helix_ok(&self) -> bool {
         self.helix_deg >= 45.0 && self.helix_stations >= 2
@@ -293,17 +319,19 @@ impl Spec {
     }
     fn stack_ok(&self) -> bool {
         (self.flange_z() - self.base_h()).abs() < 1e-9
-            && self.hub_z() + 1e-9 >= self.race_z() + self.thrust_float
+            && self.bushing_z() + 1e-9 >= self.race_z() + self.thrust_float
+            && (self.hub_z() - (self.bushing_z() + self.bushing_flange_h())).abs() < 1e-9
             && self.retainer_z() + 1e-9 >= self.hub_z() + self.hub_h() + self.thrust_float
             && self.retainer_od() + 1e-9 < self.hub_od()
-            && self.retainer_od() + 1e-9 > self.hub_bore()
+            && self.retainer_od() + 1e-9 > self.outer_race_id()
             && self.race_h() + 1e-9 >= self.cage_h() + self.thrust_float
+            && self.hub_h() + 1e-9 >= self.bushing_h() - self.bushing_flange_h()
     }
     fn assembly_component_count(&self) -> usize {
-        5 + self.roller_count
+        6 + self.roller_count
     }
     fn assembly_joint_count(&self) -> usize {
-        4 + self.roller_count
+        5 + self.roller_count
     }
     fn sanity_ok(&self) -> bool {
         self.base_envelope() / self.rotor_d() <= 1.55
@@ -333,10 +361,16 @@ impl Spec {
             * std::f64::consts::PI
             * (self.roller_d() * 0.5).powi(2)
             * self.roller_h();
+        let bushing = std::f64::consts::PI
+            * ((self.bushing_od() * 0.5).powi(2) - (self.outer_race_id() * 0.5).powi(2))
+            * self.bushing_h()
+            + std::f64::consts::PI
+                * ((self.bushing_flange_od() * 0.5).powi(2) - (self.bushing_od() * 0.5).powi(2))
+                * self.bushing_flange_h();
         let retainer = (std::f64::consts::PI * (self.retainer_od() * 0.5).powi(2)
             - self.retainer_square().powi(2))
             * self.retainer_h();
-        (hub + wings + base + axle + cage + rollers + retainer) / 1000.0
+        (hub + wings + base + axle + bushing + cage + rollers + retainer) / 1000.0
     }
     fn estimated_print_mass_g(&self) -> f64 {
         self.estimated_solid_cm3() * self.filament.density_g_cm3 * self.filament.print_volume_factor
@@ -387,6 +421,7 @@ pub fn load_spec() -> Result<Spec, String> {
 struct Built {
     base_id: u64,
     axle_id: u64,
+    bushing_id: u64,
     rotor_id: u64,
     cage_id: u64,
     roller_ids: Vec<u64>,
@@ -424,8 +459,9 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
 
     let base_id = build_base(&mut call, &spec)?;
     let axle_id = build_axle(&mut call, &spec, &[base_id])?;
-    let rotor_id = build_rotor(&mut call, &spec, &[base_id, axle_id])?;
-    let mut known = vec![base_id, axle_id, rotor_id];
+    let bushing_id = build_bushing(&mut call, &spec, &[base_id, axle_id])?;
+    let rotor_id = build_rotor(&mut call, &spec, &[base_id, axle_id, bushing_id])?;
+    let mut known = vec![base_id, axle_id, bushing_id, rotor_id];
     let (cage_id, roller_ids) = build_cartridge(&mut call, &spec, &known)?;
     known.push(cage_id);
     known.extend(roller_ids.iter().copied());
@@ -436,6 +472,7 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
         &spec,
         base_id,
         axle_id,
+        bushing_id,
         rotor_id,
         cage_id,
         &roller_ids,
@@ -456,6 +493,7 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
     for (id, preset) in [
         (base_id, spec.materials.orange.as_str()),
         (axle_id, spec.materials.orange.as_str()),
+        (bushing_id, spec.materials.orange.as_str()),
         (rotor_id, spec.materials.glow.as_str()),
         (cage_id, spec.materials.orange.as_str()),
         (retainer_id, spec.materials.orange.as_str()),
@@ -481,6 +519,7 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
         &spec,
         base_id,
         axle_id,
+        bushing_id,
         rotor_id,
         cage_id,
         &roller_ids,
@@ -496,6 +535,7 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
         Built {
             base_id,
             axle_id,
+            bushing_id,
             rotor_id,
             cage_id,
             roller_ids,
@@ -515,6 +555,7 @@ fn export_print_plates(
     spec: &Spec,
     base_id: u64,
     axle_id: u64,
+    bushing_id: u64,
     rotor_id: u64,
     cage_id: u64,
     roller_ids: &[u64],
@@ -525,12 +566,13 @@ fn export_print_plates(
         spec,
         base_id,
         axle_id,
+        bushing_id,
         rotor_id,
         cage_id,
         roller_ids,
         retainer_id,
     )?;
-    let mut body_ids = vec![base_id, axle_id, rotor_id, cage_id, retainer_id];
+    let mut body_ids = vec![base_id, axle_id, bushing_id, rotor_id, cage_id, retainer_id];
     body_ids.extend(roller_ids.iter().copied());
     let name = spec
         .print_plates
@@ -574,6 +616,7 @@ fn layout_print_plate(
     spec: &Spec,
     base_id: u64,
     axle_id: u64,
+    bushing_id: u64,
     rotor_id: u64,
     cage_id: u64,
     roller_ids: &[u64],
@@ -584,9 +627,10 @@ fn layout_print_plate(
     let base_r = spec.base_envelope() * 0.5;
     let axle_r = spec.axle_flange_d() * 0.5;
     let cart_r = spec.pcd() * 0.5 + spec.roller_d() * 0.5;
+    let bush_r = spec.bushing_flange_od() * 0.5;
     let ret_r = spec.retainer_od() * 0.5;
     let col_x = rotor_r + gap + base_r.max(axle_r);
-    let small_x = col_x + base_r.max(axle_r) + gap + cart_r.max(ret_r);
+    let small_x = col_x + base_r.max(axle_r) + gap + cart_r.max(ret_r).max(bush_r);
     move_bodies(call, &[rotor_id], [-rotor_r - gap * 0.5, 0.0, -spec.hub_z()])?;
     move_bodies(call, &[base_id], [col_x, base_r + gap * 0.5, 0.0])?;
     move_bodies(
@@ -594,17 +638,22 @@ fn layout_print_plate(
         &[axle_id],
         [col_x, -(axle_r + gap * 0.5), -spec.flange_z()],
     )?;
+    move_bodies(
+        call,
+        &[bushing_id],
+        [small_x, 0.0, -spec.bushing_z()],
+    )?;
     let mut cartridge = vec![cage_id];
     cartridge.extend(roller_ids.iter().copied());
     move_bodies(
         call,
         &cartridge,
-        [small_x, -(axle_r + gap * 0.5), -spec.hub_z()],
+        [small_x, -(cart_r + bush_r + gap), -spec.cage_z()],
     )?;
     move_bodies(
         call,
         &[retainer_id],
-        [small_x, ret_r + gap, -spec.retainer_z()],
+        [small_x, bush_r + gap + ret_r, -spec.retainer_z()],
     )?;
     Ok(())
 }
@@ -776,6 +825,54 @@ fn build_axle(
     Ok(axle_id)
 }
 
+fn build_bushing(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    spec: &Spec,
+    known: &[u64],
+) -> Result<u64, String> {
+    let deck = offset_xy(call, spec.bushing_z())?;
+    begin_datum(call, deck.clone())?;
+    add_circle(call, [0.0, 0.0], spec.bushing_od())?;
+    add_circle(call, [0.0, 0.0], spec.outer_race_id())?;
+    let tube = finish_sketch(call)?;
+    let update = require_clean(
+        call(
+            "solid_extrude",
+            json!({
+                "sketch_name": tube,
+                "profile_indices": [0],
+                "operation": "new_body",
+                "extent": { "type": "distance", "distance": spec.bushing_h() },
+                "taper_angle_deg": 0.0,
+                "flip": false,
+                "target_body_ids": []
+            }),
+        )?,
+        "bushing race",
+    )?;
+    let bushing_id = newest_body_id(&update, known)?;
+    begin_datum(call, deck)?;
+    add_circle(call, [0.0, 0.0], spec.bushing_flange_od())?;
+    add_circle(call, [0.0, 0.0], spec.bushing_od() - spec.nozzle_mm)?;
+    let shoulder = finish_sketch(call)?;
+    require_clean(
+        call(
+            "solid_extrude",
+            json!({
+                "sketch_name": shoulder,
+                "profile_indices": [0],
+                "operation": "join",
+                "extent": { "type": "distance", "distance": spec.bushing_flange_h() },
+                "taper_angle_deg": 0.0,
+                "flip": false,
+                "target_body_ids": [bushing_id]
+            }),
+        )?,
+        "bushing shoulder",
+    )?;
+    Ok(bushing_id)
+}
+
 fn build_rotor(
     call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
     spec: &Spec,
@@ -875,7 +972,7 @@ fn build_cartridge(
     spec: &Spec,
     known: &[u64],
 ) -> Result<(u64, Vec<u64>), String> {
-    let deck = offset_xy(call, spec.hub_z())?;
+    let deck = offset_xy(call, spec.cage_z())?;
     begin_datum(call, deck.clone())?;
     add_circle(call, [0.0, 0.0], spec.cage_od())?;
     add_circle(call, [0.0, 0.0], spec.cage_id())?;
@@ -1004,6 +1101,7 @@ fn form_assembly(
     spec: &Spec,
     base_id: u64,
     axle_id: u64,
+    bushing_id: u64,
     rotor_id: u64,
     cage_id: u64,
     roller_ids: &[u64],
@@ -1017,6 +1115,7 @@ fn form_assembly(
     let mut parts: Vec<(String, Vec<u64>)> = vec![
         ("base".to_string(), vec![base_id]),
         ("axle".to_string(), vec![axle_id]),
+        ("bushing".to_string(), vec![bushing_id]),
         ("rotor".to_string(), vec![rotor_id]),
         ("cage".to_string(), vec![cage_id]),
     ];
@@ -1074,7 +1173,7 @@ fn form_assembly(
     )?;
     create_stable_joint(
         call,
-        "rotor_spin",
+        "bushing_spin",
         "revolute",
         axis_connector_at(
             &scene,
@@ -1083,7 +1182,29 @@ fn form_assembly(
             spec.race_z() + spec.race_h(),
             spec.inner_race_d() * 0.5,
         )
-        .ok_or_else(|| "no on-axis axle race for rotor_spin".to_string())?,
+        .ok_or_else(|| "no on-axis axle race for bushing_spin".to_string())?,
+        axis_connector_at(
+            &scene,
+            bushing_id,
+            [0.0, 0.0],
+            spec.bushing_z() + spec.bushing_h(),
+            spec.outer_race_id() * 0.5,
+        )
+        .ok_or_else(|| "no on-axis bushing race for bushing_spin".to_string())?,
+        axle_id,
+    )?;
+    create_stable_joint_flips(
+        call,
+        "hub_mount",
+        "rigid",
+        axis_connector_at(
+            &scene,
+            bushing_id,
+            [0.0, 0.0],
+            spec.hub_z() + spec.hub_h() * 0.5,
+            spec.bushing_od() * 0.5,
+        )
+        .ok_or_else(|| "no bushing OD for hub_mount".to_string())?,
         axis_connector_at(
             &scene,
             rotor_id,
@@ -1091,8 +1212,9 @@ fn form_assembly(
             spec.hub_z() + spec.hub_h(),
             spec.hub_bore() * 0.5,
         )
-        .ok_or_else(|| "no on-axis hub bore for rotor_spin".to_string())?,
-        axle_id,
+        .ok_or_else(|| "no on-axis hub bore for hub_mount".to_string())?,
+        bushing_id,
+        [true, false],
     )?;
     create_stable_joint(
         call,
@@ -1102,7 +1224,7 @@ fn form_assembly(
             &scene,
             axle_id,
             [0.0, 0.0],
-            spec.hub_z() + spec.cage_h(),
+            spec.cage_z() + spec.cage_h(),
             spec.inner_race_d() * 0.5,
         )
         .ok_or_else(|| "no on-axis axle race for cage_spin".to_string())?,
@@ -1110,7 +1232,7 @@ fn form_assembly(
             &scene,
             cage_id,
             [0.0, 0.0],
-            spec.hub_z() + spec.cage_h(),
+            spec.cage_z() + spec.cage_h(),
             spec.cage_od() * 0.5,
         )
         .ok_or_else(|| "no on-axis cage circle for cage_spin".to_string())?,
@@ -1118,7 +1240,7 @@ fn form_assembly(
     )?;
     for (index, roller_id) in roller_ids.iter().enumerate() {
         let [x, y] = spec.roller_xy(index);
-        let z = spec.hub_z() + spec.roller_h();
+        let z = spec.cage_z() + spec.roller_h();
         create_stable_joint(
             call,
             &format!("roller_{index}_spin"),
@@ -1179,13 +1301,13 @@ fn form_assembly(
     }
     if joints < spec.assembly_joint_count() {
         return Err(format!(
-            "expected ≥{} joints (stator rigid + rotor/cage/rollers), got {joints}",
+            "expected ≥{} joints (stator rigid + bushing/hub + cage/rollers), got {joints}",
             spec.assembly_joint_count()
         ));
     }
     require_linked_solution(call)?;
     Ok(format!(
-        "{defs} linked parts, {joints} joints; axle sits on base; hub and cage freewheel; rollers spin in the cage"
+        "{defs} linked parts, {joints} joints; axle sits on base; bushing freewheels; hub mounts on bushing; rollers spin in the cage"
     ))
 }
 
@@ -1197,8 +1319,28 @@ fn create_stable_joint(
     connector_b: Value,
     grounded_body_id: u64,
 ) -> Result<(), String> {
+    create_stable_joint_flips(
+        call,
+        name,
+        kind,
+        connector_a,
+        connector_b,
+        grounded_body_id,
+        [false, true],
+    )
+}
+
+fn create_stable_joint_flips(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    name: &str,
+    kind: &str,
+    connector_a: Value,
+    connector_b: Value,
+    grounded_body_id: u64,
+    flips: [bool; 2],
+) -> Result<(), String> {
     let mut last_error = String::new();
-    for flipped in [false, true] {
+    for flipped in flips {
         let created = call(
             "assembly_create_joint",
             json!({
@@ -1295,12 +1437,12 @@ fn make_assembly_drawing(
         ),
         (
             [18.0, 58.0],
-            "GDT  axle SITS on base (stator). 0.20 float at flange/hub and hub/retainer. Hub-on-rollers is RUNNING, not friction.".to_string(),
+            "GDT  axle SITS on base. Hub SITS on bushing shoulder (friction on OD). 0.20 float at flange/bushing and hub/retainer. Rollers RUNNING in the bushing.".to_string(),
         ),
         (
             [18.0, 68.0],
             format!(
-                "BOM  base (Y-frame + square post) · axle (inner-race puck) · rotor (hub+3×{}) · roller cage + {} PIP rollers · retainer",
+                "BOM  base (Y-frame + square post) · axle (inner-race puck) · bushing (outer race + shoulder) · rotor (hub+3×{}) · roller cage + {} PIP rollers · retainer",
                 spec.airfoil, spec.roller_count
             ),
         ),
@@ -1551,10 +1693,11 @@ fn grade(
         "rollers",
         spec.rollers_ok() && built.roller_ids.len() == spec.roller_count,
         format!(
-            "{}× Ø{:.1} rollers on PCD {:.1}; hub bore {:.1}",
+            "{}× Ø{:.1} rollers on PCD {:.1}; bushing OD {:.1}; hub bore {:.1}",
             spec.roller_count,
             spec.roller_d(),
             spec.pcd(),
+            spec.bushing_od(),
             spec.hub_bore()
         ),
     );
@@ -2086,13 +2229,15 @@ mod spec_tests {
         assert_eq!(spec.materials.glow, "bambu.pla.glow.green");
         assert!(spec.stack_ok());
         assert!(spec.retainer_od() < spec.hub_od());
-        assert_eq!(spec.assembly_component_count(), 11);
-        assert_eq!(spec.assembly_joint_count(), 10);
+        assert_eq!(spec.assembly_component_count(), 12);
+        assert_eq!(spec.assembly_joint_count(), 11);
         assert!((spec.flange_z() - spec.base_h()).abs() < 1e-9);
         assert!((spec.wing_offset_deg + spec.helix_deg * 0.5 - 60.0).abs() < 1e-9);
         assert!(spec.rotor_print_h() / spec.scale <= spec.usable_bed()[2] + 1e-6);
-        assert!(spec.cage_od() < spec.hub_bore());
-        assert!(spec.axle_flange_d() > spec.hub_od());
+        assert!(spec.cage_od() < spec.outer_race_id());
+        assert!(spec.hub_bore() > spec.bushing_od());
+        assert!(spec.bushing_flange_od() > spec.hub_od());
+        assert!(spec.axle_flange_d() > spec.bushing_flange_od());
         assert!(spec.cage_id() > spec.inner_race_d());
         assert!(spec.post_h() < spec.axle_flange_d() * 2.5);
     }

@@ -57,7 +57,7 @@
   "cage_h": 12.0,
   "retainer_h": 3.0,
   "thrust_float": 0.2,
-  "min_bodies": 8,
+  "min_bodies": 12,
   "min_rotor_faces": 16,
   "min_print_plates": 1,
   "print_plates": ["01-kit"],
@@ -74,7 +74,7 @@
     "06-bushing",
     "07-cap"
   ],
-  "assembly_order": ["base", "axle", "roller_cage", "rotor", "retainer"],
+  "assembly_order": ["base", "axle", "bushing", "roller_cage", "rotor", "retainer"],
   "gdt": {
     "datums": {
       "A": "Base bottom (primary). Print bed for the stand.",
@@ -84,20 +84,20 @@
     "fits_mm": {
       "running_rollers": "+0.40 diametral PLA-on-PLA (spin). Slicer XY hole compensation stays 0.",
       "slip_axle_retainer": "+0.28 diametral — drops together, not sloppy.",
-      "friction_square_drive_and_cage": "+0.16 diametral — tap-in locate of the axle on the square post only, not a press. The hub must NOT friction-fit the rollers.",
-      "thrust_land": "Axle sits on the base (stator, no relative spin). 0.20 axial float at running lands (flange↔hub/cage, hub↔retainer). Retainer is a washer with a square slip hole (OD < hub OD)."
+      "friction_square_drive_and_cage": "+0.16 diametral — tap-in locate of the axle on the square post and of the hub on the bushing OD. Not a press. The hub must NOT friction-fit the rollers.",
+      "thrust_land": "Axle sits on the base (stator). Hub sits on the bushing shoulder (they spin together). 0.20 axial float at running lands (flange↔bushing/cage, hub↔retainer). Retainer is a washer that covers the open raceway (OD between outer-race ID and hub OD)."
     }
   },
   "lessons": [
     {
       "id": "blank",
       "title": "Start from a blank document",
-      "teach": "cad_new_project first. solid_scene must show 0 bodies before the first extrude. Do not continue a recovered or older Print Kit Tutor (tan nest, red disc, leftover helix planes). Hide construction planes and finished loft sketches before save so File → Open is the five-part kit, not orange datums."
+      "teach": "cad_new_project first. solid_scene must show 0 bodies before the first extrude. Do not continue a recovered or older Print Kit Tutor (tan nest, red disc, leftover helix planes). Hide construction planes and finished loft sketches before save so File → Open is the six-part kit, not orange datums."
     },
     {
       "id": "fits",
       "title": "Fits are per role and material",
-      "teach": "Do not use one clearance for every hole. Running (rollers) is +0.40. Slip (axle / retainer) is +0.28. Friction locate (square drive, cage in base) is +0.16. Model 0.20 axial float at every running land — coincident planes fuse in FDM. That is PLA + 0.4 mm nozzle at design time. Slicer XY hole compensation stays 0 unless a gauge print says otherwise."
+      "teach": "Do not use one clearance for every hole. Running (rollers on both races) is +0.40. Slip (retainer on the post) is +0.28. Friction locate (axle on the square post, hub on the bushing OD) is +0.16. Model 0.20 axial float at every running land — coincident planes fuse in FDM. The hub sits on the bushing shoulder (no float; they spin together). That is PLA + 0.4 mm nozzle at design time. Slicer XY hole compensation stays 0 unless a gauge print says otherwise."
     },
     {
       "id": "no_press",
@@ -107,12 +107,12 @@
     {
       "id": "assemble",
       "title": "Individual parts, then an assembly",
-      "teach": "Each body that moves is its own component with exactly one occurrence. assembly_create_component already inserts the root instance — do not create a second copy. Link the stator with rigid joints (axle sits on the base; retainer sits on the post). Revolute the rotor, cage, and each roller on circular edges / cylinders — never a blade-spar face. Hub-on-rollers is a running fit, not friction. Blades stay one printed body with the hub."
+      "teach": "Each body that moves is its own component with exactly one occurrence. assembly_create_component already inserts the root instance — do not create a second copy. Link the stator with rigid joints (axle sits on the base; retainer sits on the post). Revolute the bushing and cage on the axle axis, and each roller in its pocket — never a blade-spar face. Rigid-mount the hub on the bushing OD (hub_mount). The hub is not the outer race. Blades stay one printed body with the hub."
     },
     {
       "id": "rollers",
       "title": "Print a roller pack that takes tip moment",
-      "teach": "A tall skinny sleeve cannot hold aero loads at the blade tips. Use a short, large-PCD printed roller cartridge (PIP rollers in a cage) under the hub. Thrust on a flat land. Size rollers for FDM (min Ø8)."
+      "teach": "A tall skinny sleeve cannot hold aero loads at the blade tips. Use a short, large-PCD printed roller cartridge (PIP rollers in a cage) inside a distinct outer-race bushing. The hub friction-mounts on the bushing OD and sits on the bushing shoulder. Thrust on a flat land. Size rollers for FDM (min Ø8)."
     },
     {
       "id": "even",
@@ -157,7 +157,7 @@
     {
       "id": "export",
       "title": "Export one laid-out plate",
-      "teach": "Wipe Print-Kit-Tutor/ first so leftover five-plate and shaft/hub/wings names are gone. Save the assembled .nbcad, then solid_move_copy parts onto the bed (rotor standing on the hub, others flat) and solid_export_3mf once as 01-kit. Two materials only: PLA Orange and PLA Glow. Do not export the assembled nest as the print job."
+      "teach": "Wipe Print-Kit-Tutor/ first so leftover five-plate and shaft/hub/wings names are gone. Save the assembled .nbcad, then solid_move_copy parts onto the bed (rotor standing on the hub, others flat) and solid_export_3mf once as 01-kit. Two materials only: PLA Orange (including the bushing) and PLA Glow (rotor). Do not export the assembled nest as the print job."
     }
   ]
 }

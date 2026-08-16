@@ -337,6 +337,9 @@ if (!tutorSrc.includes('axisConnectorAt') || !tutorSrc.includes('circularEdgeAt'
 if (!tutorSrc.includes('axle_sit') || !tutorSrc.includes('cage_spin') || !tutorSrc.includes('createStableJoint')) {
   fail('print-kit Node exam must link the stator, rotor, cage, and rollers');
 }
+if (!tutorSrc.includes('bushing_spin') || !tutorSrc.includes('hub_mount') || !tutorSrc.includes('buildBushing')) {
+  fail('print-kit Node exam must mount the hub on a distinct outer-race bushing');
+}
 if (!tutorSrc.includes('solid_move_copy') || !tutorSrc.includes('layoutPrintPlate')) {
   fail('print-kit Node exam must lay the kit out on one plate before export');
 }
@@ -355,6 +358,9 @@ if (!rustTutor.includes('axis_connector_at') || !rustTutor.includes('circular_ed
 }
 if (!rustTutor.includes('axle_sit') || !rustTutor.includes('cage_spin') || !rustTutor.includes('create_stable_joint')) {
   fail('print-kit cargo exam must link the stator, rotor, cage, and rollers');
+}
+if (!rustTutor.includes('bushing_spin') || !rustTutor.includes('hub_mount') || !rustTutor.includes('build_bushing')) {
+  fail('print-kit cargo exam must mount the hub on a distinct outer-race bushing');
 }
 if (!rustTutor.includes('solid_move_copy') || !rustTutor.includes('layout_print_plate')) {
   fail('print-kit cargo exam must lay the kit out on one plate before export');

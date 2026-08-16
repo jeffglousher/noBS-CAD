@@ -134,7 +134,7 @@ graded, but it was the wrong product for additive manufacturing:
 | Uniform +0.40 | Every hole used the running clearance. Locates were sloppy; nothing that should be tight was. | Role-based: running +0.40, slip +0.28, friction +0.16. Slicer XY hole comp stays 0. |
 | Tenoned wings | Three separate blades + hub is a puzzle, not a rotor. | Hub + 3 helical NACAs are **one body**. Open drafted tips. |
 | Tall skinny shaft | Support tower; weak in bending at the blade tips. | Short square stator post. Axle is a flanged inner-race **puck**, printed on the flange. |
-| Two-land sleeve only | L/D 1.0 is a journal, not a moment bearing. | Large-PCD printed roller cartridge (PIP, min Ø8). Hub bore is the outer race. |
+| Two-land sleeve only | L/D 1.0 is a journal, not a moment bearing. | Large-PCD printed roller cartridge (PIP, min Ø8) inside a distinct outer-race bushing. |
 | No CAD assembly | Multi-body nest, no components/joints, no drawing. | 5 components, grounded base, revolute, A3 sheet with notes. |
 | No scale | Desk-size only; not an X2D-max source. | Spec numbers are X2D-max (256×256×260, 8 mm margin). `scale` 0.4 in the exam. |
 
@@ -145,10 +145,12 @@ graded, but it was the wrong product for additive manufacturing:
 | Rollers ↔ pockets / races | Running | +0.40 diametral |
 | Retainer ↔ square post | Slip | +0.28 |
 | Axle square bore ↔ post | Friction locate | +0.16 |
-| Hub / cage ↔ flange land | Thrust | 0.20 axial float |
-| Hub ↔ retainer washer | Thrust | 0.20 axial float; retainer OD < hub OD |
+| Hub bore ↔ bushing OD | Friction locate | +0.16. They spin together. |
+| Bushing / cage ↔ flange land | Thrust | 0.20 axial float |
+| Hub ↔ bushing shoulder | Sitting mount | Coincident. They do not spin relative to each other. |
+| Hub ↔ retainer washer | Thrust | 0.20 axial float; retainer covers the raceway, OD < hub OD |
 | Axle ↔ base | Sitting stator | Coincident land. They do not spin relative to each other. |
-| Hub ↔ rollers | Running | **Not a friction fit.** Friction here locks the bearing. |
+| Rollers ↔ inner race / bushing ID | Running | **Not a friction fit.** Friction here locks the bearing. |
 
 ### Print (current)
 
@@ -156,6 +158,7 @@ graded, but it was the wrong product for additive manufacturing:
 |------|-------------|
 | Base | Flat (Y-frame + post) |
 | Axle | On the flange |
+| Bushing | Flat (shoulder on the bed) |
 | Rotor | Standing on the hub, tips up |
 | Roller cartridge | Flat, PIP |
 | Retainer | Flat |
@@ -163,9 +166,10 @@ graded, but it was the wrong product for additive manufacturing:
 ### Assembly (current)
 
 1. Axle puck onto the square post (friction locate). Flange **sits** on the base.
-2. Roller cartridge over the inner race, 0.20 above the flange. Cage and each roller are linked (revolute).
-3. Rotor hub over the cartridge (outer race, running). Hub floats 0.20 above the flange land. Blades are one body with the hub.
-4. Retainer washer **square-slip** on the post, floats 0.20 above the hub, and keeps the hub down.
+2. Bushing over the inner race, 0.20 above the flange. Outer race is the bushing ID.
+3. Roller cartridge inside the bushing. Cage and each roller are linked (revolute).
+4. Rotor hub **friction-mounts** on the bushing OD and **sits** on the shoulder. Blades are one body with the hub.
+5. Retainer washer **square-slip** on the post, floats 0.20 above the hub, and covers the open raceway.
 
 If those steps are not visible in the solid, the exam failed.
 
@@ -176,3 +180,9 @@ If those steps are not visible in the solid, the exam failed.
 | Coincident running faces | Hub sat on the flange; retainer sat on the hub. Zero axial play looks fused and binds in FDM. | 0.20 float at every running land. Inner race grows by the same float so rollers stay on the race. |
 | Retainer cap | Retainer OD covered the hub, so the washer looked like a disc through the rotor. | Washer OD is between hub bore and hub OD. |
 | Five colors / five plates | Assembled nest exported per part; materials did not match the two-filament print. | One laid-out `01-kit.3mf`. PLA Orange + PLA Glow only. |
+
+### 2026-08-16 bushing / mount pass
+
+| Fault | Why it failed | Correction |
+|-------|---------------|------------|
+| Hub as the outer race | Cage stuffed inside the hub wall. No distinct bushing, no shoulder, no “wheel on a bearing.” | Outer-race bushing with an external shoulder. Hub friction-mounts on the OD and sits on the seat. Rollers stay inside the bushing ID. |

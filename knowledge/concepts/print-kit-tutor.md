@@ -20,11 +20,13 @@ nozzle fits by building a printed VAWT **assembly** and grading it.
 - Assembly: [ASSEMBLY.md](../../docs/agentic/ASSEMBLY.md) (named `assembly_*` tools; this exam uses them)
 - Domain matrix: [MCP_GAP.md](../../docs/agentic/MCP_GAP.md)
 
-Five functional print parts (base, axle puck, one-piece helical rotor, PIP
-roller cartridge, retainer). The CAD assembly links every moving body:
-rigid stator (axle sits on the base; retainer on the post) plus revolutes
-for the rotor, cage, and each roller. Hub-on-rollers is a running fit,
-not friction. Blades stay one printed body with the hub. The exam starts from a blank document (`cad_new_project`,
+Six functional print parts (base, axle puck, outer-race bushing, one-piece
+helical rotor, PIP roller cartridge, retainer). The CAD assembly links
+every moving body: rigid stator (axle sits on the base; retainer on the
+post), rigid `hub_mount` (hub on bushing OD), plus revolutes for the
+bushing, cage, and each roller. The hub is not the outer race.
+Hub-on-rollers is a running fit, not friction. Blades stay one printed
+body with the hub. The exam starts from a blank document (`cad_new_project`,
 0 bodies) and hides construction planes before writing the `.nbcad`.
 Reruns wipe retired plates so `Print-Kit-Tutor/` holds only
 `01-kit.3mf` (parts laid out; PLA Orange + PLA Glow). Fits are per role

@@ -9,9 +9,9 @@ Nozzle = {nozzle} mm. Fits are **per role**, not one clearance for every hole:
 
 - running (rollers / races): +{nozzle} mm diametral
 - slip (retainer on the post): +0.28 mm
-- friction locate (axle on the square post): +0.16 mm
+- friction locate (axle on the square post, hub on the bushing OD): +0.16 mm
 
-No FDM press fits. Slicer XY hole compensation stays 0. Thrust is a flat land with 0.20 mm float at **every** running land (base↔flange, flange↔hub/cage, hub↔retainer). The retainer is a washer (OD < hub OD), not a cap through the hub.
+No FDM press fits. Slicer XY hole compensation stays 0. Thrust is a flat land with 0.20 mm float at **every** running land (flange↔bushing/cage, hub↔retainer). The hub **sits** on the bushing shoulder (no float; they spin together). The retainer is a washer that covers the open raceway (OD between outer-race ID and hub OD), not a cap through the hub.
 
 This prompt is adversarial. A kit that spins in the grader and fails as a turbine is a FAIL. Read the reject list before you sketch.
 
@@ -29,7 +29,7 @@ Do not ship any of these. They have already been built. They are not turbines.
 - Flat rectangular plate sold as a wing (a plate is a vane, not an airfoil)
 - Turntable, lazy Susan, paint wells, or any platter that throws the wing away
 - One-sided vane, even blade count that cog-locks, or a rotor that only works in one wind azimuth
-- Metal 608 / catalog roller / ball bearings as hidden parts. Fully 3D printed. The bushing **is** the printed roller cartridge
+- Metal 608 / catalog roller / ball bearings as hidden parts. Fully 3D printed. The bushing is a **distinct outer-race ring** with an external shoulder; the roller cartridge lives **inside** it. The hub is not the outer race.
 - Press fits, same-angle lifted cones (parallel surfaces never touch)
 - A report that only says READY TO PRINT
 - A fat frame: base envelope > 1.55 × rotor tip diameter (the Ø90 cookie)
@@ -49,7 +49,7 @@ Architecture (required): **helical / Gorlov H-Darrieus** with a **symmetric airf
 
 Helix rule: loft a **closed NACA** at ≥2 stations. Mid-chord stays on radius R. Chord stays tangent. Twist ≥45° over the span (spec: 60°). Root at 30°. Open drafted tips — no end cap. Print the rotor standing on the hub.
 
-The center is **short**. Do not build a tall mast. A stout printed roller pack at the hub takes the angular load from the blade tips. The stator is a square post on the Y-frame; the hub freewheels on the rollers.
+The center is **short**. Do not build a tall mast. A stout printed roller pack inside a distinct bushing takes the angular load from the blade tips. The stator is a square post on the Y-frame; the bushing freewheels on the rollers; the hub friction-mounts on the bushing OD.
 
 ## 2026 airfoil (required)
 
@@ -66,15 +66,16 @@ For this print, the required section is **NACA 0021** (t/c = 0.21) with a **blun
 
 ## Grouped expected design (build this, not a remix)
 
-Five **individual** functional parts, then an **assembly** (components + occurrences + a revolute). Default fully 3D printed.
+Six **individual** functional parts, then an **assembly** (components + occurrences + joints). Default fully 3D printed.
 
 | Part | What | Print |
 |------|------|-------|
 | Base | **Y-frame** + short square stator post. One piece. No cookie. | Flat |
 | Axle | Flanged inner-race **puck**, square bore (friction on the post). Never a tall skinny shaft | On the flange |
-| Rotor | Hub + 3 helical drafted **NACA 0021** blades, **one body**, open tips | Standing on the hub |
-| Roller cartridge | Cage + ≥6 PIP rollers, min Ø8, large PCD under/in the hub | Flat, PIP on the kit plate |
-| Retainer | Washer (OD < hub OD), slip on the post | Flat |
+| Bushing | Outer-race ring + **external shoulder**. Hub seats on the OD. Not the cage. | Flat |
+| Rotor | Hub + 3 helical drafted **NACA 0021** blades, **one body**, open tips. Bore = bushing OD + friction | Standing on the hub |
+| Roller cartridge | Cage + ≥6 PIP rollers, min Ø8, large PCD **inside the bushing ID** | Flat, PIP on the kit plate |
+| Retainer | Washer covering the open raceway, slip on the post | Flat |
 
 Girth gates: envelope/rotor D ≤ 1.55; span/chord ≥ 2.5; solidity 0.24–0.45. Scale 1.0 must fit the X2D usable bed (240×240×244).
 
@@ -86,7 +87,7 @@ FDM layer lines are roughness. Unfinished printed airfoils pay Cd.
 
 Specify, in the report, all of:
 
-1. **Print orientation per body.** Rotor standing so layer lines run **spanwise**. Axle / cage / retainer / base flat (bores are XY circles)
+1. **Print orientation per body.** Rotor standing so layer lines run **spanwise**. Axle / bushing / cage / retainer / base flat (bores are XY circles)
 2. **As-printed Ra class**: assume 10–25 µm as-printed FDM. Target service Ra ≤ 5 µm on blade skins
 3. **Finish process (no extra machine parts)**: PLA — sand 400 → 800 → 1000 on blade skins. ABS — acetone vapor 40–50 min class; do not immerse. Do not vapor-smooth a running fit
 4. **Forbidden on aero / race faces**: fuzzy skin, fuzzy supports, elephant-foot left on the land
@@ -94,13 +95,14 @@ Specify, in the report, all of:
 
 ## Rotation — printed roller pack, not a 608
 
-The bushing is a **printed roller cartridge** (PIP rollers in a cage) at a large pitch circle so it can take the moment at the blade tips. Thrust on the axle flange land (0.20 float). No metal 608, no 623, no tall two-land sleeve as the only bearing.
+The bearing is a **printed roller cartridge** (PIP rollers in a cage) inside a **distinct outer-race bushing** at a large pitch circle so it can take the moment at the blade tips. Thrust on the axle flange land (0.20 float under the bushing). No metal 608, no 623, no tall two-land sleeve as the only bearing. Do not make the hub the outer race.
 
 - Inner race: cylindrical OD on the axle puck
-- Outer race: hub bore
-- Cage sits inside the hub, around the race
+- Outer race: **bushing ID** (not the hub bore)
+- Bushing OD + external shoulder: the hub **friction-mounts** here and **sits** on the shoulder
+- Cage sits inside the bushing, around the race
 - Square post is the **stator** (friction in the axle, slip in the retainer). The hub does **not** key to the post
-- Retain with the flange + retainer ring. Not interference
+- Retain with the flange + retainer washer over the open raceway. Not interference. Do not close a top inward lip over the rollers (that kills PIP)
 
 PLA-on-PLA is a demo spin, not a 1000 h bearing. Say that in the report.
 
@@ -108,19 +110,20 @@ PLA-on-PLA is a demo spin, not a 1000 h bearing. Say that in the report.
 
 No screws, nuts, heat-set inserts, metal shafts, metal bearings, glue as a fit, or rubber bands.
 
-Assembly order: **base → axle → roller cartridge → rotor → retainer**.
+Assembly order: **base → axle → bushing → roller cartridge → rotor → retainer**.
 
 Then form a **linked** CAD assembly: `cad_set_focus assembly` (or `cad_set_workspace assembly`). `assembly_create_component` per body that moves — that call already inserts the one root occurrence. **Do not** `assembly_create_occurrence` again. Ground the base. Joints:
 
 - `rigid` axle_sit — axle sits on the base (stator). Square post is friction locate (+0.16), not a press
-- `revolute` rotor_spin — hub freewheels on the axle axis. Hub-on-rollers is **running +0.40**, never a friction fit
+- `revolute` bushing_spin — bushing freewheels on the axle axis. Rollers on both races are **running +0.40**
+- `rigid` hub_mount — hub friction-mounts on the bushing OD and sits on the shoulder. They spin together
 - `revolute` cage_spin — cage can turn on the same axis
 - `revolute` per roller — each PIP roller spins in its pocket
 - `rigid` retainer_sit — washer with a **square slip** hole on the post
 
-Pick on-axis circular edges / cylinders (hub bore, axle race, roller axes). Do not pick a blade-spar face — planar centroids yank parts off-axis. `assembly_solution` must be solved without occurrence yanks. Blades stay **one printed body** with the hub (centrifugal + cyclic root bending). Ship an assembly drawing: `cad_drawing_create_sheet` + `cad_drawing_auto_layout` + notes for fits, loads, print orientation, and BOM.
+Pick on-axis circular edges / cylinders (bushing ID / OD, hub bore, axle race, roller axes). Do not pick a blade-spar face — planar centroids yank parts off-axis. `assembly_solution` must be solved without occurrence yanks. Blades stay **one printed body** with the hub (centrifugal + cyclic root bending). Ship an assembly drawing: `cad_drawing_create_sheet` + `cad_drawing_auto_layout` + notes for fits, loads, print orientation, and BOM.
 
-Print each functional part in its own orientation on **one** plate. The roller cartridge is print-in-place (cage + rollers stay together). Save the assembled `.nbcad`, then `solid_move_copy` parts onto the bed and `solid_export_3mf` once as `01-kit`. Appearances: PLA Orange (base, axle, cage, rollers, retainer) and PLA Glow (rotor). Do not export the assembled nest as the print job.
+Print each functional part in its own orientation on **one** plate. The roller cartridge is print-in-place (cage + rollers stay together). Save the assembled `.nbcad`, then `solid_move_copy` parts onto the bed and `solid_export_3mf` once as `01-kit`. Appearances: PLA Orange (base, axle, bushing, cage, rollers, retainer) and PLA Glow (rotor). Do not export the assembled nest as the print job.
 
 Minimum wall 1.6 mm (4 nozzles). Functional holes are complete XY circles. Disable grid snap. Prefer locked circles. Draw airfoil polylines with **ctrl held** or ortho-snap will square the section into a plate.
 
@@ -129,12 +132,13 @@ Minimum wall 1.6 mm (4 nozzles). Functional holes are complete XY circles. Disab
 1. prompts/get model_print_kit. cad_list_all_tools. **cad_new_project on a blank document.** `solid_scene` must show **0 bodies** before the first extrude. Do not continue a recovered or older Print Kit Tutor (tan nest, red disc, leftover helix planes). Desktop: File → New, then build — or File → Open the current `Print-Kit-Tutor.nbcad` after this exam writes it. cad_set_document_name Print Kit Tutor
 2. Base **Y-frame** + square stator post. One piece, print flat
 3. Axle: flange + inner-race cylinder, square bore, print on the flange
-4. Rotor: hub ring (outer race) JOIN three helical **NACA 0021** lofts, open drafted tips, print standing
-5. Roller cage + PIP rollers on a large PCD. Retainer ring
-6. cad_set_workspace assembly. One `assembly_create_component` per moving body (base, axle, rotor, cage, each roller, retainer — no extra occurrence). Ground the base. Rigid stator joints + revolute rotor/cage/rollers on axes (not a spar). cad_set_focus drawing. Sheet + auto-layout + notes
-7. cad_set_focus print. set_body_appearance to **PLA Orange** and **PLA Glow** only. solid_export_preflight. Save the assembled `.nbcad`. **Delete** any prior `Print-Kit-Tutor/` 3MFs (and `Print-Kit-Tutor.3mf`). `solid_move_copy` the parts onto one bed (rotor standing on the hub, others flat). Then `solid_export_3mf` **once** as `01-kit` with every kit body_id. The folder must contain exactly that file.
-8. `cad_set_project_visibility`: hide every construction plane (`hidden_datum_plane_ids`) and finished loft sketches (`hidden_sketch_names`). The shipped `.nbcad` must read as the five-part kit, not orange datum stacks.
-9. Write the design report. Include role-based fits, scale vs X2D, roller PCD, and why the rotor is one piece
+4. Bushing: outer-race tube + external shoulder. Hub bore = bushing OD + friction
+5. Rotor: hub ring JOIN three helical **NACA 0021** lofts, open drafted tips, print standing. The hub is **not** the outer race
+6. Roller cage + PIP rollers on a large PCD **inside the bushing**. Retainer washer over the raceway
+7. cad_set_workspace assembly. One `assembly_create_component` per moving body (base, axle, bushing, rotor, cage, each roller, retainer — no extra occurrence). Ground the base. Rigid axle_sit + hub_mount + retainer_sit; revolute bushing_spin / cage / rollers on axes (not a spar). cad_set_focus drawing. Sheet + auto-layout + notes
+8. cad_set_focus print. set_body_appearance to **PLA Orange** and **PLA Glow** only. solid_export_preflight. Save the assembled `.nbcad`. **Delete** any prior `Print-Kit-Tutor/` 3MFs (and `Print-Kit-Tutor.3mf`). `solid_move_copy` the parts onto one bed (rotor standing on the hub, others flat). Then `solid_export_3mf` **once** as `01-kit` with every kit body_id. The folder must contain exactly that file.
+9. `cad_set_project_visibility`: hide every construction plane (`hidden_datum_plane_ids`) and finished loft sketches (`hidden_sketch_names`). The shipped `.nbcad` must read as the six-part kit, not orange datum stacks.
+10. Write the design report. Include role-based fits, scale vs X2D, roller PCD, bushing mount, and why the rotor is one piece
 
 ## Design report (required deliverable)
 
@@ -159,7 +163,7 @@ At least the real product faults: scatter, colliding spinner, helical C, hoop se
 
 ### 3. Final product
 
-BOM of the five parts, stack, assembly order, how the hub freewheels.
+BOM of the six parts, stack, assembly order, how the hub mounts on the bushing.
 
 ### 4. Printing cost — plastic and material
 
