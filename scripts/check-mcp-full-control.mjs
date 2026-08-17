@@ -340,8 +340,16 @@ if (!tutorSrc.includes('axisConnectorAt') || !tutorSrc.includes('circularEdgeAt'
 if (!tutorSrc.includes('axle_sit') || !tutorSrc.includes('cage_spin') || !tutorSrc.includes('createStableJoint')) {
   fail('print-kit Node exam must link the stator, rotor, cage, and rollers');
 }
-if (!tutorSrc.includes('rotor_spin') || !tutorSrc.includes('cupId') || !tutorSrc.includes('plateBore')) {
-  fail('print-kit Node exam must mate the rotor cup (thrust floor + outer race) on the axle');
+if (!tutorSrc.includes('rotor_spin') || !tutorSrc.includes('plateBore')) {
+  fail('print-kit Node exam must mate the plate bore on the short journal');
+}
+if (
+  tutorSrc.includes('function cupId') ||
+  tutorSrc.includes('function cupZ') ||
+  tutorSrc.includes('function cupH') ||
+  tutorSrc.includes('outerRaceId')
+) {
+  fail('print-kit Node exam must not keep a tall rotor cup');
 }
 if (tutorSrc.includes('buildBushing') || tutorSrc.includes('bushing_spin') || tutorSrc.includes('hub_mount')) {
   fail('print-kit Node exam must not keep a loose bushing sandwich (no buildBushing / bushing_spin / hub_mount)');
@@ -349,17 +357,20 @@ if (tutorSrc.includes('buildBushing') || tutorSrc.includes('bushing_spin') || tu
 if (!tutorSrc.includes('cutBedReliefCircle') || !tutorSrc.includes('fit_pip_mm') || !tutorSrc.includes('bed_relief')) {
   fail('print-kit Node exam must model PIP clearance and elephant-foot lead-ins');
 }
-if (!tutorSrc.includes('hubDeckH') || !tutorSrc.includes('bladeRootZ') || !tutorSrc.includes('rotor cup')) {
-  fail('print-kit Node exam must grow blades from a root plate that is the cup floor');
+if (!tutorSrc.includes('hubDeckH') || !tutorSrc.includes('bladeRootZ') || !tutorSrc.includes('root plate')) {
+  fail('print-kit Node exam must grow blades from a root plate');
 }
-if (!tutorSrc.includes('plateZ') || !tutorSrc.includes('cupZ') || !tutorSrc.includes('cupH')) {
-  fail('print-kit Node exam must match cup height to the roller land');
+if (!tutorSrc.includes('plateZ') || !tutorSrc.includes('cageZ') || !tutorSrc.includes('raceH')) {
+  fail('print-kit Node exam must stack a thin thrust pack under the plate');
 }
-if (!tutorSrc.includes('Math.max(mm(spec.roller_h), 28)')) {
-  fail('print-kit Node exam must size the cup as a drum (≥28 mm), not a washer');
+if (tutorSrc.includes('Math.max(mm(spec.roller_h), 28)')) {
+  fail('print-kit Node exam must not floor the pack at 28 mm (that is a tall drum)');
 }
-if (!tutorSrc.includes('rootWebInner') || !tutorSrc.includes('blade root web')) {
-  fail('print-kit Node exam must run a moment web from the cup wall to each blade');
+if (!tutorSrc.includes('mmMin(spec.roller_h, 3.2)')) {
+  fail('print-kit Node exam must size a thin thrust puck');
+}
+if (tutorSrc.includes('rootWebInner') || tutorSrc.includes('blade root web')) {
+  fail('print-kit Node exam must not climb a cup wall with root webs');
 }
 if (!tutorSrc.includes('solid_move_copy') || !tutorSrc.includes('layoutPrintPlate')) {
   fail('print-kit Node exam must lay the kit out on one plate before export');
@@ -380,8 +391,16 @@ if (!rustTutor.includes('axis_connector_at') || !rustTutor.includes('circular_ed
 if (!rustTutor.includes('axle_sit') || !rustTutor.includes('cage_spin') || !rustTutor.includes('create_stable_joint')) {
   fail('print-kit cargo exam must link the stator, rotor, cage, and rollers');
 }
-if (!rustTutor.includes('rotor_spin') || !rustTutor.includes('cup_id') || !rustTutor.includes('plate_bore')) {
-  fail('print-kit cargo exam must mate the rotor cup (thrust floor + outer race) on the axle');
+if (!rustTutor.includes('rotor_spin') || !rustTutor.includes('plate_bore')) {
+  fail('print-kit cargo exam must mate the plate bore on the short journal');
+}
+if (
+  rustTutor.includes('cup_id') ||
+  rustTutor.includes('cup_z') ||
+  rustTutor.includes('cup_h') ||
+  rustTutor.includes('cup_od')
+) {
+  fail('print-kit cargo exam must not keep a tall rotor cup');
 }
 if (rustTutor.includes('build_bushing') || rustTutor.includes('bushing_spin') || rustTutor.includes('hub_mount')) {
   fail('print-kit cargo exam must not keep a loose bushing sandwich (no build_bushing / bushing_spin / hub_mount)');
@@ -389,17 +408,20 @@ if (rustTutor.includes('build_bushing') || rustTutor.includes('bushing_spin') ||
 if (!rustTutor.includes('cut_bed_relief_circle') || !rustTutor.includes('fit_pip_mm') || !rustTutor.includes('bed_relief')) {
   fail('print-kit cargo exam must model PIP clearance and elephant-foot lead-ins');
 }
-if (!rustTutor.includes('hub_deck_h') || !rustTutor.includes('blade_root_z') || !rustTutor.includes('rotor cup')) {
-  fail('print-kit cargo exam must grow blades from a root plate that is the cup floor');
+if (!rustTutor.includes('hub_deck_h') || !rustTutor.includes('blade_root_z') || !rustTutor.includes('root plate')) {
+  fail('print-kit cargo exam must grow blades from a root plate');
 }
-if (!rustTutor.includes('plate_z') || !rustTutor.includes('cup_z') || !rustTutor.includes('cup_h')) {
-  fail('print-kit cargo exam must match cup height to the roller land');
+if (!rustTutor.includes('plate_z') || !rustTutor.includes('cage_z') || !rustTutor.includes('race_h')) {
+  fail('print-kit cargo exam must stack a thin thrust pack under the plate');
 }
-if (!rustTutor.includes('.max(28.0)')) {
-  fail('print-kit cargo exam must size the cup as a drum (≥28 mm), not a washer');
+if (rustTutor.includes('.max(28.0)') || rustTutor.includes('>= 28.0')) {
+  fail('print-kit cargo exam must not floor the pack at 28 mm (that is a tall drum)');
 }
-if (!rustTutor.includes('root_web_inner') || !rustTutor.includes('blade root web')) {
-  fail('print-kit cargo exam must run a moment web from the cup wall to each blade');
+if (!rustTutor.includes('mm_min(self.roller_h, 3.2)')) {
+  fail('print-kit cargo exam must size a thin thrust puck');
+}
+if (rustTutor.includes('root_web_inner') || rustTutor.includes('blade root web')) {
+  fail('print-kit cargo exam must not climb a cup wall with root webs');
 }
 if (!rustTutor.includes('solid_move_copy') || !rustTutor.includes('layout_print_plate')) {
   fail('print-kit cargo exam must lay the kit out on one plate before export');
@@ -408,8 +430,17 @@ const printKitPrompt = await read('mcp-server/src/prompts/model_print_kit.md');
 if (!/blank document|0 bodies|recovered/i.test(printKitPrompt)) {
   fail('model_print_kit prompt must start from a blank document');
 }
-if (!/washer cup|pancake/i.test(printKitPrompt) || !/drum/i.test(printKitPrompt)) {
-  fail('model_print_kit prompt must reject a washer cup and require a drum');
+if (!/washer cup|pancake/i.test(printKitPrompt)) {
+  fail('model_print_kit prompt must still reject a washer/pancake stack');
+}
+if (!/thin flat thrust/i.test(printKitPrompt)) {
+  fail('model_print_kit prompt must require a thin flat thrust bearing');
+}
+if (!/tall (cup|drum)/i.test(printKitPrompt)) {
+  fail('model_print_kit prompt must reject a tall cup or drum');
+}
+if (spec.roller_h > 12) {
+  fail('print-kit tutor spec roller_h must be a thin thrust puck, not a 70 mm drum');
 }
 if (!spec.lessons.some((lesson) => lesson.id === 'blank')) {
   fail('print-kit tutor spec must include the blank-document lesson');

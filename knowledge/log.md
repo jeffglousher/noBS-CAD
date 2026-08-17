@@ -2,6 +2,12 @@
 
 ## 2026-08-16
 
+- **Update**: Print-kit bearing is a thin flat thrust under the
+  plate, not a tall drum. Flange = lower race, plate underside =
+  upper race, short PIP pucks on a large PCD. Short journal centers.
+  Overturning is a couple across the disk. `rotor_spin` mates plate
+  bore ↔ journal. Drop axle, cartridge, rotor, retainer. A 28 mm
+  orange tower with webs climbing the wall is a regression.
 - **Update**: Print-kit overhung load path is blade → root web
   (height = cup) → cup wall → roller pack. A taller can on a 5 mm
   plate is still a cracker. The web stays outside the raceway.

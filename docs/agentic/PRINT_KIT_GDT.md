@@ -134,7 +134,7 @@ graded, but it was the wrong product for additive manufacturing:
 | Uniform +0.40 | Every hole used the running clearance. Locates were sloppy; nothing that should be tight was. | Role-based: running +0.40, slip +0.28, friction +0.16. Slicer XY hole comp stays 0. |
 | Tenoned wings | Three separate blades + hub is a puzzle, not a rotor. | Hub + 3 helical NACAs are **one body**. Open drafted tips. |
 | Tall skinny shaft | Support tower; weak in bending at the blade tips. | Short square stator post. Axle is a flanged inner-race **puck**, printed on the flange. |
-| Two-land sleeve only | L/D 1.0 is a journal, not a moment bearing. | Large-PCD printed roller cartridge (PIP, min Ø8 / h28) inside a rotor drum. |
+| Two-land sleeve only | L/D 1.0 is a journal, not a moment bearing. | Large-PCD thin flat thrust under the plate (PIP, min Ø8 / h3.2). |
 | No CAD assembly | Multi-body nest, no components/joints, no drawing. | 5 components, grounded base, revolute, A3 sheet with notes. |
 | No scale | Desk-size only; not an X2D-max source. | Spec numbers are X2D-max (256×256×260, 8 mm margin). `scale` 0.4 in the exam. |
 
@@ -147,11 +147,11 @@ graded, but it was the wrong product for additive manufacturing:
 | Retainer ↔ square post | Slip | +0.28 |
 | Axle square bore ↔ post | Friction locate | +0.16 |
 | Plate bore ↔ inner race | Running | +0.40. The plate is not keyed to the post. |
-| Plate / cage ↔ flange land | Thrust | 0.20 axial float under the plate |
-| Rollers ↔ cup floor | Thrust | Sit on the plate top. Cage height = roller height. |
-| Cup ↔ retainer washer | Thrust | 0.20 axial float; retainer covers the open cup, OD between cup ID and cup OD |
+| Plate / cage ↔ flange land | Thrust | 0.20 axial float; pack sits on the flange, plate sits on the pack |
+| Rollers ↔ plate underside | Thrust | Upper race is the plate. Cage height = roller height. |
+| Plate ↔ retainer washer | Thrust | 0.20 axial float; retainer covers the plate bore, OD between bore and flange |
 | Axle ↔ base | Sitting stator | Coincident land. They do not spin relative to each other. |
-| Rollers ↔ inner race / cup ID | Running | **Not a friction fit.** Friction here locks the bearing. |
+| Plate bore ↔ short journal | Running | **Not a friction fit.** Friction here locks the bearing. |
 
 ### Print (current)
 
@@ -159,16 +159,16 @@ graded, but it was the wrong product for additive manufacturing:
 |------|-------------|
 | Base | Flat (Y-frame + post) |
 | Axle | On the flange |
-| Rotor | Standing on the root plate, tips up. Blade bottoms are the sit-plane cut. Cup faces up. |
+| Rotor | Standing on the root plate, tips up. Blade bottoms are the sit-plane cut. |
 | Roller cartridge | Flat, PIP |
 | Retainer | Flat |
 
 ### Assembly (current)
 
 1. Axle puck onto the square post (friction locate). Flange **sits** on the base.
-2. Drop the rotor on the axle: plate bore over the inner race, 0.20 above the flange. Cup faces up. Outer race is the cup ID.
-3. Drop the roller cartridge into the open-top cup. Cage height matches the rollers. Cage and each roller are linked (revolute).
-4. Retainer washer **square-slip** on the post, floats 0.20 above the cup, and covers the open raceway.
+2. Drop the roller cartridge onto the flange. Cage height matches the rollers. Cage and each roller are linked (revolute).
+3. Drop the rotor on the pack: plate bore over the short journal, plate underside 0.20 above the rollers.
+4. Retainer washer **square-slip** on the post, floats 0.20 above the plate.
 
 If those steps are not visible in the solid, the exam failed.
 
@@ -196,8 +196,15 @@ If those steps are not visible in the solid, the exam failed.
 
 | Fault | Why it failed | Correction |
 |-------|---------------|------------|
-| Washer cup | Matching an 8 mm land to 8 mm rollers produced another stack of flats. From a 3/4 view the green wall disappeared and the orange cartridge sat on the plate. | Cup is a **drum** (≥28 mm at exam scale, 70 mm at scale 1.0) on a ≥5 mm plate. Rollers fill that height. Look at the solid in the web UI before calling it a housing. |
-| Can on a cracker | Cup got height; blades still only met a 5 mm plate. Overturning moment bent the disk and never reached the race. | Each blade root is a web as tall as the cup, from the cup wall (outside the raceway) out to the airfoil. |
+| Washer cup | Matching an 8 mm land to 8 mm rollers produced another stack of flats. From a 3/4 view the green wall disappeared and the orange cartridge sat on the plate. | Height-matching flats is not a bearing. The next wrong answer was a tall drum — see the thin-thrust pass. |
+| Can on a cracker | Cup got height; blades still only met a 5 mm plate. Overturning moment bent the disk and never reached the race. | The next wrong answer was webs climbing that wall. Overturning is a couple across a large PCD, not a taller can. |
+
+### 2026-08-16 thin thrust pass
+
+| Fault | Why it failed | Correction |
+|-------|---------------|------------|
+| Tall drum | A 28 mm orange tower with rollers filling the ID is a journal you can see from the side. The machine's job is rotation about Z. | **Thin flat thrust** under the plate: flange = lower race, plate underside = upper race, short pucks on a large PCD. Short journal centers only. |
+| Moment webs | Blade roots climbing the cup wall doubled down on the tall system. | Delete the drum and the webs. Width takes the tip moment. |
 
 ### 2026-08-16 additive / FDM pass
 

@@ -104,43 +104,20 @@ impl Spec {
         self.mm_min(self.roller_d, self.roller_min_d)
     }
     fn roller_h(&self) -> f64 {
-        // Exam floor is a drum you can see, not a washer. Matching 8 mm
-        // flats still reads as a stack of pancakes from a 3/4 view.
-        self.mm(self.roller_h).max(28.0)
+        // Thin thrust pack. Overturning is taken by PCD, not by a tall land.
+        self.mm_min(self.roller_h, 3.2)
     }
     fn inner_race_d(&self) -> f64 {
-        self.mm_min(self.inner_race_d, self.roller_d() + 4.0)
-    }
-    fn outer_race_id(&self) -> f64 {
-        let roller_fit = self.inner_race_d() + 2.0 * self.roller_d() + self.fit_running_mm;
-        let pocket = self.roller_d() + self.fit_pip_mm;
-        let web = self.nozzle_mm * 2.0;
-        // Cage OD sits just inside the cup. Pockets are larger than the
-        // rollers; without this floor they break through the rim and the
-        // revolute picker grabs a leftover arc.
-        let cage_fit = self.inner_race_d()
-            + 2.0 * pocket
-            + 2.0 * self.fit_running_mm
-            + 4.0 * web;
-        roller_fit.max(cage_fit)
-    }
-    fn cup_id(&self) -> f64 {
-        self.outer_race_id()
-    }
-    fn cup_od(&self) -> f64 {
-        self.cup_id() + 2.0 * self.wall() * 2.0
-    }
-    fn cup_h(&self) -> f64 {
-        self.roller_h() + self.thrust_float
+        self.mm_min(self.inner_race_d, 12.0)
     }
     fn plate_bore(&self) -> f64 {
         self.inner_race_d() + self.fit_running_mm
     }
     fn hub_od(&self) -> f64 {
-        self.cup_od()
+        self.hub_deck_od()
     }
     fn hub_h(&self) -> f64 {
-        self.hub_deck_h() + self.cup_h()
+        self.hub_deck_h()
     }
     fn hub_deck_h(&self) -> f64 {
         self.mm_min(10.0, 5.0).max(self.bed_relief_h())
@@ -157,24 +134,6 @@ impl Spec {
     fn blade_root_z(&self) -> f64 {
         self.hub_z() + self.hub_deck_h()
     }
-    /// Inner radius of the moment web. Stays outside the raceway and
-    /// overlaps the cup wall so the blade root is the housing, not a
-    /// flag stuck on the plate.
-    fn root_web_inner(&self) -> f64 {
-        self.cup_id() * 0.5 + self.wall()
-    }
-    fn root_web_outer(&self) -> f64 {
-        self.wing_radius() + self.chord_root() * 0.12
-    }
-    fn root_web_len(&self) -> f64 {
-        (self.root_web_outer() - self.root_web_inner()).max(self.wall() * 8.0)
-    }
-    fn root_web_center(&self, index: usize) -> [f64; 2] {
-        let [cx, cy] = self.helix_center(index, 0.0);
-        let radius = self.wing_radius().max(1e-6);
-        let mid = (self.root_web_inner() + self.root_web_outer()) * 0.5;
-        [cx * mid / radius, cy * mid / radius]
-    }
     fn hub_square(&self) -> f64 {
         self.mm(self.axle_square) + self.fit_friction_mm
     }
@@ -185,9 +144,7 @@ impl Spec {
         self.mm_min(self.axle_square_h, self.hub_h() + 2.0)
     }
     fn axle_flange_d(&self) -> f64 {
-        self.mm(self.axle_flange_d)
-            .max(self.cup_od() + 6.0)
-            .max(self.axle_flange_h() + self.race_h())
+        self.mm(self.axle_flange_d).max(self.cage_od() + 4.0)
     }
     fn axle_flange_h(&self) -> f64 {
         self.mm_min(self.axle_flange_h, 2.4)
@@ -225,7 +182,8 @@ impl Spec {
             .max(self.mm(self.base_boss_d))
     }
     fn cage_od(&self) -> f64 {
-        self.outer_race_id() - self.fit_running_mm
+        let rim = self.pcd() * 0.5 + self.cage_pocket() * 0.5 + self.wall();
+        (rim * 2.0).max(self.pcd() + self.roller_d() + 2.0 * self.wall())
     }
     fn cage_id(&self) -> f64 {
         self.inner_race_d() + self.fit_slip_mm
@@ -243,9 +201,9 @@ impl Spec {
         self.bed_relief_mm
     }
     fn retainer_od(&self) -> f64 {
-        (self.cup_id() + 4.0)
-            .min(self.cup_od() - 1.0)
-            .max(self.cup_id() + 2.0)
+        (self.plate_bore() + 8.0)
+            .min(self.axle_flange_d() - 2.0)
+            .max(self.plate_bore() + 4.0)
     }
     fn retainer_square(&self) -> f64 {
         self.axle_square() + self.fit_slip_mm
@@ -254,7 +212,9 @@ impl Spec {
         self.mm_min(self.retainer_h, 2.0)
     }
     fn pcd(&self) -> f64 {
-        (self.inner_race_d() + self.outer_race_id()) * 0.5
+        let want = self.hub_deck_od() * 0.58;
+        let min_fit = self.inner_race_d() + self.roller_d() + 4.0;
+        want.max(min_fit)
     }
     fn usable_bed(&self) -> [f64; 3] {
         [
@@ -289,22 +249,19 @@ impl Spec {
         self.flange_z() + self.axle_flange_h()
     }
     fn race_h(&self) -> f64 {
-        self.cup_z() + self.cup_h() - self.race_z()
+        self.roller_h() + self.hub_deck_h() + self.retainer_h() + 3.0 * self.thrust_float
     }
     fn cage_z(&self) -> f64 {
-        self.cup_z()
-    }
-    fn cup_z(&self) -> f64 {
-        self.plate_z() + self.hub_deck_h()
+        self.race_z() + self.thrust_float
     }
     fn hub_z(&self) -> f64 {
         self.plate_z()
     }
     fn plate_z(&self) -> f64 {
-        self.race_z() + self.thrust_float
+        self.cage_z() + self.roller_h() + self.thrust_float
     }
     fn retainer_z(&self) -> f64 {
-        self.cup_z() + self.cup_h() + self.thrust_float
+        self.plate_z() + self.hub_deck_h() + self.thrust_float
     }
     fn post_h(&self) -> f64 {
         self.retainer_z() + self.retainer_h() + self.thrust_float
@@ -353,16 +310,15 @@ impl Spec {
     fn rollers_ok(&self) -> bool {
         self.roller_count >= 6
             && self.roller_d() + 1e-9 >= self.roller_min_d
-            && self.pcd() > self.inner_race_d()
-            && self.outer_race_id() > self.inner_race_d() + 2.0 * self.roller_d()
-            && self.cage_od() + 1e-9 < self.cup_id()
+            && self.pcd() + 1e-9 >= self.hub_deck_od() * 0.5
+            && self.pcd() > self.inner_race_d() + self.roller_d()
+            && self.cage_od() + 1e-9 < self.hub_deck_od()
             && (self.plate_bore() - (self.inner_race_d() + self.fit_running_mm)).abs() < 1e-9
-            && self.cup_od() > self.cup_id()
-            && self.axle_flange_d() + 1e-9 > self.cup_od()
+            && self.axle_flange_d() + 1e-9 >= self.cage_od()
             && self.cage_pocket() + 1e-9 >= self.roller_d() + self.fit_pip_mm
             && (self.cage_h() - self.roller_h()).abs() < 1e-9
-            && (self.cup_h() - (self.roller_h() + self.thrust_float)).abs() < 1e-9
-            && self.roller_h() + 1e-9 >= 28.0
+            && self.roller_h() + 1e-9 <= self.hub_deck_h()
+            && self.roller_h() + 1e-9 < self.roller_d()
             && self.cage_od() * 0.5 + 1e-9
                 >= self.pcd() * 0.5 + self.cage_pocket() * 0.5
     }
@@ -381,27 +337,31 @@ impl Spec {
     }
     fn stack_ok(&self) -> bool {
         (self.flange_z() - self.base_h()).abs() < 1e-9
-            && (self.plate_z() - (self.race_z() + self.thrust_float)).abs() < 1e-9
+            && (self.cage_z() - (self.race_z() + self.thrust_float)).abs() < 1e-9
+            && (self.plate_z() - (self.cage_z() + self.roller_h() + self.thrust_float)).abs()
+                < 1e-9
             && (self.hub_z() - self.plate_z()).abs() < 1e-9
-            && (self.cup_z() - (self.plate_z() + self.hub_deck_h())).abs() < 1e-9
-            && (self.cage_z() - self.cup_z()).abs() < 1e-9
-            && (self.retainer_z() - (self.cup_z() + self.cup_h() + self.thrust_float)).abs() < 1e-9
-            && self.retainer_od() + 1e-9 < self.cup_od()
-            && self.retainer_od() + 1e-9 > self.cup_id()
-            && (self.race_h() - (self.cup_z() + self.cup_h() - self.race_z())).abs() < 1e-9
+            && (self.retainer_z() - (self.plate_z() + self.hub_deck_h() + self.thrust_float))
+                .abs()
+                < 1e-9
+            && (self.race_h()
+                - (self.roller_h()
+                    + self.hub_deck_h()
+                    + self.retainer_h()
+                    + 3.0 * self.thrust_float))
+                .abs()
+                < 1e-9
             && self.bed_relief_h() + 1e-9 < self.hub_deck_h()
             && self.bed_relief_h() + 1e-9 < self.retainer_h()
             && self.bed_relief_h() + 1e-9 < self.axle_flange_h()
-            && self.hub_deck_h() + 1e-9 < self.hub_h()
+            && (self.hub_h() - self.hub_deck_h()).abs() < 1e-9
             && self.hub_deck_od() + 1e-9 > self.axle_flange_d()
             && self.hub_deck_od() + 1e-9 >= self.wing_radius() * 2.0
-            && (self.blade_root_z() - self.cup_z()).abs() < 1e-9
+            && (self.blade_root_z() - (self.plate_z() + self.hub_deck_h())).abs() < 1e-9
             && (self.cage_h() - self.roller_h()).abs() < 1e-9
             && self.hub_deck_h() + 1e-9 >= 5.0
-            && self.roller_h() + 1e-9 >= 28.0
-            && self.root_web_inner() + 1e-9 > self.cup_id() * 0.5
-            && self.root_web_inner() + 1e-9 < self.cup_od() * 0.5
-            && self.root_web_outer() + 1e-9 >= self.wing_radius()
+            && self.roller_h() + 1e-9 < self.roller_d()
+            && self.pcd() + 1e-9 >= self.hub_deck_od() * 0.5
     }
     fn assembly_component_count(&self) -> usize {
         5 + self.roller_count
@@ -419,9 +379,6 @@ impl Spec {
         let plate = std::f64::consts::PI
             * ((self.hub_deck_od() * 0.5).powi(2) - (self.plate_bore() * 0.5).powi(2))
             * self.hub_deck_h();
-        let cup = std::f64::consts::PI
-            * ((self.cup_od() * 0.5).powi(2) - (self.cup_id() * 0.5).powi(2))
-            * self.cup_h();
         let wings = (self.wing_count as f64)
             * 0.62
             * ((self.chord_root() + self.chord_tip()) * 0.5)
@@ -443,7 +400,7 @@ impl Spec {
         let retainer = (std::f64::consts::PI * (self.retainer_od() * 0.5).powi(2)
             - self.retainer_square().powi(2))
             * self.retainer_h();
-        (plate + cup + wings + base + axle + cage + rollers + retainer) / 1000.0
+        (plate + wings + base + axle + cage + rollers + retainer) / 1000.0
     }
     fn estimated_print_mass_g(&self) -> f64 {
         self.estimated_solid_cm3() * self.filament.density_g_cm3 * self.filament.print_volume_factor
@@ -691,10 +648,9 @@ fn layout_print_plate(
     let base_r = spec.base_envelope() * 0.5;
     let axle_r = spec.axle_flange_d() * 0.5;
     let cart_r = spec.pcd() * 0.5 + spec.roller_d() * 0.5;
-    let cup_r = spec.cup_od() * 0.5;
     let ret_r = spec.retainer_od() * 0.5;
     let col_x = rotor_r + gap + base_r.max(axle_r);
-    let small_x = col_x + base_r.max(axle_r) + gap + cart_r.max(ret_r).max(cup_r);
+    let small_x = col_x + base_r.max(axle_r) + gap + cart_r.max(ret_r);
     move_bodies(call, &[rotor_id], [-rotor_r - gap * 0.5, 0.0, -spec.plate_z()])?;
     move_bodies(call, &[base_id], [col_x, base_r + gap * 0.5, 0.0])?;
     move_bodies(
@@ -702,8 +658,8 @@ fn layout_print_plate(
         &[axle_id],
         [col_x, -(axle_r + gap * 0.5), -spec.flange_z()],
     )?;
-    // Cartridge stays its own PIP cluster. Nesting it inside the cup on
-    // the plate at assembled running clearance is 0.10 mm/side and welds.
+    // Cartridge stays its own PIP cluster. Nesting it under the plate
+    // at assembled running clearance is 0.10 mm/side and welds.
     let mut cartridge = vec![cage_id];
     cartridge.extend(roller_ids.iter().copied());
     move_bodies(
@@ -921,26 +877,6 @@ fn build_rotor(
         "rotor root plate",
     )?;
     let rotor_id = newest_body_id(&update, known)?;
-    let cup_deck = offset_xy(call, spec.cup_z())?;
-    begin_datum(call, cup_deck.clone())?;
-    add_circle(call, [0.0, 0.0], spec.cup_od())?;
-    add_circle(call, [0.0, 0.0], spec.cup_id())?;
-    let cup = finish_sketch(call)?;
-    require_clean(
-        call(
-            "solid_extrude",
-            json!({
-                "sketch_name": cup,
-                "profile_indices": [0],
-                "operation": "join",
-                "extent": { "type": "distance", "distance": spec.cup_h() },
-                "taper_angle_deg": 0.0,
-                "flip": false,
-                "target_body_ids": [rotor_id]
-            }),
-        )?,
-        "rotor cup",
-    )?;
 
     for index in 0..spec.wing_count {
         let [px, py] = spec.helix_center(index, 0.0);
@@ -1017,33 +953,6 @@ fn build_rotor(
                 }),
             )?,
             &format!("blade root base {index}"),
-        )?;
-        // Moment path: blade → web (height = cup) → cup wall → rollers.
-        // Plate-height arms stay for the sit-plane print. Do not enter the
-        // raceway — that is why the web starts outside cup ID.
-        begin_datum(call, cup_deck.clone())?;
-        add_oriented_rect(
-            call,
-            spec.root_web_center(index),
-            spec.root_web_len(),
-            spec.blade_arm_w(),
-            spec.wing_angle_deg(index),
-        )?;
-        let web = finish_sketch(call)?;
-        require_clean(
-            call(
-                "solid_extrude",
-                json!({
-                    "sketch_name": web,
-                    "profile_indices": [0],
-                    "operation": "join",
-                    "extent": { "type": "distance", "distance": spec.cup_h() },
-                    "taper_angle_deg": 0.0,
-                    "flip": false,
-                    "target_body_ids": [rotor_id]
-                }),
-            )?,
-            &format!("blade root web {index}"),
         )?;
         let stations = spec.helix_stations.max(2);
         let mut sections = Vec::new();
@@ -1309,18 +1218,18 @@ fn form_assembly(
             &scene,
             axle_id,
             [0.0, 0.0],
-            spec.race_z() + spec.race_h(),
+            spec.plate_z() + spec.hub_deck_h() * 0.5,
             spec.inner_race_d() * 0.5,
         )
-        .ok_or_else(|| "no on-axis axle race for rotor_spin".to_string())?,
+        .ok_or_else(|| "no on-axis axle journal for rotor_spin".to_string())?,
         axis_connector_at(
             &scene,
             rotor_id,
             [0.0, 0.0],
-            spec.cup_z() + spec.cup_h(),
-            spec.cup_id() * 0.5,
+            spec.plate_z() + spec.hub_deck_h() * 0.5,
+            spec.plate_bore() * 0.5,
         )
-        .ok_or_else(|| "no on-axis rotor cup for rotor_spin".to_string())?,
+        .ok_or_else(|| "no on-axis plate bore for rotor_spin".to_string())?,
         axle_id,
     )?;
     create_stable_joint(
@@ -1408,13 +1317,13 @@ fn form_assembly(
     }
     if joints < spec.assembly_joint_count() {
         return Err(format!(
-            "expected ≥{} joints (stator rigid + cup/cage/rollers), got {joints}",
+            "expected ≥{} joints (stator rigid + plate/cage/rollers), got {joints}",
             spec.assembly_joint_count()
         ));
     }
     require_linked_solution(call)?;
     Ok(format!(
-        "{defs} linked parts, {joints} joints; axle sits on base; rotor cup is the housing; rollers spin in the cage"
+        "{defs} linked parts, {joints} joints; axle sits on base; thin thrust pack under the plate; rollers spin in the cage"
     ))
 }
 
@@ -1552,12 +1461,12 @@ fn make_assembly_drawing(
         ),
         (
             [18.0, 58.0],
-            "GDT  axle SITS on base. Rotor cup is a drum (plate ≥5 mm + land ≥28 mm): plate = thrust floor, cup ID = outer race. Blade roots cut flat on that plate. Open-top: drop rotor, then cartridge, then retainer. PIP +0.80.".to_string(),
+            "GDT  axle SITS on base. Thin flat thrust under the plate: flange = lower race, plate underside = upper race, large-PCD rollers between. Short journal centers. Drop axle, cartridge, rotor, retainer. PIP +0.80.".to_string(),
         ),
         (
             [18.0, 68.0],
             format!(
-                "BOM  base (Y-frame + square post) · axle (inner-race puck) · rotor (root plate+cup+3×{}) · roller cage + {} PIP rollers · retainer",
+                "BOM  base (Y-frame + square post) · axle (flange + short journal) · rotor (root plate+3×{}) · thin thrust cage + {} PIP rollers · retainer",
                 spec.airfoil, spec.roller_count
             ),
         ),
@@ -1815,13 +1724,14 @@ fn grade(
         "rollers",
         spec.rollers_ok() && built.roller_ids.len() == spec.roller_count,
         format!(
-            "{}× Ø{:.1} rollers on PCD {:.1}; cup ID {:.1} h{:.1}; plate bore {:.1}",
+            "{}× Ø{:.1}×h{:.1} rollers on PCD {:.1}; plate bore {:.1}; journal Ø{:.1}×h{:.1}",
             spec.roller_count,
             spec.roller_d(),
+            spec.roller_h(),
             spec.pcd(),
-            spec.cup_id(),
-            spec.cup_h(),
-            spec.plate_bore()
+            spec.plate_bore(),
+            spec.inner_race_d(),
+            spec.race_h()
         ),
     );
     push_lesson(
@@ -1846,7 +1756,7 @@ fn grade(
         rotor_faces >= spec.min_rotor_faces
             && rotor_span > spec.wing_h() * 0.7
             && spec.chord_root() > spec.chord_tip(),
-        format!("rotor faces={rotor_faces} span={rotor_span:.1} (root plate + cup + 3 blades on the sit plane)"),
+        format!("rotor faces={rotor_faces} span={rotor_span:.1} (root plate + 3 blades on the sit plane)"),
     );
     push_lesson(
         &mut lessons,
@@ -2419,10 +2329,9 @@ mod spec_tests {
         assert!((spec.flange_z() - spec.base_h()).abs() < 1e-9);
         assert!((spec.wing_offset_deg + spec.helix_deg * 0.5 - 60.0).abs() < 1e-9);
         assert!(spec.rotor_print_h() / spec.scale <= spec.usable_bed()[2] + 1e-6);
-        assert!(spec.cage_od() < spec.cup_id());
+        assert!(spec.cage_od() < spec.hub_deck_od());
         assert!((spec.plate_bore() - (spec.inner_race_d() + spec.fit_running_mm)).abs() < 1e-9);
-        assert!(spec.cup_od() > spec.cup_id());
-        assert!(spec.axle_flange_d() > spec.cup_od());
+        assert!(spec.axle_flange_d() + 1e-9 >= spec.cage_od());
         assert!(spec.cage_id() > spec.inner_race_d());
         assert!(spec.post_h() < spec.axle_flange_d() * 2.5);
         assert!(spec.fit_pip_mm > spec.fit_running_mm);
@@ -2430,16 +2339,17 @@ mod spec_tests {
         assert!(spec.cage_pocket() > spec.roller_d() + spec.fit_running_mm);
         assert!(spec.hub_deck_od() > spec.axle_flange_d());
         assert!(spec.hub_deck_od() >= spec.wing_radius() * 2.0);
-        assert!(spec.hub_deck_h() < spec.hub_h());
+        assert!((spec.hub_h() - spec.hub_deck_h()).abs() < 1e-9);
         assert_eq!(spec.cage_h(), spec.roller_h());
-        assert_eq!(spec.cup_h(), spec.roller_h() + spec.thrust_float);
-        assert!(spec.roller_h() >= 28.0);
-        assert!(spec.cup_h() >= 28.0);
-        assert!((spec.blade_root_z() - spec.cup_z()).abs() < 1e-9);
+        assert!(spec.roller_h() <= 4.0);
+        assert!(spec.roller_h() < spec.roller_d());
+        assert!(spec.pcd() + 1e-6 >= 0.5 * spec.hub_deck_od());
+        assert!(spec.race_h() < 14.0);
         assert!((spec.plate_z() - spec.hub_z()).abs() < 1e-9);
-        assert!((spec.cup_z() - (spec.plate_z() + spec.hub_deck_h())).abs() < 1e-9);
-        assert!(spec.root_web_inner() > spec.cup_id() * 0.5);
-        assert!(spec.root_web_inner() < spec.cup_od() * 0.5);
-        assert!(spec.root_web_outer() >= spec.wing_radius());
+        assert!((spec.blade_root_z() - (spec.plate_z() + spec.hub_deck_h())).abs() < 1e-9);
+        assert!((spec.cage_z() - (spec.race_z() + spec.thrust_float)).abs() < 1e-9);
+        assert!(
+            (spec.plate_z() - (spec.cage_z() + spec.roller_h() + spec.thrust_float)).abs() < 1e-9
+        );
     }
 }
