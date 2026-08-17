@@ -21,7 +21,7 @@ fence, or whose only bearing is a short two-land sleeve, is also a
 | Section | NACA 0021, TE ≥ 0.8 mm, root chord > tip | 2026 thick-symmetric band; drafted standing print |
 | Rotor | One body: root plate out to the blades (underside = upper thrust race), 3 helical blades ending on that plate. X2D-max R=85, span=220, scale 0.4 in the exam | Always some blade working; no tenons; no mid-air roots; no skinny-arm hangers |
 | Stand | Y-frame + short square stator post | Envelope/rotor ≤ 1.55; no cookie; no tall mast |
-| Bearing | **Thin flat thrust** under the plate: 6× printed **radial-axis** rollers, min Ø8, pack height = Ø, large PCD. Cage height = roller Ø. Plate ≥5 mm | Rotation about Z plus overturning as a couple across the disk. Not a 608. Not standing-Z pucks. Not a two-land sleeve. Not a loose bushing. Not a washer stack. Not a tall drum |
+| Bearing | **Thin flat thrust** under the **blade roots**: 6× printed **radial-axis** rollers, min Ø8, pack height = Ø, large PCD. Cage height = roller Ø. Cage ID looser than the plate bore. Plate ≥5 mm | Rotation about Z plus overturning as a couple under the roots. Not a 608. Not standing-Z pucks. Not an inboard cracker. Not a two-land sleeve. Not a loose bushing. Not a washer stack. Not a tall drum |
 | Fits | running +0.40 / PIP +0.80 / slip +0.28 / friction +0.16 | Role-based **and** same-plate vs assembled. 0.80 mm bed lead-in. Slicer XY hole comp = 0 |
 | Envelope | scale 1.0 fits Bambu Lab X2D 256×256×260 with 8 mm margin | `spec.scale` is the source parameter |
 
@@ -29,9 +29,12 @@ Straight H-rotor is the wrong default at this Re: torque ripple and
 dead azimuths. Helix is required. Mid-chord stays on the cylinder;
 chord stays tangent. Open drafted tips. Do not twist the section in place.
 
-The center is short on purpose. A **thin flat thrust** under the plate
-takes rotation about Z. Overturning from the blade tips is a couple
-across a large pitch circle, not a tall journal. A pile of unmatched-height
+The center is short on purpose. A **thin flat thrust** under the
+**blade roots** takes rotation about Z. Overturning from the blade tips
+is a couple across that pitch circle, not a tall journal and not a
+5 mm plate cantilevering from an inboard pack. The cage is a spacer
+(ID looser than the plate bore). The base boss seats the axle — it
+does not match the race OD. A pile of unmatched-height
 races with no housing is not a bearing. Matching more 8 mm flats is still
 a pancake stack. Standing-Z pucks slide on their end faces — that is not
 rolling under −Z. A 28 mm orange tower with webs climbing the wall is a
@@ -95,7 +98,7 @@ cannot take the moment at the blade tips.
 | Station | What | Why |
 |---------|------|-----|
 | Thrust | Axle flange (lower race) ↔ thin rollers ↔ plate underside (upper race), 0.20 float each land | Flat land, not a lifted cone, not a tall drum |
-| Overturning | Same pack, large PCD under the plate | Couple across the disk. Width, not height |
+| Overturning | Same pack, large PCD **under the blade roots** | Couple across the disk. Width, not height. An inboard PCD leaves the plate as a cracker |
 | Stator | Square post on the base (friction in the axle puck) | Print-flat; plate freewheels on the short journal |
 | Retain | Slip washer on the post above the plate | Not a press |
 

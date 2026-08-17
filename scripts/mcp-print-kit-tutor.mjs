@@ -318,7 +318,10 @@ function axleSquare() {
   return mm(spec.axle_square);
 }
 function axleFlangeD() {
-  return Math.max(mm(spec.axle_flange_d), cageOd() + 4);
+  // Race covers the rollers and the cage rim. Stay inside the plate —
+  // cageOd()+4 was the orange halo under a smaller deck.
+  const race = pcd() + rollerLen() + 2;
+  return Math.min(Math.max(race, cageOd()), hubDeckOd() - 2);
 }
 function axleFlangeH() {
   return mmMin(spec.axle_flange_h, 2.4);
@@ -351,14 +354,18 @@ function postCircleR() {
   return mm(spec.post_circle_r);
 }
 function baseBossD() {
-  return Math.max(Math.min(axleFlangeD(), hubDeckOd() - 2), mm(spec.base_boss_d));
+  // Seat the axle only. Matching the race OD reprints a solid orange cylinder.
+  return Math.min(mmMin(spec.base_boss_d, 16), axleFlangeD() - 8, hubDeckOd() - 2);
+}
+function cageRim() {
+  return wall() * 2;
 }
 function cageOd() {
-  const rim = pcd() * 0.5 + rollerLen() * 0.5 + wall();
-  return Math.max(rim * 2, pcd() + rollerLen() + 2 * wall());
+  return pcd() + rollerLen() + 2 * cageRim();
 }
 function cageId() {
-  return innerRaceD() + spec.fit_slip_mm;
+  // Spacer, not a journal. Looser than the plate bore so the plate takes radial load.
+  return plateBore() + 2 * wall();
 }
 function cageH() {
   return packH();
@@ -385,7 +392,11 @@ function retainerH() {
   return mmMin(spec.retainer_h, 2);
 }
 function pcd() {
-  return Math.max(hubDeckOd() * 0.58, innerRaceD() + rollerLen() + 2 * wall());
+  // Midline under the blade roots so the couple does not cantilever the plate.
+  const underRoot = wingRadius() * 2;
+  const maxFit = hubDeckOd() - rollerLen() - 2 * cageRim() - 2;
+  const minFit = innerRaceD() + rollerLen() + 2 * wall();
+  return Math.max(Math.min(underRoot, maxFit), minFit);
 }
 function usableBed() {
   return spec.printer.bed_mm.map((n) => n - 2 * spec.printer.margin_mm);
@@ -476,6 +487,9 @@ function fitsOk() {
     Math.abs(spec.fit_pip_mm - spec.nozzle_mm * 2) < 1e-9
   );
 }
+function packOuterR() {
+  return pcd() * 0.5 + rollerLen() * 0.5;
+}
 function rollersOk() {
   const axis0 = rollerAxis(0);
   return (
@@ -483,17 +497,20 @@ function rollersOk() {
     rollerD() + 1e-9 >= spec.roller_min_d &&
     rollerLen() + 1e-9 >= 8 &&
     Math.abs(packH() - rollerD()) < 1e-9 &&
-    pcd() + 1e-9 >= hubDeckOd() * 0.5 &&
+    packOuterR() + 1e-9 >= wingRadius() * 0.9 &&
     pcd() > innerRaceD() + rollerLen() &&
     cageOd() + 1e-9 < hubDeckOd() &&
     Math.abs(plateBore() - (innerRaceD() + spec.fit_running_mm)) < 1e-9 &&
     axleFlangeD() + 1e-9 >= cageOd() &&
+    axleFlangeD() + 1e-9 < hubDeckOd() &&
     Math.abs(cagePocket() - (rollerD() + spec.fit_running_mm)) < 1e-9 &&
     Math.abs(cageH() - packH()) < 1e-9 &&
-    baseBossD() + 1e-9 < hubDeckOd() &&
+    cageId() + 1e-9 > plateBore() &&
+    baseBossD() + 8 <= axleFlangeD() + 1e-9 &&
+    cageRim() + 1e-9 >= wall() * 2 &&
     Math.abs(axis0[2]) < 1e-9 &&
     Math.abs(axis0[0] - 1) < 1e-9 &&
-    cageOd() * 0.5 + 1e-9 >= pcd() * 0.5 + rollerLen() * 0.5
+    cageOd() * 0.5 + 1e-9 >= packOuterR()
   );
 }
 function helixOk() {
@@ -534,7 +551,9 @@ function stackOk() {
     Math.abs(packH() - rollerD()) < 1e-9 &&
     hubDeckH() + 1e-9 >= 5 &&
     baseBossD() + 1e-9 < hubDeckOd() &&
-    pcd() + 1e-9 >= hubDeckOd() * 0.5
+    packOuterR() + 1e-9 >= wingRadius() * 0.9 &&
+    cageId() + 1e-9 > plateBore() &&
+    baseBossD() + 8 <= axleFlangeD() + 1e-9
   );
 }
 function assemblyComponentCount() {
@@ -1450,7 +1469,7 @@ async function makeAssemblyDrawing() {
     ],
     [
       [18, 58],
-      "GDT  axle SITS on base. Thin flat thrust under the plate: flange = lower race, plate underside = upper race, radial-axis rollers between. Short journal centers. Drop axle, cartridge, rotor, retainer. Pockets running +0.40.",
+      "GDT  axle SITS on base. Thin flat thrust under the blade roots: flange = lower race, plate underside = upper race, radial-axis rollers between. Cage is a spacer (ID looser than the plate bore). Short journal centers the plate. Cage on flange, drop rollers into the windows, then the rotor. Pockets running +0.40.",
     ],
     [
       [18, 68],
@@ -1496,6 +1515,7 @@ function writeDesignReport({ bodies, rotorBox, rotorFaces, plateFiles }) {
     ["Standing-Z pucks", "Ø8 × h3.2 pucks spin about Z. End faces slide on the races. That is not rolling under −Z. Pack height is the roller diameter; axes are radial."],
     ["Tangent-axis rollers", "A tangent axis rolls inward/outward. Relative motion at the race is circumferential, so the roller axis must be radial."],
     ["Rectangular print arms", "Blade roots were rectangular arms + stumps. The airfoil goes through the plate. No spars."],
+    ["Inboard pack / cage as journal", "PCD at 58% of the plate left the blade roots cantilevered on 5 mm PLA. Cage ID tighter than the plate bore stole the radial land. Boss tracked the race OD and reprinted a solid orange cylinder. Pack belongs under the blade roots; cage is a spacer; boss only seats the axle."],
   ];
   const usd = estimatedFilamentUsd().toFixed(2);
   const markdown = `# Print Kit Tutor — design report
@@ -1514,10 +1534,10 @@ ${iterations.map(([name, why]) => `| ${name} | ${why} |`).join("\n")}
 - **Airfoil:** ${spec.airfoil} (t/c ${spec.airfoil_t_c}). 2026 VAWT dynamic-stall work favors t/c 21–24%. TE blunt to ${teMin()} mm (≥ 2 nozzles). Open drafted tips.
 - **Rotor:** one piece — root plate out to the blades (Ø${hubDeckOd().toFixed(1)}), underside is the upper thrust race, plus ${spec.wing_count} helical NACAs lofted from that plate (flat sit-plane cut, chord drafts toward the tip). c=${chordRoot().toFixed(1)}/${chordTip().toFixed(1)} mm, R=${wingRadius().toFixed(1)} mm, span=${wingH().toFixed(1)} mm, helix ${spec.helix_deg}°, σ=${solidity().toFixed(3)}. Envelope/rotor ${(baseEnvelope() / rotorD()).toFixed(2)}.
 - **Fits:** assembled running +${spec.fit_running_mm} (rollers on races and in cage pockets — those parts print as other bodies). Same-plate PIP +${spec.fit_pip_mm} is the class; this kit does not PIP the rollers. Slip +${spec.fit_slip_mm} (square retainer). Friction +${spec.fit_friction_mm} on a land above a ${spec.bed_relief_mm} mm bed lead-in (axle square). Slicer XY hole compensation stays 0. Axle **sits** on the base. Plate **sits** 0.20 above the roller pack. Cage height equals roller diameter. Do **not** nest the plate around the rollers on the bed.
-- **Loads:** weight/thrust on the axle flange (lower race) and the plate underside (upper race). Overturning is a couple across the large-PCD pack — not a tall journal. Torque about Z stays in the rotor; the square post is the stator. Centrifugal blade load is taken by the one-piece plate.
+- **Loads:** weight/thrust on the axle flange (lower race) and the plate underside (upper race). Overturning is a couple across the pack **under the blade roots** — not a tall journal, and not a 5 mm plate cantilevering from an inboard PCD. The plate bore (running) is the radial land; the cage ID is looser (spacer). Torque about Z stays in the rotor; the square post is the stator. Centrifugal blade load is taken by the one-piece plate.
 - **Links:** rigid axle_sit + retainer_sit; revolute rotor_spin / cage_spin about Z; each roller revolute about its radial axis. assembly_solution must stay solved without yanking parts off-axis.
 - **Materials:** ${plaOrange} (base, axle, cage, rollers, retainer) and ${plaGlow} (rotor). Hardened nozzle for glow. AMS lite is not recommended for glow.
-- **Thrust pack:** ${spec.roller_count}× Ø${rollerD().toFixed(1)}×L${rollerLen().toFixed(1)} radial-axis rollers on PCD ${pcd().toFixed(1)} between flange Ø${axleFlangeD().toFixed(1)} and plate Ø${hubDeckOd().toFixed(1)}. Pack height = roller Ø. Short journal Ø${innerRaceD().toFixed(1)}×h${raceH().toFixed(1)} centers the plate bore ${plateBore().toFixed(1)}. Print standing, assemble lying down. Not a tall drum. Not standing-Z pucks.
+- **Thrust pack:** ${spec.roller_count}× Ø${rollerD().toFixed(1)}×L${rollerLen().toFixed(1)} radial-axis rollers on PCD ${pcd().toFixed(1)} (outer land r=${packOuterR().toFixed(1)}, blade R=${wingRadius().toFixed(1)}) between flange Ø${axleFlangeD().toFixed(1)} and plate Ø${hubDeckOd().toFixed(1)}. Pack height = roller Ø. Cage ID ${cageId().toFixed(1)} > plate bore ${plateBore().toFixed(1)}. Short journal Ø${innerRaceD().toFixed(1)}×h${raceH().toFixed(1)} centers the plate. Cage on the flange, rollers into the windows, then the rotor. Not a pickup cartridge. Not a tall drum. Not standing-Z pucks.
 - **Scale:** source numbers are X2D-max (256×256×260, 8 mm margin). Exam scale ${spec.scale}. Feature floors: roller Ø${spec.roller_min_d}, TE ${spec.airfoil_te_min_mm}, 4-nozzle walls.
 - **Service finish:** rotor standing so layer lines run spanwise; sand PLA 400→1000 on skins. Do not vapor-smooth a running fit.
 - **Assembly drawing:** A3 sheet, auto-layout, notes for fits / scale / print / BOM.
@@ -1531,7 +1551,7 @@ Five functional parts, assembly order: ${spec.assembly_order.join(" → ")}.
 | Base | 1 | Y-frame + square stator post. Print flat. |
 | Axle | 1 | Lower thrust flange + short centering journal, square bore, print on the flange. |
 | Rotor | 1 | Root plate (upper thrust race) + 3× ${spec.airfoil} ending on the sit plane. Print standing. |
-| Roller cartridge | 1 | Cage + ${spec.roller_count} radial-axis rollers dropped onto the flange. |
+| Roller cage | 1 | Spacer ring + ${spec.roller_count} radial-axis rollers. Cage on the flange, rollers into the windows. |
 | Retainer | 1 | Washer on the post above the plate. |
 
 Rotor bbox (exam): ${rotorBox ? `${rotorBox.span.map((n) => n.toFixed(1)).join(" × ")} mm` : "n/a"}; faces=${rotorFaces}. Bodies=${bodies.length}.
@@ -1652,7 +1672,7 @@ try {
   try {
     await formAssembly({ baseId, axleId, rotorId, cageId, rollerIds, retainerId });
     assemblyOk = true;
-    assemblyDetail = `${assemblyComponentCount()} linked parts, ≥${assemblyJointCount()} joints; axle sits on base; radial-axis thin thrust under the plate; rollers spin about e_r`;
+    assemblyDetail = `${assemblyComponentCount()} linked parts, ≥${assemblyJointCount()} joints; axle sits on base; radial-axis pack under the blade roots; cage is a spacer; rollers spin about e_r`;
   } catch (error) {
     assemblyDetail = String(error?.message ?? error);
   }

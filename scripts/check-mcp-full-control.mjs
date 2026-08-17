@@ -377,6 +377,17 @@ if (
 ) {
   fail('print-kit Node exam must size a radial-axis thrust pack (pack height = roller Ø)');
 }
+if (
+  !tutorSrc.includes('function cageRim') ||
+  !tutorSrc.includes('function packOuterR') ||
+  !tutorSrc.includes('underRoot') ||
+  tutorSrc.includes('cageOd() + 4')
+) {
+  fail('print-kit Node exam must put the pack under the blade roots (no cageOd()+4 halo)');
+}
+if (!tutorSrc.includes('plateBore() + 2 * wall()')) {
+  fail('print-kit Node exam must size cage ID looser than the plate bore (spacer, not a journal)');
+}
 if (tutorSrc.includes('rootWebInner') || tutorSrc.includes('blade root web')) {
   fail('print-kit Node exam must not climb a cup wall with root webs');
 }
@@ -436,6 +447,17 @@ if (
 ) {
   fail('print-kit cargo exam must size a radial-axis thrust pack (pack height = roller Ø)');
 }
+if (
+  !rustTutor.includes('fn cage_rim') ||
+  !rustTutor.includes('fn pack_outer_r') ||
+  !rustTutor.includes('under_root') ||
+  rustTutor.includes('cage_od() + 4.0')
+) {
+  fail('print-kit cargo exam must put the pack under the blade roots (no cage_od()+4 halo)');
+}
+if (!rustTutor.includes('self.plate_bore() + 2.0 * self.wall()')) {
+  fail('print-kit cargo exam must size cage ID looser than the plate bore (spacer, not a journal)');
+}
 if (rustTutor.includes('root_web_inner') || rustTutor.includes('blade root web')) {
   fail('print-kit cargo exam must not climb a cup wall with root webs');
 }
@@ -460,6 +482,12 @@ if (!/radial[- ]axis/i.test(printKitPrompt)) {
 }
 if (!/standing-Z puck|standing puck/i.test(printKitPrompt)) {
   fail('model_print_kit prompt must reject standing-Z pucks');
+}
+if (!/under the blade roots/i.test(printKitPrompt)) {
+  fail('model_print_kit prompt must put the pack under the blade roots');
+}
+if (!/inboard pack/i.test(printKitPrompt)) {
+  fail('model_print_kit prompt must reject an inboard pack / cage-as-journal');
 }
 if (spec.roller_h > 12) {
   fail('print-kit tutor spec roller_h must not be reused as a 70 mm drum height');

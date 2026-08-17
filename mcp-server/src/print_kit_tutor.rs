@@ -148,7 +148,11 @@ impl Spec {
         self.mm_min(self.axle_square_h, self.hub_h() + 2.0)
     }
     fn axle_flange_d(&self) -> f64 {
-        self.mm(self.axle_flange_d).max(self.cage_od() + 4.0)
+        // Race covers the rollers and the cage rim. Stay inside the
+        // plate — cage_od+4 was the orange halo under a smaller deck.
+        let race = self.pcd() + self.roller_len() + 2.0;
+        race.max(self.cage_od())
+            .min(self.hub_deck_od() - 2.0)
     }
     fn axle_flange_h(&self) -> f64 {
         self.mm_min(self.axle_flange_h, 2.4)
@@ -181,16 +185,22 @@ impl Spec {
         self.mm(self.post_circle_r)
     }
     fn base_boss_d(&self) -> f64 {
-        self.axle_flange_d()
+        // Seat the axle only. Matching the race OD reprints a solid
+        // orange cylinder under the plate.
+        self.mm_min(self.base_boss_d, 16.0)
+            .min(self.axle_flange_d() - 8.0)
             .min(self.hub_deck_od() - 2.0)
-            .max(self.mm(self.base_boss_d))
+    }
+    fn cage_rim(&self) -> f64 {
+        self.wall() * 2.0
     }
     fn cage_od(&self) -> f64 {
-        let rim = self.pcd() * 0.5 + self.roller_len() * 0.5 + self.wall();
-        (rim * 2.0).max(self.pcd() + self.roller_len() + 2.0 * self.wall())
+        self.pcd() + self.roller_len() + 2.0 * self.cage_rim()
     }
     fn cage_id(&self) -> f64 {
-        self.inner_race_d() + self.fit_slip_mm
+        // Spacer, not a journal. Must be looser than the plate bore
+        // so the plate takes radial load and the cage does not rub.
+        self.plate_bore() + 2.0 * self.wall()
     }
     fn cage_h(&self) -> f64 {
         self.pack_h()
@@ -216,9 +226,12 @@ impl Spec {
         self.mm_min(self.retainer_h, 2.0)
     }
     fn pcd(&self) -> f64 {
-        let want = self.hub_deck_od() * 0.58;
+        // Midline under the blade roots so the couple does not
+        // cantilever across a 5 mm plate (the inboard-pack cracker).
+        let under_root = self.wing_radius() * 2.0;
+        let max_fit = self.hub_deck_od() - self.roller_len() - 2.0 * self.cage_rim() - 2.0;
         let min_fit = self.inner_race_d() + self.roller_len() + 2.0 * self.wall();
-        want.max(min_fit)
+        under_root.min(max_fit).max(min_fit)
     }
     fn usable_bed(&self) -> [f64; 3] {
         [
@@ -321,24 +334,29 @@ impl Spec {
             && (self.bed_relief_mm - self.nozzle_mm * 2.0).abs() < 1e-9
             && (self.fit_pip_mm - self.nozzle_mm * 2.0).abs() < 1e-9
     }
+    fn pack_outer_r(&self) -> f64 {
+        self.pcd() * 0.5 + self.roller_len() * 0.5
+    }
     fn rollers_ok(&self) -> bool {
         let axis0 = self.roller_axis(0);
         self.roller_count >= 6
             && self.roller_d() + 1e-9 >= self.roller_min_d
             && self.roller_len() + 1e-9 >= 8.0
             && (self.pack_h() - self.roller_d()).abs() < 1e-9
-            && self.pcd() + 1e-9 >= self.hub_deck_od() * 0.5
+            && self.pack_outer_r() + 1e-9 >= self.wing_radius() * 0.9
             && self.pcd() > self.inner_race_d() + self.roller_len()
             && self.cage_od() + 1e-9 < self.hub_deck_od()
             && (self.plate_bore() - (self.inner_race_d() + self.fit_running_mm)).abs() < 1e-9
             && self.axle_flange_d() + 1e-9 >= self.cage_od()
+            && self.axle_flange_d() + 1e-9 < self.hub_deck_od()
             && (self.cage_pocket() - (self.roller_d() + self.fit_running_mm)).abs() < 1e-9
             && (self.cage_h() - self.pack_h()).abs() < 1e-9
-            && self.base_boss_d() + 1e-9 < self.hub_deck_od()
+            && self.cage_id() + 1e-9 > self.plate_bore()
+            && self.base_boss_d() + 8.0 <= self.axle_flange_d() + 1e-9
+            && self.cage_rim() + 1e-9 >= self.wall() * 2.0
             && axis0[2].abs() < 1e-9
             && (axis0[0] - 1.0).abs() < 1e-9
-            && self.cage_od() * 0.5 + 1e-9
-                >= self.pcd() * 0.5 + self.roller_len() * 0.5
+            && self.cage_od() * 0.5 + 1e-9 >= self.pack_outer_r()
     }
     fn helix_ok(&self) -> bool {
         self.helix_deg >= 45.0 && self.helix_stations >= 2
@@ -380,7 +398,9 @@ impl Spec {
             && (self.pack_h() - self.roller_d()).abs() < 1e-9
             && self.hub_deck_h() + 1e-9 >= 5.0
             && self.base_boss_d() + 1e-9 < self.hub_deck_od()
-            && self.pcd() + 1e-9 >= self.hub_deck_od() * 0.5
+            && self.pack_outer_r() + 1e-9 >= self.wing_radius() * 0.9
+            && self.cage_id() + 1e-9 > self.plate_bore()
+            && self.base_boss_d() + 8.0 <= self.axle_flange_d() + 1e-9
     }
     fn assembly_component_count(&self) -> usize {
         5 + self.roller_count
@@ -1398,7 +1418,7 @@ fn form_assembly(
     }
     require_linked_solution(call)?;
     Ok(format!(
-        "{defs} linked parts, {joints} joints; axle sits on base; radial-axis thin thrust under the plate; rollers spin about e_r"
+        "{defs} linked parts, {joints} joints; axle sits on base; radial-axis pack under the blade roots; cage is a spacer; rollers spin about e_r"
     ))
 }
 
@@ -1536,7 +1556,7 @@ fn make_assembly_drawing(
         ),
         (
             [18.0, 58.0],
-            "GDT  axle SITS on base. Thin flat thrust under the plate: flange = lower race, plate underside = upper race, radial-axis rollers between. Short journal centers. Drop axle, cartridge, rotor, retainer. Pockets running +0.40.".to_string(),
+            "GDT  axle SITS on base. Thin flat thrust under the blade roots: flange = lower race, plate underside = upper race, radial-axis rollers between. Cage is a spacer (ID looser than the plate bore). Short journal centers the plate. Cage on flange, drop rollers into the windows, then the rotor. Pockets running +0.40.".to_string(),
         ),
         (
             [18.0, 68.0],
@@ -2539,7 +2559,10 @@ mod spec_tests {
         assert!(spec.cage_od() < spec.hub_deck_od());
         assert!((spec.plate_bore() - (spec.inner_race_d() + spec.fit_running_mm)).abs() < 1e-9);
         assert!(spec.axle_flange_d() + 1e-9 >= spec.cage_od());
-        assert!(spec.cage_id() > spec.inner_race_d());
+        assert!(spec.cage_id() > spec.plate_bore());
+        assert!(spec.pack_outer_r() + 1e-9 >= spec.wing_radius() * 0.9);
+        assert!(spec.base_boss_d() + 8.0 <= spec.axle_flange_d() + 1e-9);
+        assert!(spec.cage_rim() + 1e-9 >= spec.wall() * 2.0);
         assert!(spec.post_h() < spec.axle_flange_d() * 2.5);
         assert!(spec.fit_pip_mm > spec.fit_running_mm);
         assert!((spec.bed_relief_mm - spec.nozzle_mm * 2.0).abs() < 1e-9);
@@ -2553,7 +2576,7 @@ mod spec_tests {
         assert!(spec.base_boss_d() + 1e-9 < spec.hub_deck_od());
         assert!((spec.roller_axis(0)[0] - 1.0).abs() < 1e-9);
         assert!(spec.roller_axis(0)[2].abs() < 1e-9);
-        assert!(spec.pcd() + 1e-6 >= 0.5 * spec.hub_deck_od());
+        assert!(spec.pack_outer_r() + 1e-6 >= spec.wing_radius() * 0.9);
         assert!(spec.race_h() > 12.0);
         assert!(spec.race_h() < 20.0);
         assert!((spec.plate_z() - spec.hub_z()).abs() < 1e-9);

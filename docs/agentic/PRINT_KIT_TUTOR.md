@@ -34,7 +34,7 @@ floors (roller Ø8, roller length 8, TE 0.8, 4-nozzle walls, plate 5 mm) are cla
 | Base | Y-frame + short square stator post, one piece | Post is the grounded axis. Print flat. |
 | Axle | Large thin flange (lower thrust race) + short journal, square bore | Friction on the post (+0.16). Print on the flange. |
 | Rotor | Root plate (≥5 mm) out to the blades (underside = upper thrust race), 3 helical **NACA 0021** ending on that plate, **one body**, open drafted tips | Plate bore = journal + running. Print standing on the plate. PLA Glow. |
-| Roller cartridge | Cage + 6 **radial-axis** rollers, min Ø8, pack height = Ø, large PCD **under the plate**. Cage height = roller Ø | Running +0.40 on rollers / races / pockets. Print standing, assemble lying down. |
+| Roller cage | Cage + 6 **radial-axis** rollers, min Ø8, pack height = Ø, large PCD **under the blade roots**. Cage height = roller Ø. Cage ID looser than the plate bore | Running +0.40 on rollers / races / pockets. Cage on the flange, rollers into the windows. |
 | Retainer | Washer above the plate | Slip +0.28 on the post. Floats 0.20 above the plate. |
 
 Fits are **per role** (running / PIP / slip / friction) and per whether
@@ -43,7 +43,7 @@ Every bed-printed locate gets a 0.80 mm elephant-foot lead-in. Do not
 nest the plate around the rollers on the bed. Slicer XY hole compensation
 stays 0. No metal 608s. No FDM press fits. No loose bushing sandwich. No tall drum. No standing-Z pucks.
 
-Assembly order: **base → axle → roller cartridge → rotor → retainer**.
+Assembly order: **base → axle → cage on the flange → rollers into the windows → rotor → retainer**.
 
 Then: one `assembly_create_component` per **moving** body (base, axle,
 rotor, cage, each roller, retainer). That call already inserts

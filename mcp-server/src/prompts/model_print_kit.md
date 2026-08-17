@@ -3,7 +3,7 @@ CAD synthesis tutor — design a fully printed, omnidirectional VAWT *assembly* 
 Spec: scripts/fixtures/print-kit-tutor.spec.json (id fdm-print-vawt).
 Contract: docs/agentic/PRINT_KIT_DESIGN.md.
 Rerun: npm run test:mcp-print-kit.
-Printer: Bambu Lab X2D (256×256×260, 8 mm margin). `spec.scale` shrinks the X2D-max source (exam default 0.4). Clamp rollers ≥ Ø8, roller length ≥ 8, TE ≥ 0.8, walls ≥ 4 nozzles. The bearing is a **thin flat thrust** under the plate (large PCD, **radial-axis** rollers, pack height = roller Ø) — not a washer stack, not standing-Z pucks, and not a tall drum.
+Printer: Bambu Lab X2D (256×256×260, 8 mm margin). `spec.scale` shrinks the X2D-max source (exam default 0.4). Clamp rollers ≥ Ø8, roller length ≥ 8, TE ≥ 0.8, walls ≥ 4 nozzles. The bearing is a **thin flat thrust** under the **blade roots** (large PCD, **radial-axis** rollers, pack height = roller Ø) — not a washer stack, not standing-Z pucks, not an inboard pack that leaves the plate as a cantilever, and not a tall drum.
 
 Nozzle = {nozzle} mm. Fits are **per role**, not one clearance for every hole:
 
@@ -27,6 +27,8 @@ Do not ship any of these. They have already been built. They are not turbines.
 - A **loose bushing sandwich**: separate outer-race ring, postage-stamp flange, unmatched roller / cage / race heights, and no meaningful attach. Do not invent metal 608s to paper over that
 - A **washer cup** / pancake stack. Matching 8 mm flats to 8 mm rollers still reads as pancakes stacked on the plate. Height-matching cylinders is not a bearing
 - **Standing-Z pucks** (axis = Z, end faces sliding on the races). That is not rolling under −Z. Pack height is the roller diameter; axes are **radial**
+- **Inboard pack / cage as journal.** A PCD at ~58% of the plate leaves the blade roots cantilevered on 5 mm PLA — the couple never reaches the race. A cage ID tighter than the plate bore steals the radial land. The pack outer land must reach the blade radius. Cage ID is looser than the plate bore (spacer). The base boss seats the axle; it does not match the race OD
+- **Pickup cartridge.** Open-top/bottom windows are how the rollers touch both races. Put the cage on the flange, drop rollers into the windows, then the rotor. Do not claim you can pick up a preloaded cage
 - **Tangent-axis** rollers. Relative motion at the race is circumferential; a tangent axis rolls inward/outward
 - A **tall cup / tall drum** in the hub (an orange tower, “land ≥28 mm”, moment webs climbing a wall). That is a journal you can see from the side. We do not need a tall system. A thin flat thrust under the plate handles rotation for the tall airfoils
 - Assembled spinner whose rotor collides with the stand
@@ -41,7 +43,7 @@ Do not ship any of these. They have already been built. They are not turbines.
 - Nesting the plate around the rollers on the bed
 - Overhung blade roots / a loft that starts mid-hub or from the **top of an arm** (the standing print has no first-layer airfoil). The airfoil draft must continue down and **end on the sit-plane horizontal**. No rectangular print arms or spars
 - A tiny hub ring with skinny arms and blades hung off the ends. The rotating mount is a **root plate** out to the blades. The plate underside is the upper thrust race
-- A closed race you cannot load. Drop the cartridge on the flange, then drop the rotor on the pack. Retainer last
+- A closed race you cannot load. Cage on the flange, rollers into the windows, then the rotor. Retainer last
 - Press fits, same-angle lifted cones (parallel surfaces never touch)
 - A report that only says READY TO PRINT
 - A fat frame: base envelope > 1.55 × rotor tip diameter (the Ø90 cookie)
@@ -61,7 +63,7 @@ Architecture (required): **helical / Gorlov H-Darrieus** with a **symmetric airf
 
 Helix rule: loft a **closed NACA** at ≥2 stations. Mid-chord stays on radius R. Chord stays tangent. Twist ≥45° over the span (spec: 60°). Root at 30°. Open drafted tips — no end cap. First station is the **root plate** (the sit / print plane). Chord drafts toward the tip. The blade bottom is that flat horizontal — not a cut from a surface above.
 
-The center is **short**. Do not build a tall mast. Do not build a tall drum. A **thin flat thrust** under the plate takes rotation about Z and the overturning couple from the blade tips. The stator is a square post on the Y-frame; the plate freewheels on the pack. There is no separate bushing for the blades to friction-mount onto.
+The center is **short**. Do not build a tall mast. Do not build a tall drum. A **thin flat thrust** under the **blade roots** takes rotation about Z and the overturning couple from the blade tips. The stator is a square post on the Y-frame; the plate freewheels on the pack. The plate bore is the radial land; the cage is a spacer. There is no separate bushing for the blades to friction-mount onto.
 
 ## 2026 airfoil (required)
 
@@ -85,7 +87,7 @@ Five **individual** functional parts, then an **assembly** (components + occurre
 | Base | **Y-frame** + short square stator post. One piece. No cookie. | Flat |
 | Axle | Large thin **flange** (lower thrust race) + **short** centering journal, square bore (friction on the post). Never a tall skinny shaft | On the flange |
 | Rotor | **Root plate** out to the blades (underside = upper thrust race), 3 helical drafted **NACA 0021** ending on that plate, **one body**, open tips. Plate bore = journal + running | Standing on the plate |
-| Roller cartridge | Cage + ≥6 **radial-axis** rollers, min Ø8, pack height = Ø, large PCD **under the plate**. Cage height = roller Ø | Cage flat; rollers print **standing** (axis Z), assemble lying down |
+| Roller cage | Cage + ≥6 **radial-axis** rollers, min Ø8, pack height = Ø, large PCD **under the blade roots**. Cage height = roller Ø. Cage ID looser than the plate bore | Cage flat; rollers print **standing** (axis Z), assemble lying down |
 | Retainer | Washer above the plate, slip on the post | Flat |
 
 Girth gates: envelope/rotor D ≤ 1.55; span/chord ≥ 2.5; solidity 0.24–0.45. Scale 1.0 must fit the X2D usable bed (240×240×244).
@@ -106,13 +108,13 @@ Specify, in the report, all of:
 
 ## Rotation — thin flat thrust, not a 608, not a tall drum
 
-The bearing is a **printed thrust cartridge** (radial-axis rollers in a cage) on a **large pitch circle under the plate**. That is a normal 2026 printed turntable: width takes the moment; height is the roller diameter. No metal 608, no 623, no tall two-land sleeve, no orange tower, no standing-Z pucks.
+The bearing is a **printed thrust pack** (radial-axis rollers in a cage) on a **large pitch circle under the blade roots**. That is a normal 2026 printed turntable: width takes the moment; height is the roller diameter. No metal 608, no 623, no tall two-land sleeve, no orange tower, no standing-Z pucks, no inboard cracker.
 
 - Lower race: axle **flange** (printed separately)
 - Rolling elements: ≥6 cylinders, **axis radial** (e_r), diameter = pack height, min Ø8. Print standing (circular layers); assemble lying down
 - Upper race: **plate underside**
 - Journal: short inner-race cylinder through the pack / plate / retainer — centering only
-- Cage pockets are **running +0.40** (drop-in). Cage height **equals** roller diameter. The cage is a spacer; axial capture is the axle flange + retainer
+- Cage pockets are **running +0.40** (drop-in). Cage height **equals** roller diameter. The cage is a spacer (ID looser than the plate bore); axial capture is the axle flange + retainer. Assemble on the flange — not a pickup cartridge
 - Do not PIP a lying roller. Do not nest rollers under the plate. Do not close a top inward lip over the rollers
 - Square post is the **stator** (friction in the axle, slip in the retainer). The rotor does **not** key to the post
 
@@ -122,7 +124,7 @@ PLA-on-PLA is a demo spin, not a 1000 h bearing. Say that in the report.
 
 No screws, nuts, heat-set inserts, metal shafts, metal bearings, glue as a fit, or rubber bands.
 
-Assembly order: **base → axle → roller cartridge → rotor → retainer**.
+Assembly order: **base → axle → cage on the flange → rollers into the windows → rotor → retainer**.
 
 Then form a **linked** CAD assembly: `cad_set_focus assembly` (or `cad_set_workspace assembly`). `assembly_create_component` per body that moves — that call already inserts the one root occurrence. **Do not** `assembly_create_occurrence` again. Ground the base. Joints:
 
@@ -144,7 +146,7 @@ Minimum wall 1.6 mm (4 nozzles). Functional holes are complete XY circles. Disab
 2. Base **Y-frame** + square stator post. One piece, print flat
 3. Axle: large thin flange + short journal, square bore, print on the flange
 4. Rotor: **root plate** (print sit + upper thrust race, ≥5 mm). Loft three helical **NACA 0021** from the plate top (sit plane), open drafted tips. Airfoil through the plate — no rectangular arms. Do not start the loft from a surface above the plate. Do not grow a tall drum or moment webs on the plate
-5. Roller cage + **radial-axis** rollers on a large PCD **under the plate**. Cage height = roller Ø. Retainer washer above the plate
+5. Roller cage + **radial-axis** rollers on a large PCD **under the blade roots**. Cage height = roller Ø. Cage ID looser than the plate bore. Retainer washer above the plate
 6. cad_set_workspace assembly. One `assembly_create_component` per moving body (base, axle, rotor, cage, each roller, retainer — no extra occurrence). Ground the base. Rigid axle_sit + retainer_sit; revolute rotor_spin / cage about Z; each roller about its radial axis (not a spar). cad_set_focus drawing. Sheet + auto-layout + notes
 7. cad_set_focus print. set_body_appearance to **PLA Orange** and **PLA Glow** only. solid_export_preflight. Save the assembled `.nbcad`. **Delete** any prior `Print-Kit-Tutor/` 3MFs (and `Print-Kit-Tutor.3mf`). `solid_move_copy` the parts onto one bed (rotor standing on the root plate, rollers standing, others flat). Then `solid_export_3mf` **once** as `01-kit` with every kit body_id. The folder must contain exactly that file.
 8. `cad_set_project_visibility`: hide every construction plane (`hidden_datum_plane_ids`) and finished loft sketches (`hidden_sketch_names`). The shipped `.nbcad` must read as the five-part kit, not orange datum stacks.
@@ -158,7 +160,7 @@ The report must include:
 
 ### 1. Iteration log (what failed, why)
 
-At least the real product faults: scatter, colliding spinner, helical C, hoop sector, turntable, flat plate, straight NACA in a fat cage, uniform +0.40 on every hole, PIP a lying roller, bed-printed friction bore with no lead-in, tenoned separate wings, tall skinny shaft, two-land sleeve that cannot take tip moment, loose bushing sandwich with unmatched heights and no attach, washer/pancake stack, tall drum / can on a cracker, standing-Z pucks, tangent-axis rollers, rectangular print arms.
+At least the real product faults: scatter, colliding spinner, helical C, hoop sector, turntable, flat plate, straight NACA in a fat cage, uniform +0.40 on every hole, PIP a lying roller, bed-printed friction bore with no lead-in, tenoned separate wings, tall skinny shaft, two-land sleeve that cannot take tip moment, loose bushing sandwich with unmatched heights and no attach, washer/pancake stack, tall drum / can on a cracker, standing-Z pucks, tangent-axis rollers, rectangular print arms, inboard pack / cage as journal.
 
 ### 2. Design process
 

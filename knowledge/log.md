@@ -2,6 +2,11 @@
 
 ## 2026-08-17
 
+- **Update**: Print-kit load path: pack outer land under the blade
+  roots (not PCD at 58% of the plate). Cage ID is looser than the
+  plate bore (spacer, not a journal). Base boss seats the axle and
+  does not match the race OD. Assemble on the flange — the cage is
+  not a pickup cartridge.
 - **Update**: Print-kit thrust rollers are **radial-axis** cylinders.
   Pack height is the roller diameter. Standing-Z pucks slide on their
   end faces and are not a bearing. A tangent axis would roll

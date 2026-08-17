@@ -6,6 +6,13 @@ helical loft inside a good frame. Replacing that with a turntable threw
 the frame away — and left the wing with nothing to use. This page is the
 correction record. Numbers live in `scripts/fixtures/print-kit-tutor.spec.json`.
 
+**Current machine (2026-08-17):** one-piece helical rotor on a thin
+root plate; Y-frame + short square post; **thin flat thrust under the
+blade roots** (radial-axis rollers, pack height = roller Ø); cage is a
+spacer (ID looser than the plate bore); base boss seats the axle only.
+The two-bearing post / tenon / cone stand in the sections below is
+**historical** — do not rebuild it.
+
 ## Product fault (why the turntable was wrong)
 
 The Ø90 post-and-plate stack is a **two-bearing stand**: cup in the base,
@@ -143,10 +150,11 @@ graded, but it was the wrong product for additive manufacturing:
 | Joint | Class | CAD |
 |-------|-------|-----|
 | Rollers ↔ races (assembled) | Running | +0.40 diametral |
-| Rollers ↔ cage pockets | Running | +0.40 diametral. Rollers print standing and drop in. Do not PIP a lying roller. |
+| Rollers ↔ cage pockets | Running | +0.40 diametral. Rollers print standing and drop into windows on the flange. Do not PIP a lying roller. Cage is not a pickup cartridge. |
 | Retainer ↔ square post | Slip | +0.28 |
 | Axle square bore ↔ post | Friction locate | +0.16 |
-| Plate bore ↔ inner race | Running | +0.40. The plate is not keyed to the post. |
+| Plate bore ↔ inner race | Running | +0.40. This is the radial land. The plate is not keyed to the post. |
+| Cage ID ↔ journal | Clearance | Cage ID = plate bore + 2 walls. Spacer, not a tighter journal. |
 | Plate / cage ↔ flange land | Thrust | 0.20 axial float; pack sits on the flange, plate sits on the pack |
 | Rollers ↔ plate underside | Thrust | Upper race is the plate. Cage height = roller height. |
 | Plate ↔ retainer washer | Thrust | 0.20 axial float; retainer covers the plate bore, OD between bore and flange |
@@ -167,9 +175,10 @@ graded, but it was the wrong product for additive manufacturing:
 ### Assembly (current)
 
 1. Axle puck onto the square post (friction locate). Flange **sits** on the base.
-2. Drop rollers into the cage, then drop the cartridge onto the flange. Cage height equals roller Ø. Each roller revolute is about its radial axis.
-3. Drop the rotor on the pack: plate bore over the short journal, plate underside 0.20 above the rollers.
-4. Retainer washer **square-slip** on the post, floats 0.20 above the plate.
+2. Drop the cage onto the flange. Cage height equals roller Ø. Cage ID is looser than the plate bore.
+3. Drop each roller into a window (they sit on the flange; the cage only spaces them). Each roller revolute is about its radial axis. Do not pick the cage up as a preloaded cartridge — the windows are open so the rollers can touch both races.
+4. Drop the rotor on the pack: plate bore over the short journal, plate underside 0.20 above the rollers. The pack outer land is under the blade roots.
+5. Retainer washer **square-slip** on the post, floats 0.20 above the plate.
 
 If those steps are not visible in the solid, the exam failed.
 
@@ -230,3 +239,12 @@ If those steps are not visible in the solid, the exam failed.
 | Tangent-axis rollers | A tangent axis rolls inward/outward. | Relative motion at the race is circumferential, so ω × (±Z) needs e_r. |
 | Base boss larger than the plate | Ø84 orange halo under a Ø76 plate. | Boss ≤ flange, always smaller than the plate OD. |
 | Rectangular print arms | Blade roots were arms + spars + stumps. | Airfoil through the plate. |
+
+### 2026-08-17 load-path pass
+
+| Fault | Why it failed | Correction |
+|-------|---------------|------------|
+| Inboard pack | PCD at 58% of the plate (exam 44 mm vs blade R 34). Blade roots cantilevered on 5 mm PLA. The couple never reached the race — same cracker as the tall drum, just thinner. | PCD out so the roller outer land reaches ~0.9× blade R. Flange sized to the race and stays inside the plate (no `cage_od+4` halo). |
+| Cage as journal | Cage ID was journal + slip (tighter than the plate bore). The spacer stole the radial land and rubbed. | Cage ID = plate bore + 2 walls. Plate bore is the radial running land. |
+| Boss = race OD | Base boss tracked the flange, so a wide pack reprinted a solid orange cylinder under the plate. | Boss only seats the axle. Race overhangs the boss by ≥8 mm. |
+| Pickup cartridge | Pocket Ø > cage height, so windows are open top and bottom (required for race contact). Rollers fall out if you lift the cage. | Assemble on the flange: cage, then rollers into the windows, then the rotor. |

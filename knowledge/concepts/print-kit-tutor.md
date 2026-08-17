@@ -21,7 +21,7 @@ nozzle fits by building a printed VAWT **assembly** and grading it.
 - Domain matrix: [MCP_GAP.md](../../docs/agentic/MCP_GAP.md)
 
 Five functional print parts (base, axle puck, one-piece helical rotor,
-radial-axis roller cartridge, retainer). The CAD assembly links every
+radial-axis roller cage, retainer). The CAD assembly links every
 moving body: rigid stator (axle sits on the base; retainer on the post),
 plus revolutes for the plate bore (`rotor_spin`) and cage about Z, and
 each roller about its **radial** axis. There is no loose bushing
@@ -31,16 +31,17 @@ bodies. Cage height equals roller diameter (the pack height).
 Bed-printed locates get a 0.80 mm lead-in. The plate is not nested
 around the rollers on the bed. The rotor is a **root plate** (≥5 mm,
 print sit + upper thrust race) with the airfoil through that plate. A
-**thin flat thrust** under that plate (radial-axis rollers on a large
-PCD; flange = lower race) takes rotation about Z. Overturning is a
-couple across that disk — not a tall journal, not moment webs climbing
-a wall. Matching 8 mm flats is still a pancake stack. Standing-Z pucks
+**thin flat thrust** under the **blade roots** (radial-axis rollers on a
+large PCD; flange = lower race) takes rotation about Z. Overturning is a
+couple under those roots — not a tall journal, not an inboard pack that
+leaves the plate as a cantilever, not moment webs climbing a wall. The
+cage is a spacer (ID looser than the plate bore). Assemble on the
+flange: cage, then rollers into the windows, then the rotor. Matching 8 mm flats is still a pancake stack. Standing-Z pucks
 slide on their end faces. Look at the solid (`npm run render:print-kit`)
 as a check, not as the design method. Blade lofts start on that plate
 (flat sit-plane cut — the draft ends on that horizontal, not from a
-surface above). Install: drop rollers into the cage, drop the cartridge
-on the flange, then drop the rotor on the pack. Blades stay one printed
-body with the plate. The exam starts from a blank document (`cad_new_project`, 0 bodies) and
+surface above). Install: cage on the flange, rollers into the windows, then the rotor.
+Blades stay one printed body with the plate. The exam starts from a blank document (`cad_new_project`, 0 bodies) and
 hides construction planes before writing the `.nbcad`. Reruns wipe
 retired plates so `Print-Kit-Tutor/` holds only `01-kit.3mf` (parts
 laid out; PLA Orange + PLA Glow). Fits are per role (running +0.40,
