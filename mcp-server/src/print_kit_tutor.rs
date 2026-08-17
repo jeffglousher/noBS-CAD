@@ -198,10 +198,10 @@ impl Spec {
         self.wall()
     }
     fn root_scale(&self) -> f64 {
-        1.22
+        1.38
     }
     fn root_blend_h(&self) -> f64 {
-        self.mm_min(8.0, 3.2)
+        self.mm_min(16.0, 6.0)
     }
     fn tip_taper_h(&self) -> f64 {
         self.mm_min(12.0, 4.0)

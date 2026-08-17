@@ -270,7 +270,7 @@ If those steps are not visible in the solid, the exam failed.
 |-------|---------------|------------|
 | Rollers slide out | `race_id` sat at the roller inner end. The top-load pocket is longer than the roller by running, so the cut punched through the race ID into the open Y-frame. | `race_id = PCD − roller length − 2×keeper`. Inner and outer end walls survive the cut (`keeper > running/2`). Still top-load — no bars over the pack. Axial capture stays the plate. |
 | Thick stator | Y-frame / race floor was 6 mm at exam scale. Extra plastic, not extra stiffness where it matters. | Base floor 3.2 mm (exam **4.8**). Race stays a ring. |
-| Thick plate / sharp join | Plate floor was 5 mm. A hard airfoil cut on a thinner plate is a crack starter and a print cliff. | Plate floor 3.2 mm (exam **4.0**). First loft station above the plate is a fatter airfoil (`root_scale` 1.22 over `root_blend_h` 3.2). Through-plate stump stays the sit-plane chord. |
+| Thick plate / sharp join | Plate floor was 5 mm. A hard airfoil cut on a thinner plate is a crack starter and a print cliff. | Plate floor 3.2 mm (exam **4.0**). First loft station above the plate is a fatter airfoil (`root_scale` 1.38 over `root_blend_h` 6.0). Through-plate stump stays the sit-plane chord. |
 | Blunt tip | Square-cut open tip is a dirty aero edge. | Last loft section stays planar (flat landing). Add a short chord taper (`tip_scale` 0.72 over `tip_taper_h` 4.0) into that face. |
 
 ## Clip study (research only — do not change clip CAD this pass)

@@ -364,10 +364,10 @@ function keeper() {
   return wall();
 }
 function rootScale() {
-  return 1.22;
+  return 1.38;
 }
 function rootBlendH() {
-  return mmMin(8, 3.2);
+  return mmMin(16, 6);
 }
 function tipTaperH() {
   return mmMin(12, 4);
