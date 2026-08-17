@@ -225,8 +225,8 @@ try {
 
   // The browser shell no longer owns WebGL — Bevy paints only on desktop.
   // Draw the WASM tessellation ourselves so the thrust pack is actually looked at.
-  const paint = async (name, eye) => {
-    await page.evaluate((direction) => {
+  const paint = async (name, eye, focus = 'all') => {
+    await page.evaluate(({ direction, focus: mode }) => {
       const state = window.__appStore.getState();
       const bodies = state.solidScene.bodies ?? [];
       const appearances = state.bodyAppearances ?? [];
@@ -275,7 +275,41 @@ try {
       const triangles = [];
       const worldMin = [Infinity, Infinity, Infinity];
       const worldMax = [-Infinity, -Infinity, -Infinity];
+      const rotorId = bodies.reduce((best, body) => {
+        const z = (body.mesh?.positions ?? []).reduce((maxZ, _value, index, positions) => {
+          if (index % 3 !== 2) return maxZ;
+          return Math.max(maxZ, positions[index] ?? 0);
+        }, 0);
+        if (!best || z > best.z) return { id: body.id, z };
+        return best;
+      }, null)?.id;
+      const baseId = bodies.reduce((best, body) => {
+        const z = (body.mesh?.positions ?? []).reduce((minZ, _value, index, positions) => {
+          if (index % 3 !== 2) return minZ;
+          return Math.min(minZ, positions[index] ?? 0);
+        }, Infinity);
+        if (!best || z < best.z) return { id: body.id, z };
+        return best;
+      }, null)?.id;
+      const axleId = bodies.reduce((best, body) => {
+        if (body.id === baseId || body.id === rotorId) return best;
+        const zs = [];
+        const xs = [];
+        const positions = body.mesh?.positions ?? [];
+        for (let i = 0; i < positions.length; i += 3) {
+          xs.push(Math.hypot(positions[i] ?? 0, positions[i + 1] ?? 0));
+          zs.push(positions[i + 2] ?? 0);
+        }
+        const spanZ = (zs.length ? Math.max(...zs) - Math.min(...zs) : 0);
+        const spanXY = xs.length ? Math.max(...xs) * 2 : 0;
+        if (spanZ < 8) return best;
+        if (!best || spanXY > best.spanXY) return { id: body.id, spanXY };
+        return best;
+      }, null)?.id;
       for (const body of bodies) {
+        if (mode === 'pack' && body.id === rotorId) continue;
+        if (mode === 'underpack' && body.id === baseId) continue;
+        if (mode === 'races' && (body.id === baseId || body.id === axleId)) continue;
         const positions = body.mesh?.positions ?? [];
         const indices = body.mesh?.indices ?? [];
         const pose = poses.get(body.id);
@@ -285,21 +319,26 @@ try {
           const x = positions[index * 3] ?? 0;
           const y = positions[index * 3 + 1] ?? 0;
           const z = positions[index * 3 + 2] ?? 0;
-          const world = applyPose(pose, x, y, z);
-          for (let axis = 0; axis < 3; axis += 1) {
-            worldMin[axis] = Math.min(worldMin[axis], world[axis]);
-            worldMax[axis] = Math.max(worldMax[axis], world[axis]);
-          }
-          return world;
+          return applyPose(pose, x, y, z);
         };
         if (indices.length >= 3) {
           for (let i = 0; i < indices.length; i += 3) {
-            triangles.push({
-              a: pushVertex(indices[i]),
-              b: pushVertex(indices[i + 1]),
-              c: pushVertex(indices[i + 2]),
-              rgb,
-            });
+            const a = pushVertex(indices[i]);
+            const b = pushVertex(indices[i + 1]);
+            const c = pushVertex(indices[i + 2]);
+            if (mode === 'hub') {
+              const x = (a[0] + b[0] + c[0]) / 3;
+              const y = (a[1] + b[1] + c[1]) / 3;
+              const z = (a[2] + b[2] + c[2]) / 3;
+              if (Math.hypot(x, y) > 42 || z > 28) continue;
+            }
+            for (const point of [a, b, c]) {
+              for (let axis = 0; axis < 3; axis += 1) {
+                worldMin[axis] = Math.min(worldMin[axis], point[axis]);
+                worldMax[axis] = Math.max(worldMax[axis], point[axis]);
+              }
+            }
+            triangles.push({ a, b, c, rgb });
           }
         }
       }
@@ -374,13 +413,18 @@ try {
         ctx.fillStyle = triangle.fill;
         ctx.fill();
       }
-    }, eye);
+    }, { direction: eye, focus });
     await page.screenshot({ path: path.join(shots, `${name}.png`) });
   };
 
   await paint('iso', [1, -1, 0.65]);
   await paint('side', [1, 0, 0.08]);
   await paint('top', [0.15, -0.2, 1]);
+  await paint('under', [0.4, -0.55, -1]);
+  await paint('hub', [1, 0.25, 0.2], 'hub');
+  await paint('pack', [0.95, -0.7, 0.5], 'pack');
+  await paint('underpack', [0.2, -0.35, -1], 'underpack');
+  await paint('races', [0.35, -0.55, -1], 'races');
 
   await writeFile(
     path.join(shots, 'scene.json'),
