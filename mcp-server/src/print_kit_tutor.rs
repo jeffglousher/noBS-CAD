@@ -1210,48 +1210,48 @@ fn form_assembly(
         .ok_or_else(|| "no on-axis axle flange circle for axle_sit".to_string())?,
         base_id,
     )?;
+    let plate_spin = axis_connector_at(
+        &scene,
+        rotor_id,
+        [0.0, 0.0],
+        spec.plate_z() + spec.hub_deck_h(),
+        spec.plate_bore() * 0.5,
+    )
+    .ok_or_else(|| "no on-axis plate bore for rotor_spin".to_string())?;
     create_stable_joint(
         call,
         "rotor_spin",
         "revolute",
-        axis_connector_at(
+        journal_axis_at(
             &scene,
             axle_id,
-            [0.0, 0.0],
-            spec.plate_z() + spec.hub_deck_h() * 0.5,
+            connector_z(&plate_spin).unwrap_or(spec.plate_z() + spec.hub_deck_h()),
             spec.inner_race_d() * 0.5,
         )
         .ok_or_else(|| "no on-axis axle journal for rotor_spin".to_string())?,
-        axis_connector_at(
-            &scene,
-            rotor_id,
-            [0.0, 0.0],
-            spec.plate_z() + spec.hub_deck_h() * 0.5,
-            spec.plate_bore() * 0.5,
-        )
-        .ok_or_else(|| "no on-axis plate bore for rotor_spin".to_string())?,
+        plate_spin,
         axle_id,
     )?;
+    let cage_spin = axis_connector_at(
+        &scene,
+        cage_id,
+        [0.0, 0.0],
+        spec.cage_z() + spec.cage_h(),
+        spec.cage_id() * 0.5,
+    )
+    .ok_or_else(|| "no on-axis cage circle for cage_spin".to_string())?;
     create_stable_joint(
         call,
         "cage_spin",
         "revolute",
-        axis_connector_at(
+        journal_axis_at(
             &scene,
             axle_id,
-            [0.0, 0.0],
-            spec.cage_z() + spec.cage_h(),
+            connector_z(&cage_spin).unwrap_or(spec.cage_z() + spec.cage_h()),
             spec.inner_race_d() * 0.5,
         )
-        .ok_or_else(|| "no on-axis axle race for cage_spin".to_string())?,
-        axis_connector_at(
-            &scene,
-            cage_id,
-            [0.0, 0.0],
-            spec.cage_z() + spec.cage_h(),
-            spec.cage_id() * 0.5,
-        )
-        .ok_or_else(|| "no on-axis cage circle for cage_spin".to_string())?,
+        .ok_or_else(|| "no on-axis axle journal for cage_spin".to_string())?,
+        cage_spin,
         axle_id,
     )?;
     for (index, roller_id) in roller_ids.iter().enumerate() {
@@ -1518,6 +1518,21 @@ fn authored_occurrence_id(document: &Value, component_id: u64) -> Option<u64> {
         })
         .or_else(|| matches.first())
         .and_then(|occurrence| occurrence["id"].as_u64())
+}
+
+fn connector_z(connector: &Value) -> Option<f64> {
+    connector["frame"]["origin"]
+        .as_array()
+        .and_then(|origin| origin.get(2))
+        .and_then(Value::as_f64)
+}
+
+fn journal_axis_at(scene: &Value, axle_id: u64, z: f64, want_radius: f64) -> Option<Value> {
+    // Prefer the journal cylinder so each revolute can sit at the partner's
+    // actual edge Z. Picking the nearest journal *circle* on a short puck
+    // locks cage and plate to different heights and yanks the pack.
+    cylindrical_face_at(scene, axle_id, [0.0, 0.0], z, want_radius)
+        .or_else(|| circular_edge_at(scene, axle_id, [0.0, 0.0], z, want_radius))
 }
 
 fn axis_connector_at(

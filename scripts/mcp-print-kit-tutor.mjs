@@ -1025,6 +1025,19 @@ async function buildRetainer(known) {
   return retainerIdBody;
 }
 
+function connectorZ(connector) {
+  const origin = connector?.frame?.origin;
+  return Array.isArray(origin) ? origin[2] : null;
+}
+
+function journalAxisAt(scene, axleId, z, wantRadius) {
+  // Prefer the journal cylinder so each revolute can sit at the partner's
+  // actual edge Z. Picking the nearest journal circle on a short puck
+  // locks cage and plate to different heights and yanks the pack.
+  return cylindricalFaceAt(scene, axleId, [0, 0], z, wantRadius)
+    ?? circularEdgeAt(scene, axleId, [0, 0], z, wantRadius);
+}
+
 function axisConnectorAt(scene, bodyId, xy, z, wantRadius) {
   return circularEdgeAt(scene, bodyId, xy, z, wantRadius) ?? cylindricalFaceAt(scene, bodyId, xy, z, wantRadius);
 }
@@ -1209,30 +1222,32 @@ async function formAssembly(ids) {
     need(axisConnectorAt(scene, ids.axleId, [0, 0], flangeZ(), axleFlangeD() * 0.5), "no on-axis axle flange for axle_sit"),
     ids.baseId,
   );
+  const plateSpin = need(
+    axisConnectorAt(scene, ids.rotorId, [0, 0], plateZ() + hubDeckH(), plateBore() * 0.5),
+    "no on-axis plate bore for rotor_spin",
+  );
   await createStableJoint(
     "rotor_spin",
     "revolute",
     need(
-      axisConnectorAt(scene, ids.axleId, [0, 0], plateZ() + hubDeckH() * 0.5, innerRaceD() * 0.5),
+      journalAxisAt(scene, ids.axleId, connectorZ(plateSpin) ?? plateZ() + hubDeckH(), innerRaceD() * 0.5),
       "no on-axis axle journal for rotor_spin",
     ),
-    need(
-      axisConnectorAt(scene, ids.rotorId, [0, 0], plateZ() + hubDeckH() * 0.5, plateBore() * 0.5),
-      "no on-axis plate bore for rotor_spin",
-    ),
+    plateSpin,
     ids.axleId,
+  );
+  const cageSpin = need(
+    axisConnectorAt(scene, ids.cageId, [0, 0], cageZ() + cageH(), cageId() * 0.5),
+    "no on-axis cage circle for cage_spin",
   );
   await createStableJoint(
     "cage_spin",
     "revolute",
     need(
-      axisConnectorAt(scene, ids.axleId, [0, 0], cageZ() + cageH(), innerRaceD() * 0.5),
-      "no on-axis axle race for cage_spin",
+      journalAxisAt(scene, ids.axleId, connectorZ(cageSpin) ?? cageZ() + cageH(), innerRaceD() * 0.5),
+      "no on-axis axle journal for cage_spin",
     ),
-    need(
-      axisConnectorAt(scene, ids.cageId, [0, 0], cageZ() + cageH(), cageId() * 0.5),
-      "no on-axis cage circle for cage_spin",
-    ),
+    cageSpin,
     ids.axleId,
   );
   for (let index = 0; index < ids.rollerIds.length; index++) {
