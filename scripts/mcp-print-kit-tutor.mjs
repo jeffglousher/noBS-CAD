@@ -1005,8 +1005,8 @@ function axisConnectorAt(scene, bodyId, xy, z, wantRadius) {
 }
 
 function radialConnectorAt(scene, bodyId, xy, z, wantRadius, axis) {
-  return circularEdgeAlong(scene, bodyId, [xy[0], xy[1], z], axis, wantRadius)
-    ?? cylindricalFaceAlong(scene, bodyId, [xy[0], xy[1], z], axis, wantRadius);
+  return cylindricalFaceAlong(scene, bodyId, [xy[0], xy[1], z], axis, wantRadius)
+    ?? circularEdgeAlong(scene, bodyId, [xy[0], xy[1], z], axis, wantRadius);
 }
 
 function axisNorm(v) {
@@ -1067,7 +1067,6 @@ function cylindricalFaceAlong(scene, bodyId, point, wantAxis, wantRadius) {
     face_key: best.face.key,
     kind: "cylindrical_face",
     radius: best.radius,
-    source_surface_frame: frame,
     frame,
   };
 }

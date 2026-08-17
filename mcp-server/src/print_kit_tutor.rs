@@ -1632,18 +1632,11 @@ fn radial_connector_at(
     want_radius: f64,
     axis: [f64; 3],
 ) -> Option<Value> {
-    connector_along(scene, body_id, [xy[0], xy[1], z], axis, want_radius)
-}
-
-fn connector_along(
-    scene: &Value,
-    body_id: u64,
-    point: [f64; 3],
-    axis: [f64; 3],
-    want_radius: f64,
-) -> Option<Value> {
-    circular_edge_along(scene, body_id, point, axis, want_radius)
-        .or_else(|| cylindrical_face_along(scene, body_id, point, axis, want_radius))
+    // Prefer the cylinder so both pocket and roller sit at the PCD.
+    // Circular end edges are at different X for pocket_len vs roller_len,
+    // and the joint canonicalizer overwrites a circular_edge frame.
+    cylindrical_face_along(scene, body_id, [xy[0], xy[1], z], axis, want_radius)
+        .or_else(|| circular_edge_along(scene, body_id, [xy[0], xy[1], z], axis, want_radius))
 }
 
 fn axis_dot(a: [f64; 3], b: [f64; 3]) -> f64 {
@@ -1750,13 +1743,15 @@ fn cylindrical_face_along(
     } else {
         frame_along(point, want_axis)
     };
+    // Do not send source_surface_frame unless it is the live analytic
+    // cylinder frame. A made-up frame is treated as a pick-time snapshot
+    // and the canonicalizer applies a bogus rigid delta (30 mm Z yanks).
     Some(json!({
         "body_id": body_id,
         "face_id": face["id"],
         "face_key": face["key"],
         "kind": "cylindrical_face",
         "radius": face["cylinder"]["radius"],
-        "source_surface_frame": frame,
         "frame": frame
     }))
 }
