@@ -9,7 +9,7 @@
  *
  *   node scripts/print-kit-inner-ring.mjs
  */
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createInterface } from "node:readline";
 import {
   copyFileSync,
@@ -386,6 +386,7 @@ async function buildRing() {
     `Bore ID: ${id.toFixed(1)} mm   (clears the Ø${hubOd.toFixed(1)} hub and Ø${journalOd.toFixed(1)} journal — not a fit)`,
     `Bezel wall: ${land.toFixed(1)} mm (4 passes) × ${hoopH.toFixed(1)} mm tall`,
     `Petals: ${petalH.toFixed(1)} mm   tendrils: ${vineH.toFixed(1)} mm   min wall: ${wall2.toFixed(1)} mm (2 passes)`,
+    "Solid ~4.4 cm³ — about 40% of the old washer. The rest is air.",
     "Material: PLA Basic Orange. Print flat on the X2D, 0.4 mm nozzle.",
     "Suggested: 0.20 mm layer, 2 walls, 15% gyroid, no supports, no brim.",
     "",
@@ -397,6 +398,12 @@ async function buildRing() {
   ].join("\n");
   writeFileSync(path.join(ringDir, "README.txt"), readme);
   writeFileSync(path.join(ringDir, "Print-Kit-Inner-Ring-design.md"), `# Inner keeper ring\n\n${readme}`);
+  const preview = spawnSync(process.execPath, [path.join(here, "preview-inner-ring.mjs")], {
+    stdio: "inherit",
+  });
+  if (preview.status) {
+    throw new Error(`preview-inner-ring exited ${preview.status}`);
+  }
   return { projectPath, platePath, bytes: bytes.length, bodyId, preflight };
 }
 
