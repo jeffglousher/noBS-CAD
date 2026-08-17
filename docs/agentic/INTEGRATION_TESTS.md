@@ -1,23 +1,22 @@
-# MCP integration tests and benchmarks
+# MCP integration tests and pipeline goldens
 
-This is the ordered list of **agentic CAD benchmarks**. Start here when
-proving the MCP server can teach and grade real modeling — not only that
+This is the ordered list of **MCP + kernel goldens**. Start here when
+proving the server can replay a real modeling pipeline — not only that
 tools exist.
 
-**#1 is the print-kit tutor.** It is the first synthesis exam: an agent
-must design an FDM-tolerant mechanical **assembly**, then a grader checks
-role-based fits, a one-piece helical rotor, a printed roller pack, an
-assembly drawing, and one laid-out 3MF plate.
+**#1 is the print-kit pipeline.** It is a deterministic command sequence
+that builds an FDM-tolerant mechanical **assembly**. The same spec and
+the same tool order produce the same kit. That is useful context for an
+agent. It is not a test of AI capability.
 
-Curriculum and grader detail: [PRINT_KIT_TUTOR.md](PRINT_KIT_TUTOR.md).
-GD&T / printability corrections: [PRINT_KIT_GDT.md](PRINT_KIT_GDT.md).
+Curriculum and runner: [PRINT_KIT_TUTOR.md](PRINT_KIT_TUTOR.md).
 Spec: `scripts/fixtures/print-kit-tutor.spec.json`. Recipe: `model_print_kit`.
 
-## Ordered benchmarks
+## Ordered goldens
 
-| # | Benchmark | How to run | What it proves |
-|---|-----------|------------|----------------|
-| **1** | **Print-kit tutor** (printed VAWT assembly) | `cargo test --manifest-path mcp-server/Cargo.toml print_kit_tutor` then `npm run test:mcp-print-kit` | AI → assemblable printed turbine: one-piece helical NACA, role-based fits, printed roller pack, assembly drawing, design report + plastic cost, one laid-out plate (PLA Orange + PLA Glow) |
+| # | Golden | How to run | What it proves |
+|---|--------|------------|----------------|
+| **1** | **Print-kit pipeline** (printed VAWT assembly) | `cargo test --manifest-path mcp-server/Cargo.toml print_kit_tutor` then `npm run test:mcp-print-kit` | MCP tools replay a kit: one-piece helical NACA, role-based fits, printed roller pack, assembly drawing, design report + plastic cost, one laid-out plate (PLA Orange + PLA Glow) |
 | 2 | Completeness gate | `npm run check:mcp-control` | Modeling / print / control tools and main prompts stay wired (`model_print_kit` included) |
 | 3 | CadServer goldens | `cargo test --manifest-path mcp-server/Cargo.toml` | Headless OCCT replay and MCP RPC (includes the #1 engine exam) |
 | 4 | Session bridge | `npm run test:session-bridge` | Live attach, writer lock, UI heartbeat must not clobber MCP revisions |
@@ -38,12 +37,12 @@ from earlier kits before writing. The roller cartridge is PIP.
 Do not print the assembled nest.
 
 Supporting crate jobs (export, xtask `install-mcp`) are packaging checks, not
-synthesis benchmarks. Do not insert them above #1.
+modeling pipelines. Do not insert them above #1.
 
 ## Why #1 is first
 
-Tool-count and RPC goldens can pass while an agent still emits a print-bed
-scatter that will not assemble or spin. The print-kit tutor fails that
-class of answer. It now also requires a real CAD assembly and a drawing
-([ASSEMBLY.md](ASSEMBLY.md)). Later catalog bearings (608 and up from a
-standard table) are optional hardware, not a hidden part of this exam.
+Tool-count and RPC goldens can pass without ever building a part. The
+print-kit pipeline is the first full replay: solids, assembly, drawing,
+and one laid-out 3MF ([ASSEMBLY.md](ASSEMBLY.md)). Later catalog bearings
+(608 and up from a standard table) are optional hardware, not part of
+this kit.

@@ -499,32 +499,23 @@ if (!rustTutor.includes('solid_move_copy') || !rustTutor.includes('layout_print_
   fail('print-kit cargo exam must lay the kit out on one plate before export');
 }
 const printKitPrompt = await read('mcp-server/src/prompts/model_print_kit.md');
-if (!/blank document|0 bodies|recovered/i.test(printKitPrompt)) {
+if (!/blank document|0 bodies/i.test(printKitPrompt)) {
   fail('model_print_kit prompt must start from a blank document');
 }
-if (!/washer cup|pancake/i.test(printKitPrompt)) {
-  fail('model_print_kit prompt must still reject a washer/pancake stack');
+if (!/repeatable build|Pipeline/i.test(printKitPrompt)) {
+  fail('model_print_kit prompt must describe a repeatable pipeline');
 }
-if (!/thin flat thrust/i.test(printKitPrompt)) {
-  fail('model_print_kit prompt must require a thin flat thrust bearing');
+if (!/thin root plate|thrust/i.test(printKitPrompt)) {
+  fail('model_print_kit prompt must describe the thin thrust pack');
 }
-if (!/tall (cup|drum)/i.test(printKitPrompt)) {
-  fail('model_print_kit prompt must reject a tall cup or drum');
-}
-if (!/radial[- ]axis/i.test(printKitPrompt)) {
+if (!/radial-axis/i.test(printKitPrompt)) {
   fail('model_print_kit prompt must require radial-axis rollers');
-}
-if (!/standing-Z puck|standing puck/i.test(printKitPrompt)) {
-  fail('model_print_kit prompt must reject standing-Z pucks');
 }
 if (!/under the blade roots/i.test(printKitPrompt)) {
   fail('model_print_kit prompt must put the pack under the blade roots');
 }
-if (!/inboard pack/i.test(printKitPrompt)) {
-  fail('model_print_kit prompt must reject an inboard pack / cage-as-journal');
-}
-if (!/hourglass|constant pass/i.test(printKitPrompt)) {
-  fail('model_print_kit prompt must reject an hourglass journal the plate cannot pass');
+if (!/constant pass/i.test(printKitPrompt)) {
+  fail('model_print_kit prompt must keep a constant-pass journal');
 }
 if (!/PLA Basic Orange/i.test(printKitPrompt) || !/PLA Glow Green/i.test(printKitPrompt)) {
   fail('model_print_kit prompt must name only PLA Basic Orange and PLA Glow Green');

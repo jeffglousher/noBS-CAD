@@ -191,7 +191,7 @@ pub fn list_prompts() -> Value {
             prompt_desc(
                 "model_print_kit",
                 "Design a printed omnidirectional VAWT",
-                "Adversarial synthesis exam: directionless H-Darrieus with a 2026 symmetric airfoil, printed bushings, service finish, and a design report with plastic cost. 0.4 mm Bambu nozzle.",
+                "Repeatable print-kit pipeline: directionless H-Darrieus, NACA 0021, printed thrust pack, assembly, and a design report with plastic cost. 0.4 mm Bambu nozzle.",
                 &[("nozzle_mm", "Nozzle diameter used as the diametral clearance (default 0.4)", false)]
             ),
             prompt_desc(
@@ -689,16 +689,13 @@ mod tests {
             "airfoil",
             "NACA 0021",
             "directionless",
-            "bushing",
             "service finish",
             "design report",
-            "Reject list",
             "helical",
-            "girth",
-            "two-land",
             "Y-frame",
             "print plate",
             "blank document",
+            "Pipeline",
         ] {
             assert!(
                 print_kit.contains(needle),

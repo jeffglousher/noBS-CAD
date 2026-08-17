@@ -1,18 +1,14 @@
 # Print-kit tutor (CAD synthesis exam)
 
-**Benchmark #1** in the agentic suite
-([INTEGRATION_TESTS.md](INTEGRATION_TESTS.md)). This is the reusable
-integration test for **AI → fully printable mechanical CAD**. It is the
-curriculum, the worked example, and the grader.
+**Pipeline #1** in the MCP goldens
+([INTEGRATION_TESTS.md](INTEGRATION_TESTS.md)). This is a repeatable
+command sequence that builds a printable mechanical assembly. Same spec,
+same tool order, same kit. It is useful context for an agent. It is not
+a test of AI capability.
 
-The first kits failed that bar: a print-bed scatter, an assembled spinner
-that collided, leftover helical C-buckets, a concentric hoop, a turntable
-that threw the frame away, then a flat plate sold as a wing. Later kits
-used one clearance for every hole, tenoned three wings into a hub, and
-stood a tall skinny shaft in a two-land sleeve that could not take tip
-moment. Contract: [PRINT_KIT_DESIGN.md](PRINT_KIT_DESIGN.md). Fits:
-[PRINT_KIT_GDT.md](PRINT_KIT_GDT.md). Agents start with
-`prompts/get model_print_kit` — that recipe is adversarial.
+Contract: [PRINT_KIT_DESIGN.md](PRINT_KIT_DESIGN.md). Fits:
+[PRINT_KIT_GDT.md](PRINT_KIT_GDT.md). The recipe is
+`prompts/get model_print_kit`.
 
 The exam now **does** form a CAD assembly (components, occurrences, a
 revolute). See [ASSEMBLY.md](ASSEMBLY.md). It starts with

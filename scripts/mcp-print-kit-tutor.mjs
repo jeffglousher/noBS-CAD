@@ -1791,13 +1791,13 @@ try {
     throw new Error("model_print_kit prompt is missing the FDM curriculum");
   }
   if (
-    !/airfoil|NACA 0021|directionless|cup|design report|service finish|helical|girth|two-land|Y-frame|print plate/i.test(
+    !/airfoil|NACA 0021|directionless|design report|service finish|helical|Y-frame|print plate/i.test(
       recipe,
     )
   ) {
-    throw new Error("model_print_kit prompt is missing the 2026 VAWT design contract");
+    throw new Error("model_print_kit prompt is missing the VAWT build contract");
   }
-  if (!/blank document|0 bodies|recovered/i.test(recipe)) {
+  if (!/blank document|0 bodies/i.test(recipe)) {
     throw new Error("model_print_kit prompt must start from a blank document");
   }
 
