@@ -209,7 +209,7 @@ impl Spec {
         self.wall()
     }
     fn root_scale(&self) -> f64 {
-        1.38
+        1.28
     }
     fn root_blend_h(&self) -> f64 {
         self.mm_min(16.0, 6.0)
@@ -2276,8 +2276,11 @@ fn naca_symmetric_loop(
     let mut lower = Vec::new();
     for x in xs {
         let mut yt = naca4_modified_yt_over_c(x, thickness_ratio, xt_c, le_index) * chord;
-        if x > 0.85 {
+        if x >= 0.75 {
             yt = yt.max(te_min / 2.0);
+        }
+        if x >= 0.999 {
+            yt = te_min / 2.0;
         }
         let xc = (x - 0.5) * chord;
         upper.push([xc, yt]);

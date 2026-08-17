@@ -5,7 +5,7 @@ The organic root blend and the short taper to a flat tip landing are a
 
 | Appearance | Number | Role |
 |------------|--------|------|
-| Root scale | 1.38× sit-plane chord | Fatter first loft station on the plate top |
+| Root scale | 1.28× sit-plane chord (was 1.38 on the 0021 snapshot) | Fatter first loft station on the plate top. Thicker 0024 needs less extra fat. |
 | Root blend height | 6 mm exam floor (16 mm source) | Soft join, not a print cliff |
 | Tip scale | 0.72× tip chord | Short taper into a planar landing |
 | Tip taper height | 4 mm exam floor (12 mm source) | Last loft section stays flat |

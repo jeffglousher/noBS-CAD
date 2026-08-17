@@ -41,7 +41,7 @@
   "airfoil_le_index": 4.5,
   "airfoil_xt_c": 0.35,
   "airfoil_te_min_mm": 0.8,
-  "airfoil_stations": 20,
+  "airfoil_stations": 16,
   "hub_h": 16.0,
   "roller_count": 8,
   "roller_d": 12.0,

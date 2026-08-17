@@ -364,7 +364,7 @@ function keeper() {
   return wall();
 }
 function rootScale() {
-  return 1.38;
+  return 1.28;
 }
 function rootBlendH() {
   return mmMin(16, 6);
@@ -882,7 +882,8 @@ function nacaSymmetricLoop(chord, thicknessRatio, stations, te) {
   const le = spec.airfoil_le_index ?? 4.5;
   for (const x of xs) {
     let yt = naca4ModifiedYtOverC(x, thicknessRatio, xt, le) * chord;
-    if (x > 0.85) yt = Math.max(yt, te / 2);
+    if (x >= 0.75) yt = Math.max(yt, te / 2);
+    if (x >= 0.999) yt = te / 2;
     const xc = (x - 0.5) * chord;
     upper.push({ x: xc, y: yt });
     lower.push({ x: xc, y: -yt });
