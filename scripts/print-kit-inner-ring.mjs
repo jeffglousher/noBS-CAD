@@ -294,6 +294,18 @@ async function cutCircle(x, y, diameter, depth, bodyId, label) {
   const sketch = await finishSketch();
   await extrude(sketch, "cut", depth, [bodyId], label);
 }
+async function joinCircle(x, y, diameter, height, bodyId, label) {
+  await beginXY();
+  await addCircle(x, y, diameter);
+  const sketch = await finishSketch();
+  await extrude(sketch, "join", height, [bodyId], label);
+}
+async function joinRadialBone(angleDeg, innerR, outerR, width, height, bodyId, label) {
+  await beginXY();
+  await addRadialBone(angleDeg, innerR, outerR, width);
+  const sketch = await finishSketch();
+  await extrude(sketch, "join", height, [bodyId], label);
+}
 
 async function buildRing() {
   await request("server/discover", {});
@@ -309,25 +321,23 @@ async function buildRing() {
 
   for (let i = 0; i < 3; i++) {
     const base = i * 120;
-    await beginXY();
+    let n = 0;
     for (const s of [...petalStations, ...petalLobes]) {
       const p = polar(s.r, base + s.da);
-      await addCircle(p.x, p.y, s.d);
+      await joinCircle(p.x, p.y, s.d, petalH, bodyId, `petal ${i}.${n}`);
+      n += 1;
     }
-    const sketch = await finishSketch();
-    await extrude(sketch, "join", petalH, [bodyId], `petal ${i}`);
   }
 
   for (let i = 0; i < 3; i++) {
     const base = 60 + i * 120;
-    await beginXY();
-    await addRadialBone(base, idOuter / 2, odInner / 2, wall2);
+    await joinRadialBone(base, idOuter / 2, odInner / 2, wall2, vineH, bodyId, `vine bone ${i}`);
+    let n = 0;
     for (const s of vineStations) {
       const p = polar(s.r, base + s.da);
-      await addCircle(p.x, p.y, s.d);
+      await joinCircle(p.x, p.y, s.d, vineH, bodyId, `vine ${i}.${n}`);
+      n += 1;
     }
-    const sketch = await finishSketch();
-    await extrude(sketch, "join", vineH, [bodyId], `vine ${i}`);
   }
 
   const lead = await annulus(od, leadOd);
