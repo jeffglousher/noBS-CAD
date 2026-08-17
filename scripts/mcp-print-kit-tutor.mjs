@@ -933,22 +933,8 @@ async function buildCartridge(known) {
     "roller cage",
   );
   const cageIdBody = newestBody(update, known);
+  await cutRadialPockets(cageIdBody);
   const seen = [...known, cageIdBody];
-  const tools = [];
-  for (let i = 0; i < spec.roller_count; i++) {
-    const id = await placeRadialCylinder(cagePocket(), pocketLen(), i, seen, `cage pocket tool ${i}`);
-    seen.push(id);
-    tools.push(id);
-  }
-  requireClean(
-    await call("solid_combine", {
-      target_body_id: cageIdBody,
-      tool_body_ids: tools,
-      operation: "cut",
-      keep_tools: false,
-    }),
-    "radial cage pockets",
-  );
   const rollerIds = [];
   for (let i = 0; i < spec.roller_count; i++) {
     const id = await placeRadialCylinder(rollerD(), rollerLen(), i, seen, `roller ${i}`);
@@ -1070,7 +1056,11 @@ function cylindricalFaceAlong(scene, bodyId, point, wantAxis, wantRadius) {
     if (!best || score < best.score) best = { face, radius, score };
   }
   if (!best) return null;
-  const frame = frameAlong(point, wantAxis);
+  const origin = xyz(best.face.cylinder?.origin) ?? point;
+  const frame =
+    Math.abs(wantAxis[2]) >= 0.85
+      ? { origin: [origin[0], origin[1], point[2]], primary_axis: [0, 0, 1], secondary_axis: [1, 0, 0] }
+      : frameAlong(point, wantAxis);
   return {
     body_id: bodyId,
     face_id: best.face.id,
@@ -1103,9 +1093,17 @@ function circularEdgeAlong(scene, bodyId, point, wantAxis, wantRadius) {
     const radiusErr = Math.abs(radius - wantRadius);
     if (radiusErr > 2.5) continue;
     const score = perp + 0.15 * Math.abs(along) + radiusErr;
-    if (!best || score < best.score) best = { edge, radius, score };
+    if (!best || score < best.score) best = { edge, center, radius, score };
   }
   if (!best) return null;
+  const frame =
+    Math.abs(wantAxis[2]) >= 0.85
+      ? {
+          origin: [best.center[0], best.center[1], best.center[2]],
+          primary_axis: [0, 0, 1],
+          secondary_axis: [1, 0, 0],
+        }
+      : frameAlong(point, wantAxis);
   return {
     body_id: bodyId,
     face_id: 0,
@@ -1114,7 +1112,7 @@ function circularEdgeAlong(scene, bodyId, point, wantAxis, wantRadius) {
     edge_key: best.edge.key,
     kind: "circular_edge",
     radius: best.radius,
-    frame: frameAlong(point, wantAxis),
+    frame,
   };
 }
 
@@ -1333,6 +1331,34 @@ function quatAxisAngle(axis, deg) {
   const half = (deg * Math.PI) / 360;
   const s = Math.sin(half);
   return [a[0] * s, a[1] * s, a[2] * s, Math.cos(half)];
+}
+async function cutRadialPockets(cageIdBody) {
+  const x0 = pcd() * 0.5 - pocketLen() * 0.5;
+  const deck = await offsetYZ(x0);
+  const step = 360 / Math.max(spec.roller_count, 1);
+  for (let index = 0; index < spec.roller_count; index++) {
+    await beginDatum(deck);
+    await addCircle(0, zMid(), cagePocket());
+    const sketch = await finishSketch();
+    requireClean(
+      await call("solid_extrude", {
+        sketch_name: sketch,
+        profile_indices: [0],
+        operation: "cut",
+        extent: { type: "distance", distance: pocketLen() },
+        taper_angle_deg: 0,
+        flip: false,
+        target_body_ids: [cageIdBody],
+      }),
+      `radial cage pocket ${index}`,
+    );
+    await transformBodies(
+      [cageIdBody],
+      [0, 0, 0],
+      quatAxisAngle([0, 0, 1], step),
+      [0, 0, zMid()],
+    );
+  }
 }
 async function placeRadialCylinder(diameter, length, index, known, label) {
   const x0 = pcd() * 0.5 - length * 0.5;

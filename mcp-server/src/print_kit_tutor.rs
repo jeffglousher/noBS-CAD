@@ -674,6 +674,44 @@ fn quat_axis_angle(axis: [f64; 3], deg: f64) -> [f64; 4] {
     [a[0] * s, a[1] * s, a[2] * s, half.cos()]
 }
 
+fn cut_radial_pockets(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    spec: &Spec,
+    cage_id: u64,
+) -> Result<(), String> {
+    let x0 = spec.pcd() * 0.5 - spec.pocket_len() * 0.5;
+    let deck = offset_yz(call, x0)?;
+    let step = 360.0 / spec.roller_count.max(1) as f64;
+    for index in 0..spec.roller_count {
+        begin_datum(call, deck.clone())?;
+        add_circle(call, [0.0, spec.z_mid()], spec.cage_pocket())?;
+        let sketch = finish_sketch(call)?;
+        require_clean(
+            call(
+                "solid_extrude",
+                json!({
+                    "sketch_name": sketch,
+                    "profile_indices": [0],
+                    "operation": "cut",
+                    "extent": { "type": "distance", "distance": spec.pocket_len() },
+                    "taper_angle_deg": 0.0,
+                    "flip": false,
+                    "target_body_ids": [cage_id]
+                }),
+            )?,
+            &format!("radial cage pocket {index}"),
+        )?;
+        transform_bodies(
+            call,
+            &[cage_id],
+            [0.0, 0.0, 0.0],
+            quat_axis_angle([0.0, 0.0, 1.0], step),
+            [0.0, 0.0, spec.z_mid()],
+        )?;
+    }
+    Ok(())
+}
+
 fn place_radial_cylinder(
     call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
     spec: &Spec,
@@ -1093,34 +1131,9 @@ fn build_cartridge(
         "roller cage",
     )?;
     let cage_id = newest_body_id(&update, known)?;
+    cut_radial_pockets(call, spec, cage_id)?;
     let mut seen = known.to_vec();
     seen.push(cage_id);
-    let mut tools = Vec::new();
-    for index in 0..spec.roller_count {
-        let id = place_radial_cylinder(
-            call,
-            spec,
-            spec.cage_pocket(),
-            spec.pocket_len(),
-            index,
-            &seen,
-            &format!("cage pocket tool {index}"),
-        )?;
-        seen.push(id);
-        tools.push(id);
-    }
-    require_clean(
-        call(
-            "solid_combine",
-            json!({
-                "target_body_id": cage_id,
-                "tool_body_ids": tools,
-                "operation": "cut",
-                "keep_tools": false
-            }),
-        )?,
-        "radial cage pockets",
-    )?;
     let mut roller_ids = Vec::new();
     for index in 0..spec.roller_count {
         let id = place_radial_cylinder(
@@ -1727,7 +1740,16 @@ fn cylindrical_face_along(
         }
     }
     let (face, _) = best?;
-    let frame = frame_along(point, want_axis);
+    let origin = xyz(&face["cylinder"]["origin"]).unwrap_or(point);
+    let frame = if want_axis[2].abs() >= 0.85 {
+        json!({
+            "origin": [origin[0], origin[1], point[2]],
+            "primary_axis": [0.0, 0.0, 1.0],
+            "secondary_axis": [1.0, 0.0, 0.0]
+        })
+    } else {
+        frame_along(point, want_axis)
+    };
     Some(json!({
         "body_id": body_id,
         "face_id": face["id"],
@@ -1794,6 +1816,16 @@ fn circular_edge_along(
         }
     }
     let (edge, _, radius) = best?;
+    let center = xyz(&edge["circle"]["center"]).unwrap_or(point);
+    let frame = if want_axis[2].abs() >= 0.85 {
+        json!({
+            "origin": [center[0], center[1], center[2]],
+            "primary_axis": [0.0, 0.0, 1.0],
+            "secondary_axis": [1.0, 0.0, 0.0]
+        })
+    } else {
+        frame_along(point, want_axis)
+    };
     Some(json!({
         "body_id": body_id,
         "face_id": 0,
@@ -1802,7 +1834,7 @@ fn circular_edge_along(
         "edge_key": edge["key"],
         "kind": "circular_edge",
         "radius": radius,
-        "frame": frame_along(point, want_axis)
+        "frame": frame
     }))
 }
 
