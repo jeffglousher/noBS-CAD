@@ -366,8 +366,16 @@ if (!tutorSrc.includes('plateZ') || !tutorSrc.includes('cageZ') || !tutorSrc.inc
 if (tutorSrc.includes('Math.max(mm(spec.roller_h), 28)')) {
   fail('print-kit Node exam must not floor the pack at 28 mm (that is a tall drum)');
 }
-if (!tutorSrc.includes('mmMin(spec.roller_h, 3.2)')) {
-  fail('print-kit Node exam must size a thin thrust puck');
+if (tutorSrc.includes('mmMin(spec.roller_h, 3.2)')) {
+  fail('print-kit Node exam must not size standing-Z pucks (h3.2 floor)');
+}
+if (
+  !tutorSrc.includes('function packH') ||
+  !tutorSrc.includes('function rollerLen') ||
+  !tutorSrc.includes('function rollerAxis') ||
+  !tutorSrc.includes('radialConnectorAt')
+) {
+  fail('print-kit Node exam must size a radial-axis thrust pack (pack height = roller Ø)');
 }
 if (tutorSrc.includes('rootWebInner') || tutorSrc.includes('blade root web')) {
   fail('print-kit Node exam must not climb a cup wall with root webs');
@@ -417,8 +425,16 @@ if (!rustTutor.includes('plate_z') || !rustTutor.includes('cage_z') || !rustTuto
 if (rustTutor.includes('.max(28.0)') || rustTutor.includes('>= 28.0')) {
   fail('print-kit cargo exam must not floor the pack at 28 mm (that is a tall drum)');
 }
-if (!rustTutor.includes('mm_min(self.roller_h, 3.2)')) {
-  fail('print-kit cargo exam must size a thin thrust puck');
+if (rustTutor.includes('mm_min(self.roller_h, 3.2)')) {
+  fail('print-kit cargo exam must not size standing-Z pucks (h3.2 floor)');
+}
+if (
+  !rustTutor.includes('fn pack_h') ||
+  !rustTutor.includes('fn roller_len') ||
+  !rustTutor.includes('fn roller_axis') ||
+  !rustTutor.includes('radial_connector_at')
+) {
+  fail('print-kit cargo exam must size a radial-axis thrust pack (pack height = roller Ø)');
 }
 if (rustTutor.includes('root_web_inner') || rustTutor.includes('blade root web')) {
   fail('print-kit cargo exam must not climb a cup wall with root webs');
@@ -439,8 +455,17 @@ if (!/thin flat thrust/i.test(printKitPrompt)) {
 if (!/tall (cup|drum)/i.test(printKitPrompt)) {
   fail('model_print_kit prompt must reject a tall cup or drum');
 }
+if (!/radial[- ]axis/i.test(printKitPrompt)) {
+  fail('model_print_kit prompt must require radial-axis rollers');
+}
+if (!/standing-Z puck|standing puck/i.test(printKitPrompt)) {
+  fail('model_print_kit prompt must reject standing-Z pucks');
+}
 if (spec.roller_h > 12) {
-  fail('print-kit tutor spec roller_h must be a thin thrust puck, not a 70 mm drum');
+  fail('print-kit tutor spec roller_h must not be reused as a 70 mm drum height');
+}
+if (!(spec.roller_len >= 16)) {
+  fail('print-kit tutor spec must set roller_len as the scale-1.0 cylinder length');
 }
 if (!spec.lessons.some((lesson) => lesson.id === 'blank')) {
   fail('print-kit tutor spec must include the blank-document lesson');

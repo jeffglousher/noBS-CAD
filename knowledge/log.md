@@ -1,5 +1,15 @@
 # noBS CAD knowledge update log
 
+## 2026-08-17
+
+- **Update**: Print-kit thrust rollers are **radial-axis** cylinders.
+  Pack height is the roller diameter. Standing-Z pucks slide on their
+  end faces and are not a bearing. A tangent axis would roll
+  inward/outward — do not build that. Print rollers standing (circular
+  layers); assemble lying down at running +0.40. Cage pockets are
+  drop-in, not PIP. Base boss stays smaller than the plate. Airfoil
+  through the plate; no rectangular arms.
+
 ## 2026-08-16
 
 - **Update**: Print-kit bearing is a thin flat thrust under the

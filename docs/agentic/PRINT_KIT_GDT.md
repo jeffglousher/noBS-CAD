@@ -134,7 +134,7 @@ graded, but it was the wrong product for additive manufacturing:
 | Uniform +0.40 | Every hole used the running clearance. Locates were sloppy; nothing that should be tight was. | Role-based: running +0.40, slip +0.28, friction +0.16. Slicer XY hole comp stays 0. |
 | Tenoned wings | Three separate blades + hub is a puzzle, not a rotor. | Hub + 3 helical NACAs are **one body**. Open drafted tips. |
 | Tall skinny shaft | Support tower; weak in bending at the blade tips. | Short square stator post. Axle is a flanged inner-race **puck**, printed on the flange. |
-| Two-land sleeve only | L/D 1.0 is a journal, not a moment bearing. | Large-PCD thin flat thrust under the plate (PIP, min Ø8 / h3.2). |
+| Two-land sleeve only | L/D 1.0 is a journal, not a moment bearing. | Large-PCD thin flat thrust under the plate (radial-axis rollers, min Ø8, pack height = Ø). |
 | No CAD assembly | Multi-body nest, no components/joints, no drawing. | 5 components, grounded base, revolute, A3 sheet with notes. |
 | No scale | Desk-size only; not an X2D-max source. | Spec numbers are X2D-max (256×256×260, 8 mm margin). `scale` 0.4 in the exam. |
 
@@ -143,7 +143,7 @@ graded, but it was the wrong product for additive manufacturing:
 | Joint | Class | CAD |
 |-------|-------|-----|
 | Rollers ↔ races (assembled) | Running | +0.40 diametral |
-| Rollers ↔ cage pockets (PIP) | PIP | +0.80 diametral (2 nozzles). Not the assembled running number. |
+| Rollers ↔ cage pockets | Running | +0.40 diametral. Rollers print standing and drop in. Do not PIP a lying roller. |
 | Retainer ↔ square post | Slip | +0.28 |
 | Axle square bore ↔ post | Friction locate | +0.16 |
 | Plate bore ↔ inner race | Running | +0.40. The plate is not keyed to the post. |
@@ -160,13 +160,14 @@ graded, but it was the wrong product for additive manufacturing:
 | Base | Flat (Y-frame + post) |
 | Axle | On the flange |
 | Rotor | Standing on the root plate, tips up. Blade bottoms are the sit-plane cut. |
-| Roller cartridge | Flat, PIP |
+| Cage | Flat |
+| Rollers | Standing (axis Z); assemble lying down (axis radial) |
 | Retainer | Flat |
 
 ### Assembly (current)
 
 1. Axle puck onto the square post (friction locate). Flange **sits** on the base.
-2. Drop the roller cartridge onto the flange. Cage height matches the rollers. Cage and each roller are linked (revolute).
+2. Drop rollers into the cage, then drop the cartridge onto the flange. Cage height equals roller Ø. Each roller revolute is about its radial axis.
 3. Drop the rotor on the pack: plate bore over the short journal, plate underside 0.20 above the rollers.
 4. Retainer washer **square-slip** on the post, floats 0.20 above the plate.
 
@@ -203,7 +204,7 @@ If those steps are not visible in the solid, the exam failed.
 
 | Fault | Why it failed | Correction |
 |-------|---------------|------------|
-| Tall drum | A 28 mm orange tower with rollers filling the ID is a journal you can see from the side. The machine's job is rotation about Z. | **Thin flat thrust** under the plate: flange = lower race, plate underside = upper race, short pucks on a large PCD. Short journal centers only. |
+| Tall drum | A 28 mm orange tower with rollers filling the ID is a journal you can see from the side. The machine's job is rotation about Z. | **Thin flat thrust** under the plate: flange = lower race, plate underside = upper race, radial-axis rollers on a large PCD. Short journal centers only. |
 | Moment webs | Blade roots climbing the cup wall doubled down on the tall system. | Delete the drum and the webs. Width takes the tip moment. |
 
 ### 2026-08-16 additive / FDM pass
@@ -218,5 +219,14 @@ If those steps are not visible in the solid, the exam failed.
 
 | Fault | Why it failed | Correction |
 |-------|---------------|------------|
-| Overhung blade roots | Loft started mid-hub (`hub_h × 0.35`), out at wing radius. First layers of a standing print were air. | Root plate is the cup floor. Wide print arms + root stumps on the bed. Helical loft starts at `blade_root_z` = plate top. |
-| Tiny ring + blades from the surface above | Ø41 deck + skinny arms. Airfoils started from the arm top. No housing, no install path. | Root plate out to the blades. Integral open-top cup. Loft from plate top so the draft ends on that flat. |
+| Overhung blade roots | Loft started mid-hub (`hub_h × 0.35`), out at wing radius. First layers of a standing print were air. | Root plate is the sit plane. Airfoil through the plate — no rectangular arms. Helical loft starts at `blade_root_z` = plate top. |
+| Tiny ring + blades from the surface above | Ø41 deck + skinny arms. Airfoils started from the arm top. No housing, no install path. | Root plate out to the blades. Loft from plate top so the draft ends on that flat. |
+
+### 2026-08-17 radial-axis thrust pass
+
+| Fault | Why it failed | Correction |
+|-------|---------------|------------|
+| Standing-Z pucks | Ø8 × h3.2 pucks spin about Z. End faces slide on flange and plate. That is not rolling under −Z. | Cylinders, **axis radial**. Pack height = roller Ø. Print standing, assemble lying down. |
+| Tangent-axis rollers | A tangent axis rolls inward/outward. | Relative motion at the race is circumferential, so ω × (±Z) needs e_r. |
+| Base boss larger than the plate | Ø84 orange halo under a Ø76 plate. | Boss ≤ flange, always smaller than the plate OD. |
+| Rectangular print arms | Blade roots were arms + spars + stumps. | Airfoil through the plate. |

@@ -44,6 +44,7 @@
   "roller_count": 6,
   "roller_d": 12.0,
   "roller_h": 8.0,
+  "roller_len": 24.0,
   "roller_min_d": 8.0,
   "inner_race_d": 28.0,
   "axle_flange_d": 40.0,
@@ -84,12 +85,12 @@
       "C": "Three Y-frame pads at 120° (tertiary)."
     },
     "fits_mm": {
-      "running_rollers": "+0.40 diametral PLA-on-PLA for parts printed separately and assembled (rollers on both races). Slicer XY hole compensation stays 0.",
-      "pip_cage_pockets": "+0.80 diametral (2 nozzles) for same-plate PIP. Assembled running +0.40 is 0.20/side and welds if the roller and cage print in the same layer.",
+      "running_rollers": "+0.40 diametral PLA-on-PLA for parts printed separately and assembled (rollers on both races, and rollers in cage pockets). Slicer XY hole compensation stays 0.",
+      "pip_cage_pockets": "+0.80 diametral (2 nozzles) is the same-plate PIP class. This kit does not PIP the rollers — they print standing (axis Z) and drop into radial pockets at running +0.40. PIP a lying roller and the OD is layers.",
       "slip_axle_retainer": "+0.28 diametral — drops together, not sloppy.",
       "friction_square_drive_and_cage": "+0.16 diametral — tap-in locate of the axle on the square post. Not a press. Functional land starts above a 0.80 mm bed lead-in. The plate bore must NOT friction-fit the journal.",
-      "thrust_land": "Axle sits on the base (stator). Thin flat thrust under the plate: flange is the lower race, plate underside is the upper race, short rollers between at 0.20 float each land. Short journal centers the plate bore. Retainer is a washer above the plate (OD between plate bore and flange OD).",
-      "do_not_nest_cup_pip": "Do not print the plate around the PIP rollers on the bed. Race-to-roller at +0.40 is 0.10 mm/side — they fuse. Cage+rollers are the PIP cluster dropped onto the flange; the rotor drops on after. Axial capture is the axle flange + retainer, not a top lip (that kills PIP)."
+      "thrust_land": "Axle sits on the base (stator). Thin flat thrust under the plate: flange is the lower race, plate underside is the upper race, radial-axis rollers between (pack height = roller Ø, 0.20 float each land). Short journal centers the plate bore. Retainer is a washer above the plate (OD between plate bore and flange OD).",
+      "do_not_nest_cup_pip": "Do not print the plate around the rollers on the bed. Race-to-roller at +0.40 is 0.10 mm/side — they fuse. Print rollers standing, drop them into the cage, drop the cartridge on the flange, then the rotor. Axial capture is the axle flange + retainer, not a top lip."
     }
   },
   "lessons": [
@@ -101,7 +102,7 @@
     {
       "id": "fits",
       "title": "Fits are per role and material",
-      "teach": "Fits are per role *and* per whether the parts share a plate. Assembled running (rollers on races printed as other bodies) is +0.40. Same-plate PIP (cage pockets) is +0.80 — two nozzles — or the first layers weld. Slip +0.28. Friction +0.16 on a land *above* a 0.80 mm bed lead-in; a bed-printed friction hole with no relief will not assemble after elephant foot. Model 0.20 axial float at every running land. Cage height matches roller height. Do not nest the plate around the PIP rollers on the bed."
+      "teach": "Fits are per role *and* per whether the parts share a plate. Assembled running (rollers on races, and rollers in cage pockets) is +0.40 because those parts print as other bodies. Same-plate PIP is +0.80 — two nozzles — or the first layers weld. This kit does not PIP the rollers. Slip +0.28. Friction +0.16 on a land *above* a 0.80 mm bed lead-in; a bed-printed friction hole with no relief will not assemble after elephant foot. Model 0.20 axial float at every running land. Cage height equals roller diameter (the pack height). Do not nest the plate around the rollers on the bed."
     },
     {
       "id": "no_press",
@@ -111,12 +112,12 @@
     {
       "id": "assemble",
       "title": "Individual parts, then an assembly",
-      "teach": "Each body that moves is its own component with exactly one occurrence. assembly_create_component already inserts the root instance — do not create a second copy. Link the stator with rigid joints (axle sits on the base; retainer sits on the post). Revolute the plate bore and cage on the short journal, and each roller in its pocket — never a blade-spar face. rotor_spin is plate bore ↔ journal. There is no separate bushing. Blades stay one printed body with the plate."
+      "teach": "Each body that moves is its own component with exactly one occurrence. assembly_create_component already inserts the root instance — do not create a second copy. Link the stator with rigid joints (axle sits on the base; retainer sits on the post). Revolute the plate bore and cage on the short journal about Z, and each roller about its radial axis — never a blade-spar face, never a standing-Z puck axis. rotor_spin is plate bore ↔ journal. There is no separate bushing. Blades stay one printed body with the plate."
     },
     {
       "id": "rollers",
       "title": "Print a thin flat thrust that takes rotation about Z",
-      "teach": "A tall skinny sleeve cannot hold aero loads at the blade tips. A tall drum with webs climbing the wall is the same mistake in orange. Matching 8 mm flats is still a pancake stack. Use a **thin flat thrust**: short PIP rollers (min Ø8, height < diameter, floor h3.2) on a large PCD **under the plate**. The flange is the lower race; the plate underside is the upper race; a short journal only centers. Overturning is a couple across that disk, not a tall land. Do not PIP the rollers under the plate at running clearance. The cage is a spacer; axial capture is the flange + retainer."
+      "teach": "A tall skinny sleeve cannot hold aero loads at the blade tips. A tall drum with webs climbing the wall is the same mistake in orange. Matching 8 mm flats is still a pancake stack. Standing-Z pucks slide on their end faces — that is not rolling under −Z. Use a **thin flat thrust**: ≥6 cylinders, axis **radial** (e_r), diameter = pack height (min Ø8), on a large PCD **under the plate**. Relative motion at the race is circumferential; a tangent axis would roll inward/outward. The flange is the lower race; the plate underside is the upper race; a short journal only centers. Overturning is a couple across that disk, not a tall land. Print rollers standing (circular layers); assemble them lying down at running +0.40. Do not PIP a lying roller. The cage is a spacer; axial capture is the flange + retainer."
     },
     {
       "id": "even",
@@ -126,7 +127,7 @@
     {
       "id": "one_piece_rotor",
       "title": "Blades and hub are one part",
-      "teach": "The rotor is a single printed body: a ≥5 mm root plate (print sit + upper thrust race) and helical blades that end on that sit plane. First loft station is the plate (flat sit-plane cut). Do not hang blades off skinny arms. Do not grow a tall drum or moment webs on the plate — overturning is taken by the wide thrust pack underneath. Print standing on the plate. Drop the cartridge on the flange, then drop the rotor on the pack."
+      "teach": "The rotor is a single printed body: a ≥5 mm root plate (print sit + upper thrust race) and helical blades that end on that sit plane. First loft station is the plate (flat sit-plane cut). The airfoil goes through the plate — no rectangular print arms or spars. Do not grow a tall drum or moment webs on the plate — overturning is taken by the wide thrust pack underneath. Print standing on the plate. Drop the cartridge on the flange, then drop the rotor on the pack."
     },
     {
       "id": "airfoil",
@@ -136,12 +137,12 @@
     {
       "id": "scale",
       "title": "Scale is a parameter; 1.0 fills an X2D",
-      "teach": "Linear dimensions are the X2D-max design (256×256×260, 8 mm margin). spec.scale shrinks the source (exam default 0.4). Feature sizes that would go below printable (roller Ø8 / h3.2, TE 0.8, 4-nozzle walls, plate 5 mm) are clamped. noBS-CAD has no document-level scale feature yet — the spec parameter is the source of truth."
+      "teach": "Linear dimensions are the X2D-max design (256×256×260, 8 mm margin). spec.scale shrinks the source (exam default 0.4). Feature sizes that would go below printable (roller Ø8, roller length 8, TE 0.8, 4-nozzle walls, plate 5 mm) are clamped. Pack height is the roller diameter, not a 3.2 mm standing puck. noBS-CAD has no document-level scale feature yet — the spec parameter is the source of truth."
     },
     {
       "id": "print_flat",
       "title": "Print rotational parts lying down",
-      "teach": "Never design a tall skinny shaft that needs a tower of support. The axle is a flanged square puck, printed on the flange. Base, cage, and retainer print flat, each with a 2-nozzle bed lead-in on functional holes. The rotor stands on its root plate so each blade ends on that flat horizontal. Cage+rollers are the PIP cluster; drop them on the flange, then drop the rotor on the pack. The plate is not nested around the rollers on the bed."
+      "teach": "Never design a tall skinny shaft that needs a tower of support. The axle is a flanged square puck, printed on the flange. Base, cage, and retainer print flat, each with a 2-nozzle bed lead-in on functional holes. Rollers print standing (axis Z, circular layers) and assemble lying down (axis radial). The rotor stands on its root plate so each blade ends on that flat horizontal. Drop rollers into the cage, drop the cartridge on the flange, then drop the rotor on the pack. The plate is not nested around the rollers on the bed."
     },
     {
       "id": "helix",

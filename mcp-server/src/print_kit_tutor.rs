@@ -44,6 +44,7 @@ pub struct Spec {
     pub roller_count: usize,
     pub roller_d: f64,
     pub roller_h: f64,
+    pub roller_len: f64,
     pub roller_min_d: f64,
     pub inner_race_d: f64,
     pub axle_flange_d: f64,
@@ -103,9 +104,15 @@ impl Spec {
     fn roller_d(&self) -> f64 {
         self.mm_min(self.roller_d, self.roller_min_d)
     }
-    fn roller_h(&self) -> f64 {
-        // Thin thrust pack. Overturning is taken by PCD, not by a tall land.
-        self.mm_min(self.roller_h, 3.2)
+    fn pack_h(&self) -> f64 {
+        // Pack height is the roller diameter: lying cylinders, axis radial.
+        self.roller_d()
+    }
+    fn roller_len(&self) -> f64 {
+        self.mm_min(self.roller_len, 8.0)
+    }
+    fn pocket_len(&self) -> f64 {
+        self.roller_len() + self.fit_running_mm
     }
     fn inner_race_d(&self) -> f64 {
         self.mm_min(self.inner_race_d, 12.0)
@@ -127,9 +134,6 @@ impl Spec {
     }
     fn blade_loft_z(&self) -> f64 {
         self.hub_z() + self.hub_deck_h()
-    }
-    fn blade_arm_w(&self) -> f64 {
-        (self.chord_root() * 0.4).max(self.wall() * 6.0)
     }
     fn blade_root_z(&self) -> f64 {
         self.hub_z() + self.hub_deck_h()
@@ -178,21 +182,21 @@ impl Spec {
     }
     fn base_boss_d(&self) -> f64 {
         self.axle_flange_d()
-            .max(self.hub_od() + 8.0)
+            .min(self.hub_deck_od() - 2.0)
             .max(self.mm(self.base_boss_d))
     }
     fn cage_od(&self) -> f64 {
-        let rim = self.pcd() * 0.5 + self.cage_pocket() * 0.5 + self.wall();
-        (rim * 2.0).max(self.pcd() + self.roller_d() + 2.0 * self.wall())
+        let rim = self.pcd() * 0.5 + self.roller_len() * 0.5 + self.wall();
+        (rim * 2.0).max(self.pcd() + self.roller_len() + 2.0 * self.wall())
     }
     fn cage_id(&self) -> f64 {
         self.inner_race_d() + self.fit_slip_mm
     }
     fn cage_h(&self) -> f64 {
-        self.roller_h()
+        self.pack_h()
     }
     fn cage_pocket(&self) -> f64 {
-        self.roller_d() + self.fit_pip_mm
+        self.roller_d() + self.fit_running_mm
     }
     fn bed_relief_h(&self) -> f64 {
         self.bed_relief_mm
@@ -213,7 +217,7 @@ impl Spec {
     }
     fn pcd(&self) -> f64 {
         let want = self.hub_deck_od() * 0.58;
-        let min_fit = self.inner_race_d() + self.roller_d() + 4.0;
+        let min_fit = self.inner_race_d() + self.roller_len() + 2.0 * self.wall();
         want.max(min_fit)
     }
     fn usable_bed(&self) -> [f64; 3] {
@@ -249,16 +253,19 @@ impl Spec {
         self.flange_z() + self.axle_flange_h()
     }
     fn race_h(&self) -> f64 {
-        self.roller_h() + self.hub_deck_h() + self.retainer_h() + 3.0 * self.thrust_float
+        self.pack_h() + self.hub_deck_h() + self.retainer_h() + 3.0 * self.thrust_float
     }
     fn cage_z(&self) -> f64 {
         self.race_z() + self.thrust_float
+    }
+    fn z_mid(&self) -> f64 {
+        self.cage_z() + self.pack_h() * 0.5
     }
     fn hub_z(&self) -> f64 {
         self.plate_z()
     }
     fn plate_z(&self) -> f64 {
-        self.cage_z() + self.roller_h() + self.thrust_float
+        self.cage_z() + self.pack_h() + self.thrust_float
     }
     fn retainer_z(&self) -> f64 {
         self.plate_z() + self.hub_deck_h() + self.thrust_float
@@ -282,10 +289,17 @@ impl Spec {
         let r = self.post_circle_r();
         [r * radians.cos(), r * radians.sin()]
     }
+    fn roller_angle_deg(&self, index: usize) -> f64 {
+        360.0 / self.roller_count.max(1) as f64 * index as f64
+    }
     fn roller_xy(&self, index: usize) -> [f64; 2] {
-        let radians = (360.0 / self.roller_count.max(1) as f64 * index as f64).to_radians();
+        let radians = self.roller_angle_deg(index).to_radians();
         let r = self.pcd() * 0.5;
         [r * radians.cos(), r * radians.sin()]
+    }
+    fn roller_axis(&self, index: usize) -> [f64; 3] {
+        let radians = self.roller_angle_deg(index).to_radians();
+        [radians.cos(), radians.sin(), 0.0]
     }
     fn solidity(&self) -> f64 {
         (self.wing_count as f64) * self.chord_root() / (std::f64::consts::PI * self.rotor_d())
@@ -308,19 +322,23 @@ impl Spec {
             && (self.fit_pip_mm - self.nozzle_mm * 2.0).abs() < 1e-9
     }
     fn rollers_ok(&self) -> bool {
+        let axis0 = self.roller_axis(0);
         self.roller_count >= 6
             && self.roller_d() + 1e-9 >= self.roller_min_d
+            && self.roller_len() + 1e-9 >= 8.0
+            && (self.pack_h() - self.roller_d()).abs() < 1e-9
             && self.pcd() + 1e-9 >= self.hub_deck_od() * 0.5
-            && self.pcd() > self.inner_race_d() + self.roller_d()
+            && self.pcd() > self.inner_race_d() + self.roller_len()
             && self.cage_od() + 1e-9 < self.hub_deck_od()
             && (self.plate_bore() - (self.inner_race_d() + self.fit_running_mm)).abs() < 1e-9
             && self.axle_flange_d() + 1e-9 >= self.cage_od()
-            && self.cage_pocket() + 1e-9 >= self.roller_d() + self.fit_pip_mm
-            && (self.cage_h() - self.roller_h()).abs() < 1e-9
-            && self.roller_h() + 1e-9 <= self.hub_deck_h()
-            && self.roller_h() + 1e-9 < self.roller_d()
+            && (self.cage_pocket() - (self.roller_d() + self.fit_running_mm)).abs() < 1e-9
+            && (self.cage_h() - self.pack_h()).abs() < 1e-9
+            && self.base_boss_d() + 1e-9 < self.hub_deck_od()
+            && axis0[2].abs() < 1e-9
+            && (axis0[0] - 1.0).abs() < 1e-9
             && self.cage_od() * 0.5 + 1e-9
-                >= self.pcd() * 0.5 + self.cage_pocket() * 0.5
+                >= self.pcd() * 0.5 + self.roller_len() * 0.5
     }
     fn helix_ok(&self) -> bool {
         self.helix_deg >= 45.0 && self.helix_stations >= 2
@@ -338,19 +356,19 @@ impl Spec {
     fn stack_ok(&self) -> bool {
         (self.flange_z() - self.base_h()).abs() < 1e-9
             && (self.cage_z() - (self.race_z() + self.thrust_float)).abs() < 1e-9
-            && (self.plate_z() - (self.cage_z() + self.roller_h() + self.thrust_float)).abs()
-                < 1e-9
+            && (self.plate_z() - (self.cage_z() + self.pack_h() + self.thrust_float)).abs() < 1e-9
             && (self.hub_z() - self.plate_z()).abs() < 1e-9
             && (self.retainer_z() - (self.plate_z() + self.hub_deck_h() + self.thrust_float))
                 .abs()
                 < 1e-9
             && (self.race_h()
-                - (self.roller_h()
+                - (self.pack_h()
                     + self.hub_deck_h()
                     + self.retainer_h()
                     + 3.0 * self.thrust_float))
                 .abs()
                 < 1e-9
+            && (self.z_mid() - (self.cage_z() + self.pack_h() * 0.5)).abs() < 1e-9
             && self.bed_relief_h() + 1e-9 < self.hub_deck_h()
             && self.bed_relief_h() + 1e-9 < self.retainer_h()
             && self.bed_relief_h() + 1e-9 < self.axle_flange_h()
@@ -358,9 +376,10 @@ impl Spec {
             && self.hub_deck_od() + 1e-9 > self.axle_flange_d()
             && self.hub_deck_od() + 1e-9 >= self.wing_radius() * 2.0
             && (self.blade_root_z() - (self.plate_z() + self.hub_deck_h())).abs() < 1e-9
-            && (self.cage_h() - self.roller_h()).abs() < 1e-9
+            && (self.cage_h() - self.pack_h()).abs() < 1e-9
+            && (self.pack_h() - self.roller_d()).abs() < 1e-9
             && self.hub_deck_h() + 1e-9 >= 5.0
-            && self.roller_h() + 1e-9 < self.roller_d()
+            && self.base_boss_d() + 1e-9 < self.hub_deck_od()
             && self.pcd() + 1e-9 >= self.hub_deck_od() * 0.5
     }
     fn assembly_component_count(&self) -> usize {
@@ -396,7 +415,7 @@ impl Spec {
         let rollers = (self.roller_count as f64)
             * std::f64::consts::PI
             * (self.roller_d() * 0.5).powi(2)
-            * self.roller_h();
+            * self.roller_len();
         let retainer = (std::f64::consts::PI * (self.retainer_od() * 0.5).powi(2)
             - self.retainer_square().powi(2))
             * self.retainer_h();
@@ -617,6 +636,16 @@ fn move_bodies(
     body_ids: &[u64],
     translation: [f64; 3],
 ) -> Result<(), String> {
+    transform_bodies(call, body_ids, translation, [0.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0])
+}
+
+fn transform_bodies(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    body_ids: &[u64],
+    translation: [f64; 3],
+    rotation: [f64; 4],
+    pivot: [f64; 3],
+) -> Result<(), String> {
     if body_ids.is_empty() {
         return Ok(());
     }
@@ -625,12 +654,85 @@ fn move_bodies(
         json!({
             "body_ids": body_ids,
             "translation": translation,
-            "rotation": [0.0, 0.0, 0.0, 1.0],
-            "pivot": [0.0, 0.0, 0.0],
+            "rotation": rotation,
+            "pivot": pivot,
             "copy": false
         }),
     )?;
     Ok(())
+}
+
+fn quat_axis_angle(axis: [f64; 3], deg: f64) -> [f64; 4] {
+    let n = (axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]).sqrt();
+    let a = if n < 1e-12 {
+        [0.0, 0.0, 1.0]
+    } else {
+        [axis[0] / n, axis[1] / n, axis[2] / n]
+    };
+    let half = deg.to_radians() * 0.5;
+    let s = half.sin();
+    [a[0] * s, a[1] * s, a[2] * s, half.cos()]
+}
+
+fn place_radial_cylinder(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    spec: &Spec,
+    diameter: f64,
+    length: f64,
+    index: usize,
+    known: &[u64],
+    label: &str,
+) -> Result<u64, String> {
+    let x0 = spec.pcd() * 0.5 - length * 0.5;
+    let deck = offset_yz(call, x0)?;
+    begin_datum(call, deck)?;
+    add_circle(call, [0.0, spec.z_mid()], diameter)?;
+    let sketch = finish_sketch(call)?;
+    let update = require_clean(
+        call(
+            "solid_extrude",
+            json!({
+                "sketch_name": sketch,
+                "profile_indices": [0],
+                "operation": "new_body",
+                "extent": { "type": "distance", "distance": length },
+                "taper_angle_deg": 0.0,
+                "flip": false,
+                "target_body_ids": []
+            }),
+        )?,
+        label,
+    )?;
+    let id = newest_body_id(&update, known)?;
+    let theta = spec.roller_angle_deg(index);
+    if theta.abs() > 1e-9 {
+        transform_bodies(
+            call,
+            &[id],
+            [0.0, 0.0, 0.0],
+            quat_axis_angle([0.0, 0.0, 1.0], theta),
+            [0.0, 0.0, spec.z_mid()],
+        )?;
+    }
+    Ok(id)
+}
+
+fn stand_roller(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    spec: &Spec,
+    roller_id: u64,
+    index: usize,
+) -> Result<(), String> {
+    let theta = spec.roller_angle_deg(index).to_radians();
+    let [x, y] = spec.roller_xy(index);
+    // −90° about e_θ takes e_r onto +Z so the roller prints standing.
+    transform_bodies(
+        call,
+        &[roller_id],
+        [0.0, 0.0, 0.0],
+        quat_axis_angle([-theta.sin(), theta.cos(), 0.0], -90.0),
+        [x, y, spec.z_mid()],
+    )
 }
 
 fn layout_print_plate(
@@ -647,7 +749,7 @@ fn layout_print_plate(
     let rotor_r = spec.rotor_d().max(spec.hub_deck_od()) * 0.5;
     let base_r = spec.base_envelope() * 0.5;
     let axle_r = spec.axle_flange_d() * 0.5;
-    let cart_r = spec.pcd() * 0.5 + spec.roller_d() * 0.5;
+    let cart_r = spec.cage_od() * 0.5;
     let ret_r = spec.retainer_od() * 0.5;
     let col_x = rotor_r + gap + base_r.max(axle_r);
     let small_x = col_x + base_r.max(axle_r) + gap + cart_r.max(ret_r);
@@ -658,15 +760,29 @@ fn layout_print_plate(
         &[axle_id],
         [col_x, -(axle_r + gap * 0.5), -spec.flange_z()],
     )?;
-    // Cartridge stays its own PIP cluster. Nesting it under the plate
-    // at assembled running clearance is 0.10 mm/side and welds.
-    let mut cartridge = vec![cage_id];
-    cartridge.extend(roller_ids.iter().copied());
+    // Rollers print standing (axis Z). Do not nest them in the cage
+    // or under the plate — race-to-roller at +0.40 welds.
     move_bodies(
         call,
-        &cartridge,
+        &[cage_id],
         [small_x, -(cart_r + gap), -spec.cage_z()],
     )?;
+    let roll_pitch = spec.roller_d() + 4.0;
+    let slot_x = small_x + cart_r + gap + spec.roller_d() * 0.5;
+    for (index, roller_id) in roller_ids.iter().enumerate() {
+        stand_roller(call, spec, *roller_id, index)?;
+        let [x, y] = spec.roller_xy(index);
+        let slot_y = -(cart_r + gap) + index as f64 * roll_pitch;
+        move_bodies(
+            call,
+            &[*roller_id],
+            [
+                slot_x - x,
+                slot_y - y,
+                -(spec.z_mid() - spec.roller_len() * 0.5),
+            ],
+        )?;
+    }
     move_bodies(
         call,
         &[retainer_id],
@@ -879,55 +995,6 @@ fn build_rotor(
     let rotor_id = newest_body_id(&update, known)?;
 
     for index in 0..spec.wing_count {
-        let [px, py] = spec.helix_center(index, 0.0);
-        begin_datum(call, deck.clone())?;
-        add_oriented_rect(
-            call,
-            [px * 0.5, py * 0.5],
-            spec.wing_radius() + spec.chord_root() * 0.5,
-            spec.blade_arm_w(),
-            spec.wing_angle_deg(index),
-        )?;
-        let arm = finish_sketch(call)?;
-        require_clean(
-            call(
-                "solid_extrude",
-                json!({
-                    "sketch_name": arm,
-                    "profile_indices": [0],
-                    "operation": "join",
-                    "extent": { "type": "distance", "distance": spec.hub_deck_h() },
-                    "taper_angle_deg": 0.0,
-                    "flip": false,
-                    "target_body_ids": [rotor_id]
-                }),
-            )?,
-            &format!("blade print arm {index}"),
-        )?;
-        begin_datum(call, deck.clone())?;
-        add_oriented_rect(
-            call,
-            [px * 0.5, py * 0.5],
-            spec.wing_radius() + spec.chord_root() * 0.5,
-            spec.wall() * 3.0,
-            spec.wing_angle_deg(index),
-        )?;
-        let spar = finish_sketch(call)?;
-        require_clean(
-            call(
-                "solid_extrude",
-                json!({
-                    "sketch_name": spar,
-                    "profile_indices": [0],
-                    "operation": "join",
-                    "extent": { "type": "distance", "distance": spec.hub_deck_h() },
-                    "taper_angle_deg": 0.0,
-                    "flip": false,
-                    "target_body_ids": [rotor_id]
-                }),
-            )?,
-            &format!("blade spar {index}"),
-        )?;
         begin_datum(call, deck.clone())?;
         add_airfoil(
             call,
@@ -1006,7 +1073,7 @@ fn build_cartridge(
     known: &[u64],
 ) -> Result<(u64, Vec<u64>), String> {
     let deck = offset_xy(call, spec.cage_z())?;
-    begin_datum(call, deck.clone())?;
+    begin_datum(call, deck)?;
     add_circle(call, [0.0, 0.0], spec.cage_od())?;
     add_circle(call, [0.0, 0.0], spec.cage_id())?;
     let ring = finish_sketch(call)?;
@@ -1026,51 +1093,45 @@ fn build_cartridge(
         "roller cage",
     )?;
     let cage_id = newest_body_id(&update, known)?;
-    for index in 0..spec.roller_count {
-        let [x, y] = spec.roller_xy(index);
-        begin_datum(call, deck.clone())?;
-        add_circle(call, [x, y], spec.cage_pocket())?;
-        let pocket = finish_sketch(call)?;
-        require_clean(
-            call(
-                "solid_extrude",
-                json!({
-                    "sketch_name": pocket,
-                    "profile_indices": [0],
-                    "operation": "cut",
-                    "extent": { "type": "distance", "distance": spec.cage_h() },
-                    "taper_angle_deg": 0.0,
-                    "flip": false,
-                    "target_body_ids": [cage_id]
-                }),
-            )?,
-            &format!("cage pocket {index}"),
-        )?;
-    }
-    let mut roller_ids = Vec::new();
     let mut seen = known.to_vec();
     seen.push(cage_id);
+    let mut tools = Vec::new();
     for index in 0..spec.roller_count {
-        let [x, y] = spec.roller_xy(index);
-        begin_datum(call, deck.clone())?;
-        add_circle(call, [x, y], spec.roller_d())?;
-        let roller = finish_sketch(call)?;
-        let update = require_clean(
-            call(
-                "solid_extrude",
-                json!({
-                    "sketch_name": roller,
-                    "profile_indices": [0],
-                    "operation": "new_body",
-                    "extent": { "type": "distance", "distance": spec.roller_h() },
-                    "taper_angle_deg": 0.0,
-                    "flip": false,
-                    "target_body_ids": []
-                }),
-            )?,
+        let id = place_radial_cylinder(
+            call,
+            spec,
+            spec.cage_pocket(),
+            spec.pocket_len(),
+            index,
+            &seen,
+            &format!("cage pocket tool {index}"),
+        )?;
+        seen.push(id);
+        tools.push(id);
+    }
+    require_clean(
+        call(
+            "solid_combine",
+            json!({
+                "target_body_id": cage_id,
+                "tool_body_ids": tools,
+                "operation": "cut",
+                "keep_tools": false
+            }),
+        )?,
+        "radial cage pockets",
+    )?;
+    let mut roller_ids = Vec::new();
+    for index in 0..spec.roller_count {
+        let id = place_radial_cylinder(
+            call,
+            spec,
+            spec.roller_d(),
+            spec.roller_len(),
+            index,
+            &seen,
             &format!("roller {index}"),
         )?;
-        let id = newest_body_id(&update, &seen)?;
         seen.push(id);
         roller_ids.push(id);
     }
@@ -1256,15 +1317,16 @@ fn form_assembly(
     )?;
     for (index, roller_id) in roller_ids.iter().enumerate() {
         let [x, y] = spec.roller_xy(index);
-        let z = spec.cage_z() + spec.roller_h();
+        let z = spec.z_mid();
+        let axis = spec.roller_axis(index);
         create_stable_joint(
             call,
             &format!("roller_{index}_spin"),
             "revolute",
-            axis_connector_at(&scene, cage_id, [x, y], z, spec.cage_pocket() * 0.5)
-                .ok_or_else(|| format!("no cage pocket axis for roller {index}"))?,
-            axis_connector_at(&scene, *roller_id, [x, y], z, spec.roller_d() * 0.5)
-                .ok_or_else(|| format!("no roller axis for roller {index}"))?,
+            radial_connector_at(&scene, cage_id, [x, y], z, spec.cage_pocket() * 0.5, axis)
+                .ok_or_else(|| format!("no cage pocket radial axis for roller {index}"))?,
+            radial_connector_at(&scene, *roller_id, [x, y], z, spec.roller_d() * 0.5, axis)
+                .ok_or_else(|| format!("no roller radial axis for roller {index}"))?,
             cage_id,
         )?;
     }
@@ -1323,7 +1385,7 @@ fn form_assembly(
     }
     require_linked_solution(call)?;
     Ok(format!(
-        "{defs} linked parts, {joints} joints; axle sits on base; thin thrust pack under the plate; rollers spin in the cage"
+        "{defs} linked parts, {joints} joints; axle sits on base; radial-axis thin thrust under the plate; rollers spin about e_r"
     ))
 }
 
@@ -1457,26 +1519,27 @@ fn make_assembly_drawing(
         ),
         (
             [18.0, 48.0],
-            "PRINT  one plate, laid out. Rotor STANDING on the root plate (flat blade cuts). Others FLAT. Cartridge PIP. PLA Orange + PLA Glow (rotor).".to_string(),
+            "PRINT  one plate, laid out. Rotor STANDING on the root plate. Rollers STANDING (axis Z), assemble lying (axis radial). Others FLAT. PLA Orange + PLA Glow (rotor).".to_string(),
         ),
         (
             [18.0, 58.0],
-            "GDT  axle SITS on base. Thin flat thrust under the plate: flange = lower race, plate underside = upper race, large-PCD rollers between. Short journal centers. Drop axle, cartridge, rotor, retainer. PIP +0.80.".to_string(),
+            "GDT  axle SITS on base. Thin flat thrust under the plate: flange = lower race, plate underside = upper race, radial-axis rollers between. Short journal centers. Drop axle, cartridge, rotor, retainer. Pockets running +0.40.".to_string(),
         ),
         (
             [18.0, 68.0],
             format!(
-                "BOM  base (Y-frame + square post) · axle (flange + short journal) · rotor (root plate+3×{}) · thin thrust cage + {} PIP rollers · retainer",
+                "BOM  base (Y-frame + square post) · axle (flange + short journal) · rotor (root plate+3×{}) · thin thrust cage + {} radial rollers · retainer",
                 spec.airfoil, spec.roller_count
             ),
         ),
         (
             [18.0, 78.0],
             format!(
-                "ROLLERS  Ø{:.1} × {:.1}  PCD {:.1}  for blade-tip moment. No metal 608.",
+                "ROLLERS  Ø{:.1} × L{:.1}  axis radial  PCD {:.1}  pack h={:.1}. No metal 608.",
                 spec.roller_d(),
-                spec.roller_h(),
-                spec.pcd()
+                spec.roller_len(),
+                spec.pcd(),
+                spec.pack_h()
             ),
         ),
     ];
@@ -1531,8 +1594,8 @@ fn journal_axis_at(scene: &Value, axle_id: u64, z: f64, want_radius: f64) -> Opt
     // Prefer the journal cylinder so each revolute can sit at the partner's
     // actual edge Z. Picking the nearest journal *circle* on a short puck
     // locks cage and plate to different heights and yanks the pack.
-    cylindrical_face_at(scene, axle_id, [0.0, 0.0], z, want_radius)
-        .or_else(|| circular_edge_at(scene, axle_id, [0.0, 0.0], z, want_radius))
+    cylindrical_face_along(scene, axle_id, [0.0, 0.0, z], [0.0, 0.0, 1.0], want_radius)
+        .or_else(|| circular_edge_along(scene, axle_id, [0.0, 0.0, z], [0.0, 0.0, 1.0], want_radius))
 }
 
 fn axis_connector_at(
@@ -1543,21 +1606,95 @@ fn axis_connector_at(
     want_radius: f64,
 ) -> Option<Value> {
     circular_edge_at(scene, body_id, xy, z, want_radius)
-        .or_else(|| cylindrical_face_at(scene, body_id, xy, z, want_radius))
+        .or_else(|| {
+            cylindrical_face_along(scene, body_id, [xy[0], xy[1], z], [0.0, 0.0, 1.0], want_radius)
+        })
 }
 
-fn cylindrical_face_at(
+fn radial_connector_at(
     scene: &Value,
     body_id: u64,
     xy: [f64; 2],
     z: f64,
+    want_radius: f64,
+    axis: [f64; 3],
+) -> Option<Value> {
+    connector_along(scene, body_id, [xy[0], xy[1], z], axis, want_radius)
+}
+
+fn connector_along(
+    scene: &Value,
+    body_id: u64,
+    point: [f64; 3],
+    axis: [f64; 3],
+    want_radius: f64,
+) -> Option<Value> {
+    circular_edge_along(scene, body_id, point, axis, want_radius)
+        .or_else(|| cylindrical_face_along(scene, body_id, point, axis, want_radius))
+}
+
+fn axis_dot(a: [f64; 3], b: [f64; 3]) -> f64 {
+    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+
+fn axis_norm(v: [f64; 3]) -> [f64; 3] {
+    let n = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
+    if n < 1e-12 {
+        [0.0, 0.0, 1.0]
+    } else {
+        [v[0] / n, v[1] / n, v[2] / n]
+    }
+}
+
+fn axis_aligned(axis: [f64; 3], want: [f64; 3]) -> bool {
+    axis_dot(axis_norm(axis), axis_norm(want)).abs() >= 0.85
+}
+
+fn perp_and_along(origin: [f64; 3], axis: [f64; 3], point: [f64; 3]) -> (f64, f64) {
+    let a = axis_norm(axis);
+    let d = [
+        point[0] - origin[0],
+        point[1] - origin[1],
+        point[2] - origin[2],
+    ];
+    let along = axis_dot(d, a);
+    let closest = [
+        origin[0] + a[0] * along,
+        origin[1] + a[1] * along,
+        origin[2] + a[2] * along,
+    ];
+    let perp = (point[0] - closest[0])
+        .hypot(point[1] - closest[1])
+        .hypot(point[2] - closest[2]);
+    (perp, along)
+}
+
+fn frame_along(point: [f64; 3], primary: [f64; 3]) -> Value {
+    let p = axis_norm(primary);
+    let secondary = if p[2].abs() < 0.5 {
+        [0.0, 0.0, 1.0]
+    } else {
+        [1.0, 0.0, 0.0]
+    };
+    json!({
+        "origin": [point[0], point[1], point[2]],
+        "primary_axis": p,
+        "secondary_axis": secondary
+    })
+}
+
+fn cylindrical_face_along(
+    scene: &Value,
+    body_id: u64,
+    point: [f64; 3],
+    want_axis: [f64; 3],
     want_radius: f64,
 ) -> Option<Value> {
     let body = scene["bodies"]
         .as_array()?
         .iter()
         .find(|body| body["id"].as_u64() == Some(body_id))?;
-    let mut best: Option<(&Value, f64, [f64; 3])> = None;
+    let mut best: Option<(&Value, f64)> = None;
     for face in body["faces"].as_array()? {
         let Some(cylinder) = face.get("cylinder") else {
             continue;
@@ -1568,29 +1705,29 @@ fn cylindrical_face_at(
         let Some(axis) = xyz(&cylinder["axis"]) else {
             continue;
         };
-        if axis[2].abs() < 0.85 {
+        if !axis_aligned(axis, want_axis) {
             continue;
         }
-        if (origin[0] - xy[0]).hypot(origin[1] - xy[1]) > 3.0 {
+        let (perp, _) = perp_and_along(origin, axis, point);
+        if perp > 3.0 {
             continue;
         }
         let Some(radius) = cylinder["radius"].as_f64() else {
             continue;
         };
-        let score = (radius - want_radius).abs();
-        if score > 2.5 {
+        let score = (radius - want_radius).abs() + perp;
+        if score > 2.5 + 3.0 {
             continue;
         }
-        if best.is_none_or(|(_, current, _)| score < current) {
-            best = Some((face, score, origin));
+        if (radius - want_radius).abs() > 2.5 {
+            continue;
+        }
+        if best.is_none_or(|(_, current)| score < current) {
+            best = Some((face, score));
         }
     }
-    let (face, _, origin) = best?;
-    let frame = json!({
-        "origin": [origin[0], origin[1], z],
-        "primary_axis": [0.0, 0.0, 1.0],
-        "secondary_axis": [1.0, 0.0, 0.0]
-    });
+    let (face, _) = best?;
+    let frame = frame_along(point, want_axis);
     Some(json!({
         "body_id": body_id,
         "face_id": face["id"],
@@ -1609,11 +1746,21 @@ fn circular_edge_at(
     z: f64,
     want_radius: f64,
 ) -> Option<Value> {
+    circular_edge_along(scene, body_id, [xy[0], xy[1], z], [0.0, 0.0, 1.0], want_radius)
+}
+
+fn circular_edge_along(
+    scene: &Value,
+    body_id: u64,
+    point: [f64; 3],
+    want_axis: [f64; 3],
+    want_radius: f64,
+) -> Option<Value> {
     let body = scene["bodies"]
         .as_array()?
         .iter()
         .find(|body| body["id"].as_u64() == Some(body_id))?;
-    let mut best: Option<(&Value, f64, [f64; 3], f64)> = None;
+    let mut best: Option<(&Value, f64, f64)> = None;
     for edge in body["edges"].as_array()? {
         let Some(circle) = edge.get("circle") else {
             continue;
@@ -1627,10 +1774,11 @@ fn circular_edge_at(
         let Some(normal) = xyz(&circle["normal"]) else {
             continue;
         };
-        if normal[2].abs() < 0.85 {
+        if !axis_aligned(normal, want_axis) {
             continue;
         }
-        if (center[0] - xy[0]).hypot(center[1] - xy[1]) > 2.0 {
+        let (perp, along) = perp_and_along(center, want_axis, point);
+        if perp > 2.0 {
             continue;
         }
         let Some(radius) = circle["radius"].as_f64() else {
@@ -1640,12 +1788,12 @@ fn circular_edge_at(
         if radius_err > 2.5 {
             continue;
         }
-        let score = (center[2] - z).abs() + radius_err;
-        if best.is_none_or(|(_, current, _, _)| score < current) {
-            best = Some((edge, score, center, radius));
+        let score = perp + 0.15 * along.abs() + radius_err;
+        if best.is_none_or(|(_, current, _)| score < current) {
+            best = Some((edge, score, radius));
         }
     }
-    let (edge, _, center, radius) = best?;
+    let (edge, _, radius) = best?;
     Some(json!({
         "body_id": body_id,
         "face_id": 0,
@@ -1654,11 +1802,7 @@ fn circular_edge_at(
         "edge_key": edge["key"],
         "kind": "circular_edge",
         "radius": radius,
-        "frame": {
-            "origin": [center[0], center[1], center[2]],
-            "primary_axis": [0.0, 0.0, 1.0],
-            "secondary_axis": [1.0, 0.0, 0.0]
-        }
+        "frame": frame_along(point, want_axis)
     }))
 }
 
@@ -1739,10 +1883,10 @@ fn grade(
         "rollers",
         spec.rollers_ok() && built.roller_ids.len() == spec.roller_count,
         format!(
-            "{}× Ø{:.1}×h{:.1} rollers on PCD {:.1}; plate bore {:.1}; journal Ø{:.1}×h{:.1}",
+            "{}× Ø{:.1}×L{:.1} radial rollers on PCD {:.1}; plate bore {:.1}; journal Ø{:.1}×h{:.1}",
             spec.roller_count,
             spec.roller_d(),
-            spec.roller_h(),
+            spec.roller_len(),
             spec.pcd(),
             spec.plate_bore(),
             spec.inner_race_d(),
@@ -1807,12 +1951,11 @@ fn grade(
         "print_flat",
         spec.print_flat_ok(),
         format!(
-            "axle puck h{:.1} on flange Ø{:.1}; rotor stands on deck {:.1}; bed lead-in {:.2}; PIP pockets +{:.2}",
+            "axle puck h{:.1} on flange Ø{:.1}; rotor stands on deck {:.1}; rollers print standing, pockets running +{:.2}",
             spec.axle_flange_h() + spec.race_h(),
             spec.axle_flange_d(),
             spec.hub_deck_h(),
-            spec.bed_relief_mm,
-            spec.fit_pip_mm
+            spec.fit_running_mm
         ),
     );
     push_lesson(
@@ -2171,6 +2314,22 @@ fn offset_xy(
     call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
     z: f64,
 ) -> Result<Value, String> {
+    offset_origin_plane(call, "xy", 2, z)
+}
+
+fn offset_yz(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    x: f64,
+) -> Result<Value, String> {
+    offset_origin_plane(call, "yz", 0, x)
+}
+
+fn offset_origin_plane(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    plane: &str,
+    axis: usize,
+    distance: f64,
+) -> Result<Value, String> {
     call(
         "cad_set_focus",
         json!({ "focus": "datums", "explicit": true }),
@@ -2178,28 +2337,34 @@ fn offset_xy(
     let created = call(
         "construction_plane_offset",
         json!({
-            "reference": { "type": "origin_plane", "plane": "xy" },
-            "distance": z
+            "reference": { "type": "origin_plane", "plane": plane },
+            "distance": distance
         }),
     )?;
-    created["planes"]
-        .as_array()
-        .and_then(|planes| {
+    let planes = created["planes"].as_array().cloned().unwrap_or_default();
+    let mut best: Option<(Value, f64)> = None;
+    for item in &planes {
+        let Some(origin) = item["basis"]["origin"].as_array() else {
+            continue;
+        };
+        let Some(component) = origin.get(axis).and_then(Value::as_f64) else {
+            continue;
+        };
+        let err = (component - distance).abs();
+        if best.as_ref().is_none_or(|(_, current)| err < *current) {
+            if let Some(id) = item.get("datum_id").cloned().filter(|id| !id.is_null()) {
+                best = Some((id, err));
+            }
+        }
+    }
+    best.map(|(id, _)| id)
+        .or_else(|| {
             planes
-                .iter()
-                .rev()
-                .find(|plane| {
-                    plane["basis"]["origin"]
-                        .as_array()
-                        .and_then(|origin| origin.get(2))
-                        .and_then(Value::as_f64)
-                        .is_some_and(|oz| (oz - z).abs() < 0.25)
-                })
-                .or_else(|| planes.last())
+                .last()
+                .and_then(|plane| plane.get("datum_id").cloned())
+                .filter(|id| !id.is_null())
         })
-        .map(|plane| plane["datum_id"].clone())
-        .filter(|id| !id.is_null())
-        .ok_or_else(|| format!("no datum at z={z}"))
+        .ok_or_else(|| format!("no datum on {plane} at {distance}"))
 }
 
 fn begin_datum(
@@ -2351,20 +2516,24 @@ mod spec_tests {
         assert!(spec.post_h() < spec.axle_flange_d() * 2.5);
         assert!(spec.fit_pip_mm > spec.fit_running_mm);
         assert!((spec.bed_relief_mm - spec.nozzle_mm * 2.0).abs() < 1e-9);
-        assert!(spec.cage_pocket() > spec.roller_d() + spec.fit_running_mm);
+        assert!((spec.cage_pocket() - (spec.roller_d() + spec.fit_running_mm)).abs() < 1e-9);
         assert!(spec.hub_deck_od() > spec.axle_flange_d());
         assert!(spec.hub_deck_od() >= spec.wing_radius() * 2.0);
         assert!((spec.hub_h() - spec.hub_deck_h()).abs() < 1e-9);
-        assert_eq!(spec.cage_h(), spec.roller_h());
-        assert!(spec.roller_h() <= 4.0);
-        assert!(spec.roller_h() < spec.roller_d());
+        assert_eq!(spec.cage_h(), spec.pack_h());
+        assert!((spec.pack_h() - spec.roller_d()).abs() < 1e-9);
+        assert!(spec.roller_len() + 1e-9 >= 8.0);
+        assert!(spec.base_boss_d() + 1e-9 < spec.hub_deck_od());
+        assert!((spec.roller_axis(0)[0] - 1.0).abs() < 1e-9);
+        assert!(spec.roller_axis(0)[2].abs() < 1e-9);
         assert!(spec.pcd() + 1e-6 >= 0.5 * spec.hub_deck_od());
-        assert!(spec.race_h() < 14.0);
+        assert!(spec.race_h() > 12.0);
+        assert!(spec.race_h() < 20.0);
         assert!((spec.plate_z() - spec.hub_z()).abs() < 1e-9);
         assert!((spec.blade_root_z() - (spec.plate_z() + spec.hub_deck_h())).abs() < 1e-9);
         assert!((spec.cage_z() - (spec.race_z() + spec.thrust_float)).abs() < 1e-9);
         assert!(
-            (spec.plate_z() - (spec.cage_z() + spec.roller_h() + spec.thrust_float)).abs() < 1e-9
+            (spec.plate_z() - (spec.cage_z() + spec.pack_h() + spec.thrust_float)).abs() < 1e-9
         );
     }
 }

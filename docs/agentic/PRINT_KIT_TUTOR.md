@@ -27,21 +27,21 @@ A five-part **printed VAWT assembly** (spec
 `scripts/fixtures/print-kit-tutor.spec.json`, id `fdm-print-vawt`).
 Linear numbers are the Bambu Lab X2D-max design (256×256×260, 8 mm
 margin). `spec.scale` shrinks the source (exam default **0.4**). Feature
-floors (roller Ø8 / h3.2, TE 0.8, 4-nozzle walls, plate 5 mm) are clamped.
+floors (roller Ø8, roller length 8, TE 0.8, 4-nozzle walls, plate 5 mm) are clamped. Pack height is the roller diameter.
 
 | Part | Role | How it mates |
 |------|------|----------------|
 | Base | Y-frame + short square stator post, one piece | Post is the grounded axis. Print flat. |
 | Axle | Large thin flange (lower thrust race) + short journal, square bore | Friction on the post (+0.16). Print on the flange. |
 | Rotor | Root plate (≥5 mm) out to the blades (underside = upper thrust race), 3 helical **NACA 0021** ending on that plate, **one body**, open drafted tips | Plate bore = journal + running. Print standing on the plate. PLA Glow. |
-| Roller cartridge | Cage + 6 thin PIP rollers, min Ø8 / h3.2, large PCD **under the plate**. Cage height = roller height | Running +0.40 on rollers / flange / plate. PIP on the kit plate. |
+| Roller cartridge | Cage + 6 **radial-axis** rollers, min Ø8, pack height = Ø, large PCD **under the plate**. Cage height = roller Ø | Running +0.40 on rollers / races / pockets. Print standing, assemble lying down. |
 | Retainer | Washer above the plate | Slip +0.28 on the post. Floats 0.20 above the plate. |
 
 Fits are **per role** (running / PIP / slip / friction) and per whether
 the parts share a plate. Assembled running +0.40. Same-plate PIP +0.80.
 Every bed-printed locate gets a 0.80 mm elephant-foot lead-in. Do not
-nest the plate around the PIP rollers on the bed. Slicer XY hole compensation
-stays 0. No metal 608s. No FDM press fits. No loose bushing sandwich. No tall drum.
+nest the plate around the rollers on the bed. Slicer XY hole compensation
+stays 0. No metal 608s. No FDM press fits. No loose bushing sandwich. No tall drum. No standing-Z pucks.
 
 Assembly order: **base → axle → roller cartridge → rotor → retainer**.
 
@@ -50,11 +50,11 @@ rotor, cage, each roller, retainer). That call already inserts
 the root occurrence — a second `assembly_create_occurrence` duplicates
 every part. Ground the base. **Rigid** the stator (axle sits on the
 base; retainer sits on the post). **Revolute** `rotor_spin` (plate bore ↔
-short journal), the cage, and each roller on the axis / pocket axes — not
-a blade spar. Ship an A3 assembly drawing with notes.
+short journal), the cage about Z, and each roller about its **radial**
+axis — not a blade spar. Ship an A3 assembly drawing with notes.
 
 Print each functional part in its own orientation on **one** plate.
-The cartridge is print-in-place. The exam **wipes**
+Rollers print standing (axis Z). The exam **wipes**
 `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor\` first (retired
 five-plate names plus `02-shaft` / `03-hub` / `04-wings` / `05-plate` /
 `06-bushing` / `07-cap` and any assembled `Print-Kit-Tutor.3mf`), saves
