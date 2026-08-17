@@ -2,8 +2,9 @@
  * Load Print-Kit-Tutor.nbcad in the web UI and look at the solid.
  *
  * The print-kit exam is headless. Matching numbers without a 3/4 view is
- * how the 8 mm washer cup shipped. This script is the visual gate:
- * load the kit in the web UI (WASM), then paint the tessellation.
+ * how the 8 mm washer cup and the 28 mm orange drum shipped. This script
+ * is the visual gate: load the kit in the web UI (WASM), then paint the
+ * tessellation. The hub must be a thin plate over a flat thrust pack.
  * The browser shell no longer owns WebGL — Bevy paints on desktop only —
  * so the screenshots are an agent canvas of the same meshes.
  *
@@ -217,13 +218,13 @@ try {
   const rotor = loaded.bodies.find((body) => /rotor|hub|blade/i.test(body.name)) ?? loaded.bodies[2];
   const hubZ = rotor?.hub?.span?.[2] ?? 0;
   check(
-    'rotor hub region is a drum, not a washer',
-    hubZ >= 20,
-    `hubZ=${hubZ.toFixed(1)} (want ≥20 mm of plate+cup near the axis)`,
+    'rotor hub is a thin plate, not a tall drum',
+    hubZ >= 4.5 && hubZ <= 8,
+    `hubZ=${hubZ.toFixed(1)} (want ~5 mm plate; ≥20 mm is a tall drum)`,
   );
 
   // The browser shell no longer owns WebGL — Bevy paints only on desktop.
-  // Draw the WASM tessellation ourselves so the cup is actually looked at.
+  // Draw the WASM tessellation ourselves so the thrust pack is actually looked at.
   const paint = async (name, eye) => {
     await page.evaluate((direction) => {
       const state = window.__appStore.getState();
