@@ -127,7 +127,7 @@ impl Spec {
         self.hub_deck_h()
     }
     fn hub_deck_h(&self) -> f64 {
-        self.mm_min(10.0, 5.0).max(self.bed_relief_h())
+        self.mm_min(10.0, 3.2).max(self.bed_relief_h())
     }
     fn hub_deck_od(&self) -> f64 {
         (self.wing_radius() + self.chord_root() * 0.18) * 2.0
@@ -173,7 +173,7 @@ impl Spec {
         self.chord_root() * self.airfoil_t_c
     }
     fn base_h(&self) -> f64 {
-        self.mm_min(self.base_h, 6.0)
+        self.mm_min(self.base_h, 3.2)
     }
     fn rib_w(&self) -> f64 {
         self.mm_min(self.rib_w, 5.0)
@@ -191,7 +191,26 @@ impl Spec {
             .min(self.axle_flange_d() - 8.0)
     }
     fn race_id(&self) -> f64 {
-        (self.pcd() - self.roller_len()).max(self.base_boss_d() + 2.0 * self.wall())
+        (self.pcd() - self.roller_len() - 2.0 * self.keeper())
+            .max(self.base_boss_d() + 2.0 * self.wall())
+    }
+    fn keeper(&self) -> f64 {
+        self.wall()
+    }
+    fn root_scale(&self) -> f64 {
+        1.22
+    }
+    fn root_blend_h(&self) -> f64 {
+        self.mm_min(8.0, 3.2)
+    }
+    fn tip_taper_h(&self) -> f64 {
+        self.mm_min(12.0, 4.0)
+    }
+    fn tip_scale(&self) -> f64 {
+        0.72
+    }
+    fn tip_chord(&self) -> f64 {
+        self.chord_tip() * self.tip_scale()
     }
     fn top_load(&self) -> f64 {
         self.nozzle_mm * 2.0
@@ -418,6 +437,17 @@ impl Spec {
     fn pack_outer_r(&self) -> f64 {
         self.pcd() * 0.5 + self.roller_len() * 0.5
     }
+    fn captured_ok(&self) -> bool {
+        let roller_inner = self.pcd() * 0.5 - self.roller_len() * 0.5;
+        let roller_outer = self.pcd() * 0.5 + self.roller_len() * 0.5;
+        let pocket_inner = self.pcd() * 0.5 - self.pocket_len() * 0.5;
+        let pocket_outer = self.pcd() * 0.5 + self.pocket_len() * 0.5;
+        self.keeper() + 1e-9 >= self.nozzle_mm * 2.0
+            && self.race_id() * 0.5 + 1e-9 <= roller_inner
+            && pocket_inner + 1e-9 > self.race_id() * 0.5
+            && roller_outer + self.keeper() <= self.cage_od() * 0.5 + 1e-9
+            && pocket_outer + 1e-9 < self.cage_od() * 0.5
+    }
     fn rollers_ok(&self) -> bool {
         let axis0 = self.roller_axis(0);
         self.roller_count >= 6
@@ -444,6 +474,7 @@ impl Spec {
             && axis0[2].abs() < 1e-9
             && (axis0[0] - 1.0).abs() < 1e-9
             && self.cage_od() * 0.5 + 1e-9 >= self.pack_outer_r()
+            && self.captured_ok()
     }
     fn helix_ok(&self) -> bool {
         self.helix_deg >= 45.0 && self.helix_stations >= 2
@@ -475,7 +506,11 @@ impl Spec {
             && self.hub_deck_od() + 1e-9 >= self.wing_radius() * 2.0
             && (self.blade_root_z() - (self.plate_z() + self.hub_deck_h())).abs() < 1e-9
             && (self.pack_h() - self.roller_d()).abs() < 1e-9
-            && self.hub_deck_h() + 1e-9 >= 5.0
+            && self.hub_deck_h() + 1e-9 >= 3.2
+            && self.captured_ok()
+            && self.root_blend_h() + self.tip_taper_h() + 1e-9 < self.wing_h()
+            && self.tip_chord() + 1e-9 < self.chord_tip()
+            && self.root_scale() > 1.0
             && self.base_boss_d() + 1e-9 < self.hub_deck_od()
             && self.pack_outer_r() + 1e-9 >= self.wing_radius() * 0.9
             && self.cage_id() + 1e-9 > self.plate_bore()
@@ -1073,6 +1108,28 @@ fn build_stator(
     Ok(stator_id)
 }
 
+fn blade_loft_stations(spec: &Spec) -> Vec<(f64, f64, f64)> {
+    let stations = spec.helix_stations.max(2);
+    let span = spec.wing_h() - spec.root_blend_h() - spec.tip_taper_h();
+    let mut out = vec![(
+        spec.blade_loft_z(),
+        0.0,
+        spec.chord_root() * spec.root_scale(),
+    )];
+    for station in 0..stations {
+        let t = station as f64 / (stations - 1) as f64;
+        let chord = spec.chord_root() * (1.0 - t) + spec.chord_tip() * t;
+        let z = spec.blade_loft_z() + spec.root_blend_h() + span * t;
+        out.push((z, t, chord));
+    }
+    out.push((
+        spec.blade_loft_z() + spec.wing_h(),
+        1.0,
+        spec.tip_chord(),
+    ));
+    out
+}
+
 fn build_rotor(
     call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
     spec: &Spec,
@@ -1128,12 +1185,9 @@ fn build_rotor(
             )?,
             &format!("blade root base {index}"),
         )?;
-        let stations = spec.helix_stations.max(2);
         let mut sections = Vec::new();
-        for station in 0..stations {
-            let t = station as f64 / (stations - 1) as f64;
-            let chord = spec.chord_root() * (1.0 - t) + spec.chord_tip() * t;
-            let loft_deck = offset_xy(call, spec.blade_loft_z() + spec.wing_h() * t)?;
+        for (z, t, chord) in blade_loft_stations(spec) {
+            let loft_deck = offset_xy(call, z)?;
             begin_datum(call, loft_deck)?;
             add_airfoil(
                 call,
@@ -1617,7 +1671,7 @@ fn make_assembly_drawing(
         ),
         (
             [18.0, 58.0],
-            "GDT  one stator (Y-frame + race ring + open fence + constant journal). Thin flat thrust under the blade roots. Plate bore > journal pass Ø so the rotor drops on. Clocked C-clip snaps into an undercut groove above the plate — it does not rub the rotor. Pull the C-gap to remove.".to_string(),
+            "GDT  one stator (thin Y-frame + race ring + keeper walls + open fence + constant journal). Thin plate with organic airfoil roots. Plate bore > journal pass Ø so the rotor drops on. Clocked C-clip snaps into an undercut groove above the plate — it does not rub the rotor. Pull the C-gap to remove. Clip CAD unchanged this pass.".to_string(),
         ),
         (
             [18.0, 68.0],
@@ -2022,8 +2076,14 @@ fn grade(
         "one_piece_rotor",
         rotor_faces >= spec.min_rotor_faces
             && rotor_span > spec.wing_h() * 0.7
-            && spec.chord_root() > spec.chord_tip(),
-        format!("rotor faces={rotor_faces} span={rotor_span:.1} (root plate + 3 blades on the sit plane)"),
+            && spec.chord_root() > spec.chord_tip()
+            && spec.root_blend_h() + 1e-9 >= 3.2
+            && spec.tip_chord() + 1e-9 < spec.chord_tip(),
+        format!(
+            "rotor faces={rotor_faces} span={rotor_span:.1} (thin plate {plate:.1} + organic roots + tip taper to {tip:.1})",
+            plate = spec.hub_deck_h(),
+            tip = spec.tip_chord()
+        ),
     );
     push_lesson(
         &mut lessons,
@@ -2059,9 +2119,10 @@ fn grade(
         "print_flat",
         spec.print_flat_ok(),
         format!(
-            "stator prints flat (race ring Ø{:.1}/ID {:.1}, fence h{:.1} < pack {:.1}); rotor stands on deck {:.1}; rollers print standing, top-load +{:.2}",
+            "stator prints flat (race ring Ø{:.1}/ID {:.1}, keepers {:.1}, fence h{:.1} < pack {:.1}); rotor stands on deck {:.1}; rollers print standing, top-load +{:.2}",
             spec.axle_flange_d(),
             spec.race_id(),
+            spec.keeper(),
             spec.fence_h(),
             spec.pack_h(),
             spec.hub_deck_h(),
@@ -2073,7 +2134,7 @@ fn grade(
         "helix",
         spec.helix_ok() && rotor_span > spec.wing_h() * 0.7,
         format!(
-            "{}° helix, {} stations, open tips",
+            "{}° helix, {} stations, organic root + tip taper to a flat landing",
             spec.helix_deg, spec.helix_stations
         ),
     );
@@ -2669,6 +2730,13 @@ mod spec_tests {
         assert!(spec.roller_axis(0)[2].abs() < 1e-9);
         assert!(spec.pack_outer_r() + 1e-6 >= spec.wing_radius() * 0.9);
         assert!(spec.assemble_ok());
+        assert!(spec.captured_ok());
+        assert!(spec.hub_deck_h() + 1e-9 >= 3.2);
+        assert!(spec.hub_deck_h() + 1e-9 < 4.6);
+        assert!(spec.base_h() + 1e-9 < 5.2);
+        assert!(spec.root_blend_h() + 1e-9 >= 3.2);
+        assert!(spec.tip_chord() + 1e-9 < spec.chord_tip());
+        assert!(spec.root_scale() > 1.0);
         assert!(spec.pass_d() + 1e-9 < spec.plate_bore());
         assert!(spec.groove_d() + 1e-9 < spec.pass_d());
         assert!(spec.lock_flat_x() + 1e-9 < spec.inner_race_d() * 0.5);

@@ -27,14 +27,14 @@ A **printed VAWT assembly** (spec
 `scripts/fixtures/print-kit-tutor.spec.json`, id `fdm-print-vawt`).
 Linear numbers are the Bambu Lab X2D-max design (256×256×260, 8 mm
 margin). `spec.scale` shrinks the source (exam default **0.4**). Feature
-floors (roller Ø8, roller length 8, TE 0.8, 4-nozzle walls, plate 5 mm) are clamped. Pack height is the roller diameter.
+floors (roller Ø8, roller length 8, TE 0.8, 4-nozzle walls, plate 3.2 mm, base 3.2 mm) are clamped. Pack height is the roller diameter.
 
 | Part | Role | How it mates |
 |------|------|----------------|
-| Stator | Y-frame + race ring + open top-load fence + constant journal + snap groove, one piece | Grounded. Print flat. |
-| Rotor | Root plate (≥5 mm) out to the blades (underside = upper thrust race), 3 helical **NACA 0021** ending on that plate, **one body**, open drafted tips | Plate bore = journal + running. Print standing on the plate. PLA Glow. |
-| Rollers | 6 **radial-axis** cylinders, min Ø8, pack height = Ø, large PCD **under the blade roots** | Drop into top-load slots. Print standing. |
-| Retainer | Clocked C-clip (D-hole + C-gap) | Snaps into the journal groove. Pull to remove. Does not rub the rotor. |
+| Stator | Thin Y-frame + race ring with keeper walls + open top-load fence + constant journal + snap groove, one piece | Grounded. Print flat. |
+| Rotor | Thin root plate out to the blades (underside = upper thrust race), organic airfoil roots, 3 helical **NACA 0021** ending on that plate, **one body**, open tips with a short taper to a flat landing | Plate bore = journal + running. Print standing on the plate. PLA Glow. |
+| Rollers | 6 **radial-axis** cylinders, min Ø8, pack height = Ø, large PCD **under the blade roots**, captured by keepers | Drop into top-load slots. Print standing. |
+| Retainer | Clocked C-clip (D-hole + C-gap) | Snaps into the journal groove. Pull to remove. Does not rub the rotor. Clip CAD unchanged this pass — see the GDT clip study. |
 
 Fits are **per role** (running / PIP / slip) and per whether
 the parts share a plate. Assembled running +0.40. Top-load slots add two
@@ -98,9 +98,9 @@ Agents start with `prompts/get model_print_kit`.
 2. Fits are per role and material (running +0.40, slip +0.28, friction +0.16)
 3. Snug is not a press
 4. Individual parts, then a linked assembly (stator rigid + plate/cage/roller revolutes; rotor is one piece)
-5. Print a thin flat thrust under the plate (large PCD, no 608, no tall drum, no loose bushing)
+5. Print a thin flat thrust under the plate (large PCD, keeper walls, no 608, no tall drum, no loose bushing)
 6. Keep the machine even (3 blades at 120°, 60° helix from 30°)
-7. Blades and hub are one part
+7. Blades and hub are one part (thin plate, organic roots, tip taper to a flat landing)
 8. The section is a 2026-appropriate airfoil
 9. Scale is a parameter; 1.0 fills an X2D
 10. Print rotational parts lying down (axle is a puck, not a tower)

@@ -345,6 +345,11 @@ if (
   !tutorSrc.includes('stator race ring') ||
   !tutorSrc.includes('function assembleOk') ||
   !tutorSrc.includes('stator snap groove') ||
+  !tutorSrc.includes('function capturedOk') ||
+  !tutorSrc.includes('function rootBlendH') ||
+  !tutorSrc.includes('function tipChord') ||
+  !tutorSrc.includes('function keeper') ||
+  !tutorSrc.includes('function bladeLoftStations') ||
   !tutorSrc.includes('createStableJoint')
 ) {
   fail('print-kit Node exam must merge the stator (Y-frame + race ring + top-load fence + assemble-able journal)');
@@ -427,6 +432,11 @@ if (
   !rustTutor.includes('stator race ring') ||
   !rustTutor.includes('fn assemble_ok') ||
   !rustTutor.includes('stator snap groove') ||
+  !rustTutor.includes('fn captured_ok') ||
+  !rustTutor.includes('fn root_blend_h') ||
+  !rustTutor.includes('fn tip_chord') ||
+  !rustTutor.includes('fn keeper') ||
+  !rustTutor.includes('fn blade_loft_stations') ||
   !rustTutor.includes('create_stable_joint')
 ) {
   fail('print-kit cargo exam must merge the stator (Y-frame + race ring + top-load fence + assemble-able journal)');

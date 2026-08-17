@@ -89,8 +89,8 @@
       "top_load_slots": "Slot width = roller Ø + running + 2 nozzles. Drop in from above. No support. This kit does not PIP the rollers — a lying OD prints as layers.",
       "slip_retainer": "+0.28 diametral D-hole in the snap groove. Clocked to one orientation. C-gap lets the clip flex over the constant journal and seat in the undercut.",
       "no_rotor_rub": "C-clip sits in the journal groove, 0.20 above the plate. It is not a running face on the turbine.",
-      "thrust_land": "One stator: Y-frame + race ring + open fence + constant journal. Thin flat thrust under the blade roots: the race ring is the lower land (not a cookie disk), plate underside is the upper land, radial-axis rollers between (pack height = roller Ø, 0.20 float each land). The pack outer land must reach the blade radius so the 5 mm plate is not a cantilever. Fence sits on the race ring and is looser than the plate bore (spacer, not a journal). Journal pass Ø is smaller than the plate bore so the rotor drops on. Do not print a fat shoulder or bead above the plate.",
-      "do_not_nest_cup_pip": "Do not print the plate around the rollers on the bed. Race-to-roller at +0.40 is 0.10 mm/side — they fuse. Print rollers standing. Drop them into the top-load slots, then drop the rotor over the journal, then snap the C-clip into the groove. Axial capture is the race + clocked C-clip, not a top lip and not a rubbing washer."
+      "thrust_land": "One stator: thin Y-frame + race ring + open fence + constant journal. Thin flat thrust under the blade roots: the race ring is the lower land (not a cookie disk), plate underside is the upper land, radial-axis rollers between (pack height = roller Ø, 0.20 float each land). The pack outer land must reach the blade radius so the thin plate is not a cantilever. Inner and outer keeper walls stay after the top-load cut so rollers cannot slide out the open Y-frame. Fence sits on the race ring and is looser than the plate bore (spacer, not a journal). Journal pass Ø is smaller than the plate bore so the rotor drops on. Do not print a fat shoulder or bead above the plate.",
+      "do_not_nest_cup_pip": "Do not print the plate around the rollers on the bed. Race-to-roller at +0.40 is 0.10 mm/side — they fuse. Print rollers standing. Drop them into the top-load slots, then drop the rotor over the journal, then snap the C-clip into the groove. Radial capture is the keeper walls. Axial capture is the race + clocked C-clip, not a top lip and not a rubbing washer."
     }
   },
   "lessons": [
@@ -102,7 +102,7 @@
     {
       "id": "fits",
       "title": "Fits are per role and material",
-      "teach": "Fits are per role *and* per whether the parts share a plate. Assembled running (rollers on races) is +0.40 because those parts print as other bodies. Top-load slots add two nozzles so rollers drop in from above without support. Same-plate PIP is +0.80 — do not PIP a lying roller (the OD is layers). The journal is a constant pass Ø smaller than the plate bore so the rotor drops on. Clocked C-clip uses slip +0.28 in an undercut groove 0.20 above the plate — it must not rub the rotor. Pull the C-gap to remove. Model 0.20 axial float at every running land. Fence height is below pack height so rollers touch both races. Fence ID is looser than the plate bore. Do not nest the plate around the rollers on the bed."
+      "teach": "Fits are per role *and* per whether the parts share a plate. Assembled running (rollers on races) is +0.40 because those parts print as other bodies. Top-load slots add two nozzles so rollers drop in from above without support. Same-plate PIP is +0.80 — do not PIP a lying roller (the OD is layers). The journal is a constant pass Ø smaller than the plate bore so the rotor drops on. Clocked C-clip uses slip +0.28 in an undercut groove 0.20 above the plate — it must not rub the rotor. Pull the C-gap to remove. Model 0.20 axial float at every running land. Fence height is below pack height so rollers touch both races. Fence ID is looser than the plate bore. Keeper walls inboard and outboard of each roller survive the top-load cut so the pack cannot slide into the Y-frame. Do not nest the plate around the rollers on the bed."
     },
     {
       "id": "no_press",
@@ -117,7 +117,7 @@
     {
       "id": "rollers",
       "title": "Print a thin flat thrust that takes rotation about Z",
-      "teach": "A tall skinny sleeve cannot hold aero loads at the blade tips. A tall drum with webs climbing the wall is the same mistake in orange. Matching 8 mm flats is still a pancake stack. Two separate flats (axle disk + cage disk) are extra plastic. Standing-Z pucks slide on their end faces — that is not rolling under −Z. An inboard pack at ~58% of the plate leaves the blade roots cantilevered on 5 mm PLA — the couple never reaches the race. Use a **thin flat thrust** on **one stator**: ≥6 cylinders, axis **radial** (e_r), diameter = pack height (min Ø8), on a large PCD **under the blade roots**. Relative motion at the race is circumferential; a tangent axis would roll inward/outward. The stator race is the lower land; the plate underside is the upper land; a short journal only centers. The plate bore is the radial land; the fence ID must be looser. Overturning is a couple across that disk, not a tall land. Print rollers standing (circular layers); drop them into top-load slots. Do not PIP a lying roller. Axial capture is the race + clocked C-snap."
+      "teach": "A tall skinny sleeve cannot hold aero loads at the blade tips. A tall drum with webs climbing the wall is the same mistake in orange. Matching 8 mm flats is still a pancake stack. Two separate flats (axle disk + cage disk) are extra plastic. Standing-Z pucks slide on their end faces — that is not rolling under −Z. An inboard pack at ~58% of the plate leaves the blade roots cantilevered on a thin plate — the couple never reaches the race. Use a **thin flat thrust** on **one stator**: ≥6 cylinders, axis **radial** (e_r), diameter = pack height (min Ø8), on a large PCD **under the blade roots**. Relative motion at the race is circumferential; a tangent axis would roll inward/outward. The stator race is the lower land; the plate underside is the upper land; a short journal only centers. The plate bore is the radial land; the fence ID must be looser. Overturning is a couple across that disk, not a tall land. Print rollers standing (circular layers); drop them into top-load slots. Do not PIP a lying roller. Radial capture is inner/outer keeper walls that survive the top-load cut — no bars over the pack. Axial capture is the race + clocked C-snap."
     },
     {
       "id": "even",
@@ -127,7 +127,7 @@
     {
       "id": "one_piece_rotor",
       "title": "Blades and hub are one part",
-      "teach": "The rotor is a single printed body: a ≥5 mm root plate (print sit + upper thrust race) and helical blades that end on that sit plane. First loft station is the plate (flat sit-plane cut). The airfoil goes through the plate — no rectangular print arms or spars. Do not grow a tall drum or moment webs on the plate — overturning is taken by the wide thrust pack **under the blade roots**. Print standing on the plate. Drop rollers into the stator slots, then the rotor on the pack."
+      "teach": "The rotor is a single printed body: a thin root plate (print sit + upper thrust race, floor 3.2 mm) and helical blades that end on that sit plane. Through-plate stump is the sit-plane chord. Above the plate, treat the join organically: first loft station is a fatter airfoil on the plate top, then the helix. The tip keeps a flat landing (last loft section is planar) with a short chord taper into that face. No rectangular print arms or spars. Do not grow a tall drum or moment webs on the plate — overturning is taken by the wide thrust pack **under the blade roots**. Print standing on the plate. Drop rollers into the stator slots, then the rotor on the pack."
     },
     {
       "id": "airfoil",
@@ -137,17 +137,17 @@
     {
       "id": "scale",
       "title": "Scale is a parameter; 1.0 fills an X2D",
-      "teach": "Linear dimensions are the X2D-max design (256×256×260, 8 mm margin). spec.scale shrinks the source (exam default 0.4). Feature sizes that would go below printable (roller Ø8, roller length 8, TE 0.8, 4-nozzle walls, plate 5 mm) are clamped. Pack height is the roller diameter, not a 3.2 mm standing puck. noBS-CAD has no document-level scale feature yet — the spec parameter is the source of truth."
+      "teach": "Linear dimensions are the X2D-max design (256×256×260, 8 mm margin). spec.scale shrinks the source (exam default 0.4). Feature sizes that would go below printable (roller Ø8, roller length 8, TE 0.8, 4-nozzle walls, plate 3.2 mm, base 3.2 mm) are clamped. Pack height is the roller diameter, not a 3.2 mm standing puck. noBS-CAD has no document-level scale feature yet — the spec parameter is the source of truth."
     },
     {
       "id": "print_flat",
       "title": "Print rotational parts lying down",
-      "teach": "Never design a tall skinny shaft that needs a tower of support. The stator prints flat: Y-frame, race, open fence, journal. Retainer prints flat. Rollers print standing (axis Z, circular layers) and drop into top-load slots (axis radial). The rotor stands on its root plate so each blade ends on that flat horizontal. The plate is not nested around the rollers on the bed. Do not print a separate axle disk and cage disk."
+      "teach": "Never design a tall skinny shaft that needs a tower of support. The stator prints flat: thin Y-frame, race ring with keeper walls, open fence, journal. Retainer prints flat. Rollers print standing (axis Z, circular layers) and drop into top-load slots (axis radial). The rotor stands on a thin root plate so each blade ends on that flat horizontal, with an organic blend on the top face. The plate is not nested around the rollers on the bed. Do not print a separate axle disk and cage disk."
     },
     {
       "id": "helix",
       "title": "Helical blades, not a straight fence",
-      "teach": "A prismatic extrusion is idle for most of the rev. Loft a closed NACA at ≥2 stations with ≥45° helix. Mid-chord stays on R. Chord stays tangent. Open tips — no end cap."
+      "teach": "A prismatic extrusion is idle for most of the rev. Loft a closed NACA at ≥2 stations with ≥45° helix. Mid-chord stays on R. Chord stays tangent. Open tips — no end cap. First loft station above the plate is an organic fatter root; the last station is a smaller chord that still ends on a flat landing."
     },
     {
       "id": "drawing",

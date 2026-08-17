@@ -3,7 +3,7 @@ CAD synthesis tutor — design a fully printed, omnidirectional VAWT *assembly* 
 Spec: scripts/fixtures/print-kit-tutor.spec.json (id fdm-print-vawt).
 Contract: docs/agentic/PRINT_KIT_DESIGN.md.
 Rerun: npm run test:mcp-print-kit.
-Printer: Bambu Lab X2D (256×256×260, 8 mm margin). `spec.scale` shrinks the X2D-max source (exam default 0.4). Clamp rollers ≥ Ø8, roller length ≥ 8, TE ≥ 0.8, walls ≥ 4 nozzles. The bearing is a **thin flat thrust** under the **blade roots** (large PCD, **radial-axis** rollers, pack height = roller Ø) — not a washer stack, not standing-Z pucks, not an inboard pack that leaves the plate as a cantilever, and not a tall drum.
+Printer: Bambu Lab X2D (256×256×260, 8 mm margin). `spec.scale` shrinks the X2D-max source (exam default 0.4). Clamp rollers ≥ Ø8, roller length ≥ 8, TE ≥ 0.8, walls ≥ 4 nozzles, plate ≥ 3.2 mm, base ≥ 3.2 mm. The bearing is a **thin flat thrust** under the **blade roots** (large PCD, **radial-axis** rollers, pack height = roller Ø, **keeper walls** so rollers cannot slide out) — not a washer stack, not standing-Z pucks, not an inboard pack that leaves the plate as a cantilever, and not a tall drum.
 
 Nozzle = {nozzle} mm. Fits are **per role**, not one clearance for every hole:
 
@@ -27,7 +27,8 @@ Do not ship any of these. They have already been built. They are not turbines.
 - A **loose bushing sandwich**: separate outer-race ring, postage-stamp flange, unmatched roller / cage / race heights, and no meaningful attach. Do not invent metal 608s to paper over that
 - A **washer cup** / pancake stack. Matching 8 mm flats to 8 mm rollers still reads as pancakes stacked on the plate. Height-matching cylinders is not a bearing
 - **Standing-Z pucks** (axis = Z, end faces sliding on the races). That is not rolling under −Z. Pack height is the roller diameter; axes are **radial**
-- **Inboard pack / cage as journal.** A PCD at ~58% of the plate leaves the blade roots cantilevered on 5 mm PLA — the couple never reaches the race. A cage ID tighter than the plate bore steals the radial land. The pack outer land must reach the blade radius. Fence ID is looser than the plate bore (spacer)
+- **Inboard pack / cage as journal.** A PCD at ~58% of the plate leaves the blade roots cantilevered on a thin plate — the couple never reaches the race. A cage ID tighter than the plate bore steals the radial land. The pack outer land must reach the blade radius. Fence ID is looser than the plate bore (spacer)
+- **Open race with no keepers.** If the top-load pocket punches through the race ID into the Y-frame, rollers slide out. Leave inner and outer end walls after the cut. No bars over the pack — that blocks top-load
 - **Separate axle disk + cage disk.** Two flats that should be one stator. Extra plastic, extra assembly, and a rubbing washer. Merge Y-frame + race + open fence + journal
 - **Pickup cartridge.** Open-top windows are how the rollers load from above and still touch both races. Drop rollers into the stator slots, then the rotor. Do not claim you can pick up a preloaded cage
 - **Tangent-axis** rollers. Relative motion at the race is circumferential; a tangent axis rolls inward/outward
@@ -62,7 +63,7 @@ A **directionless vertical-axis wind turbine** (VAWT) sized to fill a Bambu Lab 
 
 Architecture (required): **helical / Gorlov H-Darrieus** with a **symmetric airfoil** section. Symmetric because the blade sees reversing α every revolution. Helical because a straight extrusion is idle for most of the rev. Directionless means: odd blade count, 120° spacing, chord tangent to the cylinder at every station, identical blades, no preferred wind azimuth.
 
-Helix rule: loft a **closed NACA** at ≥2 stations. Mid-chord stays on radius R. Chord stays tangent. Twist ≥45° over the span (spec: 60°). Root at 30°. Open drafted tips — no end cap. First station is the **root plate** (the sit / print plane). Chord drafts toward the tip. The blade bottom is that flat horizontal — not a cut from a surface above.
+Helix rule: loft a **closed NACA** at ≥2 stations. Mid-chord stays on radius R. Chord stays tangent. Twist ≥45° over the span (spec: 60°). Root at 30°. Open drafted tips — no end cap. Through-plate stump is the sit-plane chord. Above the plate, the first loft station is an **organic fatter root** (strength + print), then the helix. The tip keeps a **flat landing** (last section is planar) with a short chord taper into that face. The blade bottom is that flat horizontal — not a cut from a surface above.
 
 The center is **short**. Do not build a tall mast. Do not build a tall drum. A **thin flat thrust** under the **blade roots** takes rotation about Z and the overturning couple from the blade tips. The stator is **one printed body**: Y-frame + lower race + open top-load fence + short journal. The plate freewheels on the pack. The plate bore is the radial land; the fence is a spacer. There is no separate axle puck, cage disk, or bushing.
 
@@ -85,8 +86,8 @@ Three printed families, then an **assembly** (components + occurrences + joints)
 
 | Part | What | Print |
 |------|------|-------|
-| Stator | **Y-frame** + race ring + open top-load fence + **constant** journal + snap groove. One piece. No cookie. No fat shoulder/bead | Flat |
-| Rotor | **Root plate** out to the blades (underside = upper thrust race), 3 helical drafted **NACA 0021** ending on that plate, **one body**, open tips. Plate bore > journal pass Ø so it **drops on** | Standing on the plate |
+| Stator | **Thin Y-frame** + race ring with **keeper walls** + open top-load fence + **constant** journal + snap groove. One piece. No cookie. No fat shoulder/bead | Flat |
+| Rotor | **Thin root plate** out to the blades (underside = upper thrust race), organic treatment at each airfoil join, 3 helical drafted **NACA 0021** ending on that plate, **one body**, open tips with a short taper to a flat landing. Plate bore > journal pass Ø so it **drops on** | Standing on the plate |
 | Rollers | ≥6 **radial-axis** cylinders, min Ø8, pack height = Ø, large PCD **under the blade roots**. Drop into top-load slots | Standing (axis Z) |
 | Retainer | Clocked **C-clip** (D-hole + C-gap). Snaps into the journal groove, 0.20 above the plate — does **not** rub the rotor. Pull to remove | Flat |
 
@@ -114,7 +115,7 @@ The bearing is a **printed thrust pack** (radial-axis rollers in a cage) on a **
 - Rolling elements: ≥6 cylinders, **axis radial** (e_r), diameter = pack height, min Ø8. Print standing (circular layers); drop into top-load slots
 - Upper race: **plate underside**
 - Journal: short inner-race cylinder through the pack / plate — centering only. **Constant pass Ø** (nothing fatter than the plate bore). Undercut snap groove + D-flat **above** the plate only
-- Top-load slots are **running + two nozzles**. Fence height is below pack height. The fence is a spacer (ID looser than the plate bore); axial capture is the race + clocked C-clip. Not a pickup cartridge
+- Top-load slots are **running + two nozzles**. Fence height is below pack height. The fence is a spacer (ID looser than the plate bore). Radial capture is inner/outer **keeper walls** that survive the cut. Axial capture is the race + clocked C-clip. Not a pickup cartridge. Do not change the clip this pass — research lives in PRINT_KIT_GDT.md
 - Do not PIP a lying roller. Do not nest rollers under the plate. Do not close a top inward lip over the rollers
 - Do not print a fat shoulder or snap bead the plate cannot pass — that is an hourglass you cannot assemble
 - The rotor does **not** key to the journal. The C-clip clocks to one orientation, snaps on, and pulls off for service
@@ -144,8 +145,8 @@ Minimum wall 1.6 mm (4 nozzles). Functional holes are complete XY circles. Disab
 
 1. prompts/get model_print_kit. cad_list_all_tools. **cad_new_project on a blank document.** `solid_scene` must show **0 bodies** before the first extrude. Do not continue a recovered or older Print Kit Tutor (tan nest, red disc, leftover helix planes). Desktop: File → New, then build — or File → Open the current `Print-Kit-Tutor.nbcad` after this exam writes it. cad_set_document_name Print Kit Tutor
 2. Stator: **Y-frame** + lower race + open top-load fence + short D-journal + snap bead. One piece, print flat. No separate axle disk
-3. Rotor: **root plate** (print sit + upper thrust race, ≥5 mm). Loft three helical **NACA 0021** from the plate top (sit plane), open drafted tips. Airfoil through the plate — no rectangular arms. Do not start the loft from a surface above the plate. Do not grow a tall drum or moment webs on the plate
-4. **Radial-axis** rollers on a large PCD **under the blade roots**. Top-load slots, not PIP. Fence ID looser than the plate bore. Clocked C-snap retainer on the journal shoulder
+3. Rotor: **thin root plate** (print sit + upper thrust race, floor 3.2 mm). Through-plate stump is the sit-plane chord. Loft three helical **NACA 0021** from an organic fatter root on the plate top, then a short tip taper to a flat landing. Airfoil through the plate — no rectangular arms. Do not start the loft from a surface above the plate. Do not grow a tall drum or moment webs on the plate
+4. **Radial-axis** rollers on a large PCD **under the blade roots**. Top-load slots, not PIP. Keeper walls so rollers cannot slide out. Fence ID looser than the plate bore. Clocked C-snap retainer on the journal shoulder — **do not redesign the clip this pass**
 5. cad_set_workspace assembly. One `assembly_create_component` per moving body (stator, rotor, each roller, retainer — no extra occurrence). Ground the stator. Revolute rotor_spin about Z; each roller about its radial axis (not a spar); rigid retainer_sit. cad_set_focus drawing. Sheet + auto-layout + notes
 6. cad_set_focus print. set_body_appearance to **PLA Orange** and **PLA Glow** only. solid_export_preflight. Save the assembled `.nbcad`. **Delete** any prior `Print-Kit-Tutor/` 3MFs (and `Print-Kit-Tutor.3mf`). `solid_move_copy` the parts onto one bed (rotor standing on the root plate, rollers standing, others flat). Then `solid_export_3mf` **once** as `01-kit` with every kit body_id. The folder must contain exactly that file.
 7. `cad_set_project_visibility`: hide every construction plane (`hidden_datum_plane_ids`) and finished loft sketches (`hidden_sketch_names`). The shipped `.nbcad` must read as the merged-stator kit, not orange datum stacks.

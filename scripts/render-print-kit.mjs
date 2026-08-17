@@ -225,8 +225,8 @@ try {
   const hubZ = rotor?.hub?.span?.[2] ?? 0;
   check(
     'rotor hub is a thin plate, not a tall drum',
-    hubZ >= 4.5 && hubZ <= 8,
-    `hubZ=${hubZ.toFixed(1)} (want ~5 mm plate; ≥20 mm is a tall drum)`,
+    hubZ >= 3.0 && hubZ <= 8,
+    `hubZ=${hubZ.toFixed(1)} (want a thin plate; ≥20 mm is a tall drum)`,
   );
 
   // The browser shell no longer owns WebGL — Bevy paints only on desktop.

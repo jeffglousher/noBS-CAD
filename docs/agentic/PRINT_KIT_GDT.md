@@ -6,14 +6,16 @@ helical loft inside a good frame. Replacing that with a turntable threw
 the frame away — and left the wing with nothing to use. This page is the
 correction record. Numbers live in `scripts/fixtures/print-kit-tutor.spec.json`.
 
-**Current machine (2026-08-17):** one-piece helical rotor on a thin
-root plate; **one stator** (Y-frame + race **ring** + open top-load fence +
-short D-journal); **thin flat thrust under the blade roots**
-(radial-axis rollers, pack height = roller Ø); fence sits on the race
-ring (ID looser than the plate bore); clocked C-clip snaps into the
-journal groove and does not rub the rotor. The two-bearing post /
-tenon / cone stand in the sections below is **historical** — do not
-rebuild it.
+**Current machine (2026-08-17):** one-piece helical rotor on a **thin**
+root plate with **organic airfoil roots** and a short **tip taper to a
+flat landing**; **one stator** (thin Y-frame + race **ring** + **keeper
+walls** + open top-load fence + short D-journal); **thin flat thrust
+under the blade roots** (radial-axis rollers, pack height = roller Ø);
+fence sits on the race ring (ID looser than the plate bore); clocked
+C-clip snaps into the journal groove and does not rub the rotor.
+**Clip CAD is unchanged this pass** — recommendations are in the clip
+study below. The two-bearing post / tenon / cone stand in the sections
+below is **historical** — do not rebuild it.
 
 ## Product fault (why the turntable was wrong)
 
@@ -261,3 +263,82 @@ If those steps are not visible in the solid, the exam failed.
 | Sliding contacts on the turbine | Plate bore as friction, cage as journal, retainer as a running face. | Only rolling contacts: rollers ↔ races. Plate bore is running. Fence ID is a spacer. Retainer is not a running face. PLA-on-PLA is a demo; service dry PTFE on the races. |
 | Cookie race under the Y-frame | Merging the axle disk into a Ø74 solid reprinted the plastic we dropped. Rollers only contact a ring. | Race is a **ring** (ID ≈ PCD − roller length). Fence sits on that ring. Y-frame hub + ribs + pads stay open. |
 | Hourglass journal | Fat shoulder + snap bead above a thinner neck. Plate bore cannot pass the fat top, so the rotor will not drop on. | Journal is a **constant pass Ø** smaller than the plate bore. Clocked **C-clip** snaps into an undercut groove above the plate. Pull the C-gap to remove. D-flat is only on the tip, not through the running land. |
+
+### 2026-08-17 capture / thin / organic pass
+
+| Fault | Why it failed | Correction |
+|-------|---------------|------------|
+| Rollers slide out | `race_id` sat at the roller inner end. The top-load pocket is longer than the roller by running, so the cut punched through the race ID into the open Y-frame. | `race_id = PCD − roller length − 2×keeper`. Inner and outer end walls survive the cut (`keeper > running/2`). Still top-load — no bars over the pack. Axial capture stays the plate. |
+| Thick stator | Y-frame / race floor was 6 mm at exam scale. Extra plastic, not extra stiffness where it matters. | Base floor 3.2 mm (exam **4.8**). Race stays a ring. |
+| Thick plate / sharp join | Plate floor was 5 mm. A hard airfoil cut on a thinner plate is a crack starter and a print cliff. | Plate floor 3.2 mm (exam **4.0**). First loft station above the plate is a fatter airfoil (`root_scale` 1.22 over `root_blend_h` 3.2). Through-plate stump stays the sit-plane chord. |
+| Blunt tip | Square-cut open tip is a dirty aero edge. | Last loft section stays planar (flat landing). Add a short chord taper (`tip_scale` 0.72 over `tip_taper_h` 4.0) into that face. |
+
+## Clip study (research only — do not change clip CAD this pass)
+
+The shipped retainer is a **printed-flat C-washer**: D-hole, rectangular
+C-gap, seats in a 2-nozzle undercut on a **constant-pass** journal.
+Exam-scale numbers (scale 0.4, 0.4 mm nozzle):
+
+| Feature | mm | Role |
+|---------|---:|------|
+| Journal / pass Ø | 12.0 | Plate must drop over this. Nothing fatter. |
+| Plate bore | 12.4 | Running +0.40 |
+| Groove Ø | 10.4 | 2-nozzle undercut |
+| Clip ID (D-hole) | 10.68 | Slip +0.28 in the groove |
+| Clip OD | ~20.4 | Washer rim |
+| Clip thickness (radial) | ~4.9 | `(OD − ID) / 2` |
+| Clip height | 2.0 | Groove + 0.20 float |
+| C-gap | 3.2 | Flex slot — **not** a side-entry |
+
+That is an **annular stretch ring**, not a cantilever and not an
+E-clip. Assembly is **axial**: the ID must open from 10.68 to 12.0
+(ΔD 1.32 mm, 0.66 mm radial) to pass the tip, then contract into the
+groove. The C-gap (3.2) is far smaller than the journal (12.0), so the
+clip **cannot** slide on from the side. A closed-ring hoop strain of
+`1.32 / 10.68 ≈ 12%` is well above PLA's useful snap strain. The gap
+turns that into bending at the back of the C, but the section is still
+chunky (radial t ≈ 4.9 mm) for only 0.66 mm of opening — a stiff
+washer with a slot, not a designed spring.
+
+### What the literature says
+
+| Source | What to take |
+|--------|----------------|
+| FilamentFeed, *Snap Fit Design for 3D Printing* (June 2026) | PLA allowable strain **2–3%**; PETG 3–5%; nylon 5–8%. Annular snaps **< Ø30 print flat** so stretch is in-plane. PLA fatigue **5–20 cycles**. 3+ walls, 100% infill on thin snaps. Lead-in **30°**; retention **45°** (hand release) or **90°** (permanent). |
+| Wevolver / Mandarin3D / UnionFab (2025) | PLA is a one-shot or light-duty snap. Fillet gap/arm roots **r ≥ 0.5 t**. Cantilevers: **L/t ≥ 8–10**, taper thickness 100% → 50% toward the tip. Clearance 0.2–0.5 mm. Flex in XY, never across layers. |
+| Formlabs snap-fit note | FDM Z tensile is ~40–60% of XY. A clip that bends out of its layer plane needs a 0.5–0.6 strain knockdown. |
+| Bayer / BASF snap-fit handbook (IM, still the strain model) | Annular strain `ε ≈ (D_shaft − D_hole) / D_hole`. Unfilled plastics want assembly strain in the low single digits if the part must come off again. |
+
+Print-flat is already correct for this Ø12 ring. The material lock
+(PLA Basic Orange) is also already correct for the kit — just do not
+pretend it is a service clip.
+
+### Recommendations for a later pass (do not build now)
+
+1. **Best family for this kit: a printed E-clip / circlip.** Two long
+   cantilevers, `L/t ≥ 8–10`, taper toward the tips, fillet roots
+   `r ≥ 0.5 t`, **finger tabs** at the mouth. Print flat. Assemble
+   **radially** into the existing groove (gap must open to the groove
+   Ø, or slightly less with flex). Journal stays a constant pass so
+   the rotor still drops on. This is a beam problem (FilamentFeed
+   `ε = 1.5 h Y / L²`), not a hoop-stretch problem.
+2. **If the C-ring stays:** thin the rim to **2.0–2.4 mm** (5–6 walls),
+   add finger tabs at the C-gap, fillet the gap roots, put a
+   **30–35° lead-in** on the journal tip, and cut the groove lip at
+   **45°** (hand release + a printable overhang). Square 90° groove
+   walls are hard to pull off and leave a downward face under the tip
+   when the stator prints flat. Keep slip +0.28. Target PLA assembly
+   strain ≤ 3%.
+3. **Alternate: twist / bayonet tabs on the clip** that flex into the
+   groove. Journal still constant-pass. Do **not** put fat lugs on the
+   journal — that is the hourglass the plate cannot pass.
+4. **Do not:** metal circlips (kit is printed-only), a closed hoop,
+   a side-entry gap smaller than the groove, or a clip that rubs the
+   rotor. Do not change plastics on this kit.
+
+Service note: print a snap coupon (same groove, same clip section)
+before reprinting the whole stator. For a clip that comes off more
+than a few times, PETG or nylon is the right later material — not
+this exam's PLA orange.
+
+**This pass leaves `build_retainer` / `buildRetainer` alone.**

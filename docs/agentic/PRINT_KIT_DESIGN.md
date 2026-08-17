@@ -21,7 +21,7 @@ fence, or whose only bearing is a short two-land sleeve, is also a
 | Section | NACA 0021, TE ≥ 0.8 mm, root chord > tip | 2026 thick-symmetric band; drafted standing print |
 | Rotor | One body: root plate out to the blades (underside = upper thrust race), 3 helical blades ending on that plate. X2D-max R=85, span=220, scale 0.4 in the exam | Always some blade working; no tenons; no mid-air roots; no skinny-arm hangers |
 | Stand | One stator: Y-frame + race **ring** + open top-load fence + short journal | Envelope/rotor ≤ 1.55; no cookie disk; no tall mast; no separate axle disk |
-| Bearing | **Thin flat thrust** under the **blade roots**: 6× printed **radial-axis** rollers, min Ø8, pack height = Ø, large PCD. Top-load slots, not PIP. Fence ID looser than the plate bore. Plate ≥5 mm. Constant journal the plate can drop over. Clocked C-clip in a groove | Rotation about Z plus overturning as a couple under the roots. Not a 608. Not standing-Z pucks. Not an inboard cracker. Not a two-land sleeve. Not a loose bushing. Not a washer stack. Not a tall drum. Not two flats. Not an hourglass journal |
+| Bearing | **Thin flat thrust** under the **blade roots**: 6× printed **radial-axis** rollers, min Ø8, pack height = Ø, large PCD. Top-load slots, not PIP. **Keeper walls** so rollers cannot slide out. Fence ID looser than the plate bore. Thin plate (≥3.2 mm) with **organic airfoil roots**. Constant journal the plate can drop over. Clocked C-clip in a groove (unchanged this pass) | Rotation about Z plus overturning as a couple under the roots. Not a 608. Not standing-Z pucks. Not an inboard cracker. Not a two-land sleeve. Not a loose bushing. Not a washer stack. Not a tall drum. Not two flats. Not an hourglass journal |
 | Fits | running +0.40 / PIP +0.80 / slip +0.28 / friction +0.16 | Role-based **and** same-plate vs assembled. 0.80 mm bed lead-in. Slicer XY hole comp = 0 |
 | Envelope | scale 1.0 fits Bambu Lab X2D 256×256×260 with 8 mm margin | `spec.scale` is the source parameter |
 
@@ -32,7 +32,7 @@ chord stays tangent. Open drafted tips. Do not twist the section in place.
 The center is short on purpose. A **thin flat thrust** under the
 **blade roots** takes rotation about Z. Overturning from the blade tips
 is a couple across that pitch circle, not a tall journal and not a
-5 mm plate cantilevering from an inboard pack. The fence is a spacer
+thin plate cantilevering from an inboard pack. The fence is a spacer
 (ID looser than the plate bore) and sits on the race ring only. The
 lower race is a **ring** under the rollers, joined to the Y-frame —
 do not print a cookie disk or a second flat. A pile of unmatched-height
@@ -42,9 +42,12 @@ rolling under −Z. A 28 mm orange tower with webs climbing the wall is a
 tall system we do not need. The stator and retainer print flat. Rollers
 print **standing** and drop into top-load slots (axis radial). The rotor
 stands on that plate. Blade roots are XY airfoils through the plate, not
-rectangular arms. The retainer is a clocked C-clip in a journal
+rectangular arms, with an organic blend on the top face and a short
+taper to a flat tip landing. Keepers capture the rollers radially.
+The retainer is a clocked C-clip in a journal
 groove — the plate drops over a constant journal, then the clip snaps
-on and pulls off. It does not rub the rotor.
+on and pulls off. It does not rub the rotor. Clip CAD is unchanged
+this pass; better clip families are in [PRINT_KIT_GDT.md](PRINT_KIT_GDT.md).
 
 ## Why this page exists
 

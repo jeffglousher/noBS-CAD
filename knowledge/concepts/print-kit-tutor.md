@@ -20,34 +20,38 @@ nozzle fits by building a printed VAWT **assembly** and grading it.
 - Assembly: [ASSEMBLY.md](../../docs/agentic/ASSEMBLY.md) (named `assembly_*` tools; this exam uses them)
 - Domain matrix: [MCP_GAP.md](../../docs/agentic/MCP_GAP.md)
 
-Five functional print parts (base, axle puck, one-piece helical rotor,
-radial-axis roller cage, retainer). The CAD assembly links every
-moving body: rigid stator (axle sits on the base; retainer on the post),
-plus revolutes for the plate bore (`rotor_spin`) and cage about Z, and
-each roller about its **radial** axis. There is no loose bushing
-sandwich, no tall drum, and no standing-Z puck pack. Assembled races
-and cage pockets stay +0.40 because rollers print standing as other
-bodies. Cage height equals roller diameter (the pack height).
-Bed-printed locates get a 0.80 mm lead-in. The plate is not nested
-around the rollers on the bed. The rotor is a **root plate** (≥5 mm,
-print sit + upper thrust race) with the airfoil through that plate. A
+One stator (thin Y-frame + race ring + keeper walls + open top-load
+fence + constant journal), one-piece helical rotor, six radial-axis
+rollers, clocked C-clip. The CAD assembly grounds the stator, revolutes
+the plate bore (`rotor_spin`) and each roller about its **radial**
+axis, and sits the clip in the journal groove. There is no loose
+bushing sandwich, no tall drum, and no standing-Z puck pack. Assembled
+races stay +0.40 because rollers print standing as other bodies.
+Top-load slots add two nozzles. Keeper walls survive the cut so
+rollers cannot slide into the Y-frame. Bed-printed locates get a
+0.80 mm lead-in. The plate is not nested around the rollers on the bed.
+The rotor is a **thin root plate** (floor 3.2 mm, print sit + upper
+thrust race) with the airfoil through that plate, an **organic blend**
+on the top face, and a short **tip taper to a flat landing**. A
 **thin flat thrust** under the **blade roots** (radial-axis rollers on a
-large PCD; flange = lower race) takes rotation about Z. Overturning is a
-couple under those roots — not a tall journal, not an inboard pack that
-leaves the plate as a cantilever, not moment webs climbing a wall. The
-cage is a spacer (ID looser than the plate bore). Assemble on the
-flange: cage, then rollers into the windows, then the rotor. Matching 8 mm flats is still a pancake stack. Standing-Z pucks
-slide on their end faces. Look at the solid (`npm run render:print-kit`)
-as a check, not as the design method. Blade lofts start on that plate
-(flat sit-plane cut — the draft ends on that horizontal, not from a
-surface above). Install: cage on the flange, rollers into the windows, then the rotor.
-Blades stay one printed body with the plate. The exam starts from a blank document (`cad_new_project`, 0 bodies) and
-hides construction planes before writing the `.nbcad`. Reruns wipe
-retired plates so `Print-Kit-Tutor/` holds only `01-kit.3mf` (parts
-laid out; PLA Orange + PLA Glow). Fits are per role (running +0.40,
-slip +0.28, friction +0.16) with 0.20 axial float at every running
-land. Scale 1.0 is Bambu Lab X2D-max; the exam runs at 0.4. No FDM
-press fits. No metal 608s. The recipe is adversarial
+large PCD; race ring = lower land) takes rotation about Z. Overturning
+is a couple under those roots — not a tall journal, not an inboard pack
+that leaves the plate as a cantilever, not moment webs climbing a wall.
+The fence is a spacer (ID looser than the plate bore). Assemble:
+rollers into the slots, drop the rotor over the journal, snap the
+C-clip. Clip CAD is unchanged this pass; better families are in
+[PRINT_KIT_GDT.md](../../docs/agentic/PRINT_KIT_GDT.md). Matching 8 mm
+flats is still a pancake stack. Standing-Z pucks slide on their end
+faces. Look at the solid (`npm run render:print-kit`) as a check, not
+as the design method. Blade lofts start on that plate (flat sit-plane
+cut — the draft ends on that horizontal, not from a surface above).
+Blades stay one printed body with the plate. The exam starts from a
+blank document (`cad_new_project`, 0 bodies) and hides construction
+planes before writing the `.nbcad`. Reruns wipe retired plates so
+`Print-Kit-Tutor/` holds only `01-kit.3mf` (parts laid out; PLA Orange
++ PLA Glow). Fits are per role (running +0.40, slip +0.28, friction
++0.16) with 0.20 axial float at every running land. Scale 1.0 is Bambu
+Lab X2D-max; the exam runs at 0.4. No FDM press fits. No metal 608s.
+The recipe is adversarial
 ([PRINT_KIT_DESIGN.md](../../docs/agentic/PRINT_KIT_DESIGN.md)); the exam
-writes a design report with plastic cost. Fits:
-[PRINT_KIT_GDT.md](../../docs/agentic/PRINT_KIT_GDT.md).
+writes a design report with plastic cost.
