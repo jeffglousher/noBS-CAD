@@ -7,12 +7,13 @@ the frame away — and left the wing with nothing to use. This page is the
 correction record. Numbers live in `scripts/fixtures/print-kit-tutor.spec.json`.
 
 **Current machine (2026-08-17):** one-piece helical rotor on a thin
-root plate; **one stator** (Y-frame + lower race + open top-load fence +
+root plate; **one stator** (Y-frame + race **ring** + open top-load fence +
 short D-journal); **thin flat thrust under the blade roots**
-(radial-axis rollers, pack height = roller Ø); fence is a spacer (ID
-looser than the plate bore); clocked C-snap retainer sits on the journal
-shoulder and does not rub the rotor. The two-bearing post / tenon / cone
-stand in the sections below is **historical** — do not rebuild it.
+(radial-axis rollers, pack height = roller Ø); fence sits on the race
+ring (ID looser than the plate bore); clocked C-snap retainer sits on
+the journal shoulder and does not rub the rotor. The two-bearing post /
+tenon / cone stand in the sections below is **historical** — do not
+rebuild it.
 
 ## Product fault (why the turntable was wrong)
 
@@ -258,3 +259,4 @@ If those steps are not visible in the solid, the exam failed.
 | PIP lying rollers | OD prints as layers. Dimensions are poor. | Print rollers **standing**. **Top-load** slots (running + 2 nozzles) so they drop in from above with no support. |
 | Rubbing retainer washer | Square-slip washer sat on / near the plate and added friction on the turbine. | Clocked **C-snap** (D-hole + C-gap) sits on the journal shoulder, 0.20 above the plate. Pull to remove. Only one orientation. |
 | Sliding contacts on the turbine | Plate bore as friction, cage as journal, retainer as a running face. | Only rolling contacts: rollers ↔ races. Plate bore is running. Fence ID is a spacer. Retainer is not a running face. PLA-on-PLA is a demo; service dry PTFE on the races. |
+| Cookie race under the Y-frame | Merging the axle disk into a Ø74 solid reprinted the plastic we dropped. Rollers only contact a ring. | Race is a **ring** (ID ≈ PCD − roller length). Fence sits on that ring. Y-frame hub + ribs + pads stay open. |

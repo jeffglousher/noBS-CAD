@@ -26,10 +26,11 @@ Contract: [PRINT_KIT_DESIGN.md](PRINT_KIT_DESIGN.md).
 | Tall drum / can on a cracker | A 28 mm orange tower with webs climbing the wall is a journal you can see from the side. Thin flat thrust under the plate. |
 | Tall skinny shaft + two-land sleeve | Cannot take blade-tip moment and needs a support tower. Short post + large-PCD thin thrust. |
 | Separate axle disk + cage disk | Two flats that should be one stator. Extra plastic and a rubbing washer. Merge Y-frame + race + open fence + journal. Top-load rollers. Clocked C-snap on the journal shoulder. |
+| Cookie race under the Y-frame | One Ø74 disk under the rollers reprinted the plastic the merge was supposed to drop. | Race is a ring where rollers contact. Fence sits on that ring. Y-frame stays open. |
 
 ## 2. Design process
 
-- **Architecture:** Helical H-Darrieus, directionless (no yaw). One printed stator (Y-frame + race + open fence + journal). Thin flat thrust under the plate. No tall mast. No tall drum. No separate axle puck + cage disk.
+- **Architecture:** Helical H-Darrieus, directionless (no yaw). One printed stator (Y-frame + race ring + open fence + journal). Thin flat thrust under the plate. No tall mast. No tall drum. No cookie disk. No separate axle puck + cage disk.
 - **Airfoil:** NACA 0021 (t/c 0.21). 2026 band is t/c 21–24%. TE blunt to 0.8 mm. Open drafted tips.
 - **Rotor:** one piece — root plate (upper thrust race) + print arms + root stumps + 3 helical NACAs from the plate. N=3, 60° helix, σ in 0.24–0.45. Envelope/rotor ≤ 1.55.
 - **Fits:** assembled running +0.40 (rollers on races), PIP +0.80 (cage pockets), slip +0.28 (retainer), friction +0.16 on a land above a 0.80 mm bed lead-in. Cage height matches roller height. Do not nest the plate around the PIP rollers. Slicer XY hole compensation stays 0. No press. No 608.
@@ -54,6 +55,6 @@ shaft/hub/wings/plate/bushing/cap names):
 
 Assumptions: Bambu PLA Basic Orange + Bambu PLA Glow, 1.24 g/cm³, $20/kg, print-volume factor 0.42.
 
-At exam scale 0.4 the last green run was ~57.9 cm³ CAD solid, **30.1 g**,
-**$0.60** PLA. The exam writes the live figures next to the project.
+At exam scale 0.4 the last green run was ~91.7 cm³ CAD solid, **47.7 g**,
+**$0.95** PLA. The exam writes the live figures next to the project.
 Electricity and machine time are not priced. No additional hardware.

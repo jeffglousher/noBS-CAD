@@ -341,9 +341,11 @@ if (
   !tutorSrc.includes('function buildStator') ||
   !tutorSrc.includes('function topLoad') ||
   !tutorSrc.includes('function fenceH') ||
+  !tutorSrc.includes('function raceId') ||
+  !tutorSrc.includes('stator race ring') ||
   !tutorSrc.includes('createStableJoint')
 ) {
-  fail('print-kit Node exam must merge the stator (Y-frame + race + top-load fence)');
+  fail('print-kit Node exam must merge the stator (Y-frame + race ring + top-load fence)');
 }
 if (tutorSrc.includes('axle_sit') || tutorSrc.includes('cage_spin')) {
   fail('print-kit Node exam must not keep a separate axle puck or spinning cage');
@@ -419,9 +421,11 @@ if (
   !rustTutor.includes('fn build_stator') ||
   !rustTutor.includes('fn top_load') ||
   !rustTutor.includes('fn fence_h') ||
+  !rustTutor.includes('fn race_id') ||
+  !rustTutor.includes('stator race ring') ||
   !rustTutor.includes('create_stable_joint')
 ) {
-  fail('print-kit cargo exam must merge the stator (Y-frame + race + top-load fence)');
+  fail('print-kit cargo exam must merge the stator (Y-frame + race ring + top-load fence)');
 }
 if (rustTutor.includes('axle_sit') || rustTutor.includes('cage_spin')) {
   fail('print-kit cargo exam must not keep a separate axle puck or spinning cage');

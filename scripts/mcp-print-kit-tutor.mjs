@@ -14,7 +14,7 @@
  */
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
-import { mkdirSync, readFileSync, writeFileSync, existsSync, unlinkSync, readdirSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, existsSync, unlinkSync, readdirSync, copyFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -354,8 +354,11 @@ function postCircleR() {
   return mm(spec.post_circle_r);
 }
 function baseBossD() {
-  // The Y-frame center *is* the lower race. One printed stator.
-  return axleFlangeD();
+  // Small Y-frame hub. The race is a ring under the rollers, not a cookie.
+  return Math.min(Math.max(journalD() + 2 * wall(), 16), axleFlangeD() - 8);
+}
+function raceId() {
+  return Math.max(pcd() - rollerLen(), baseBossD() + 2 * wall());
 }
 function topLoad() {
   return spec.nozzle_mm * 2;
@@ -403,8 +406,8 @@ function cageOd() {
   return pcd() + rollerLen() + 2 * cageRim();
 }
 function cageId() {
-  // Spacer, not a journal. Looser than the plate bore so the plate takes radial load.
-  return plateBore() + 2 * wall();
+  // Fence sits on the race ring only. Do not fill the Y-frame with a second cookie.
+  return Math.max(raceId(), plateBore() + 2 * wall());
 }
 function cageH() {
   return fenceH();
@@ -555,6 +558,10 @@ function rollersOk() {
     cageRim() + 1e-9 >= wall() * 2 &&
     beadD() + 1e-9 > innerRaceD() &&
     lockFlatX() + 1e-9 < innerRaceD() * 0.5 &&
+    raceId() + 1e-9 > baseBossD() &&
+    raceId() + 1e-9 < axleFlangeD() &&
+    cageId() + 1e-9 >= raceId() &&
+    postCircleR() + padD() * 0.5 + 1e-9 >= raceId() * 0.5 &&
     Math.abs(axis0[2]) < 1e-9 &&
     Math.abs(axis0[0] - 1) < 1e-9 &&
     cageOd() * 0.5 + 1e-9 >= packOuterR()
@@ -598,7 +605,11 @@ function stackOk() {
     baseBossD() + 1e-9 < hubDeckOd() &&
     packOuterR() + 1e-9 >= wingRadius() * 0.9 &&
     cageId() + 1e-9 > plateBore() &&
-    beadD() + 1e-9 > innerRaceD()
+    beadD() + 1e-9 > innerRaceD() &&
+    raceId() + 1e-9 > baseBossD() &&
+    raceId() + 1e-9 < axleFlangeD() &&
+    cageId() + 1e-9 >= raceId() &&
+    postCircleR() + padD() * 0.5 + 1e-9 >= raceId() * 0.5
   );
 }
 function assemblyComponentCount() {
@@ -621,8 +632,9 @@ function estimatedSolidCm3() {
   const wings =
     spec.wing_count * 0.62 * ((chordRoot() + chordTip()) * 0.5) * wingThick() * wingH();
   const stator =
-    Math.PI * (axleFlangeD() * 0.5) ** 2 * baseH() +
+    Math.PI * (baseBossD() * 0.5) ** 2 * baseH() +
     spec.post_count * ribW() * postCircleR() * baseH() +
+    Math.PI * ((axleFlangeD() * 0.5) ** 2 - (raceId() * 0.5) ** 2) * baseH() +
     Math.PI * ((cageOd() * 0.5) ** 2 - (cageId() * 0.5) ** 2) * fenceH() +
     Math.PI * (innerRaceD() * 0.5) ** 2 * journalH();
   const rollers = spec.roller_count * Math.PI * (rollerD() * 0.5) ** 2 * rollerLen();
@@ -801,7 +813,7 @@ async function addAirfoil(center, angleDeg, chord, thicknessRatio, stations, te)
 
 async function buildStator() {
   await beginXY();
-  await addCircle(0, 0, axleFlangeD());
+  await addCircle(0, 0, baseBossD());
   let sketch = await finishSketch();
   let update = requireClean(
     await call("solid_extrude", {
@@ -813,7 +825,7 @@ async function buildStator() {
       flip: false,
       target_body_ids: [],
     }),
-    "stator race",
+    "stator hub",
   );
   const statorId = newestBody(update, []);
   for (let i = 0; i < spec.post_count; i++) {
@@ -850,6 +862,22 @@ async function buildStator() {
       `stator pad ${i}`,
     );
   }
+  await beginXY();
+  await addCircle(0, 0, axleFlangeD());
+  await addCircle(0, 0, raceId());
+  sketch = await finishSketch();
+  requireClean(
+    await call("solid_extrude", {
+      sketch_name: sketch,
+      profile_indices: [0],
+      operation: "join",
+      extent: { type: "distance", distance: baseH() },
+      taper_angle_deg: 0,
+      flip: false,
+      target_body_ids: [statorId],
+    }),
+    "stator race ring",
+  );
   const raceDeck = await offsetXY(raceZ());
   await beginDatum(raceDeck);
   await addCircle(0, 0, journalD());
@@ -1261,6 +1289,26 @@ async function createStableJoint(name, kind, connectorA, connectorB, groundedBod
   throw new Error(lastError);
 }
 
+async function purgeOrphanComponents() {
+  const scene = await call("solid_scene");
+  const live = new Set((scene.bodies ?? []).map((body) => body.id));
+  const document = await call("assembly_document");
+  const defs = document.component_structure?.definitions ?? [];
+  const keep = new Set(
+    defs
+      .filter((definition) => {
+        const ids = definition.body_ids ?? [];
+        return ids.length > 0 && ids.every((id) => live.has(id));
+      })
+      .map((definition) => definition.id),
+  );
+  document.component_structure.definitions = defs.filter((definition) => keep.has(definition.id));
+  document.component_structure.occurrences = (document.component_structure.occurrences ?? []).filter(
+    (occurrence) => keep.has(occurrence.component_id),
+  );
+  await call("assembly_set_document", document);
+}
+
 async function formAssembly(ids) {
   await call("cad_set_focus", { focus: "assembly", explicit: true });
   try {
@@ -1268,6 +1316,7 @@ async function formAssembly(ids) {
   } catch {
     /* workspace follow is optional in headless */
   }
+  await purgeOrphanComponents();
   const parts = [
     ["stator", [ids.statorId]],
     ["rotor", [ids.rotorId]],
@@ -1500,11 +1549,11 @@ async function makeAssemblyDrawing() {
     ],
     [
       [18, 58],
-      "GDT  one stator (Y-frame + race + open fence + journal). Thin flat thrust under the blade roots: stator race = lower, plate underside = upper, radial-axis rollers between. Top-load slots, not PIP. Fence ID looser than the plate bore. Clocked C-snap retainer sits on the journal shoulder — it does not rub the rotor.",
+      "GDT  one stator (Y-frame + race ring + open fence + journal). Thin flat thrust under the blade roots: stator race ring = lower, plate underside = upper, radial-axis rollers between. Top-load slots, not PIP. Fence sits on the race ring (ID looser than the plate bore). Clocked C-snap retainer sits on the journal shoulder — it does not rub the rotor.",
     ],
     [
       [18, 68],
-      `BOM  stator (Y-frame + race + fence + D-journal) · rotor (root plate+3×${spec.airfoil}) · ${spec.roller_count} radial rollers · clocked C-snap retainer`,
+      `BOM  stator (Y-frame + race ring + fence + D-journal) · rotor (root plate+3×${spec.airfoil}) · ${spec.roller_count} radial rollers · clocked C-snap retainer`,
     ],
     [
       [18, 78],
@@ -1548,6 +1597,7 @@ function writeDesignReport({ bodies, rotorBox, rotorFaces, plateFiles }) {
     ["Rectangular print arms", "Blade roots were rectangular arms + stumps. The airfoil goes through the plate. No spars."],
     ["Inboard pack / cage as journal", "PCD at 58% of the plate left the blade roots cantilevered on 5 mm PLA. Cage ID tighter than the plate bore stole the radial land. Boss tracked the race OD and reprinted a solid orange cylinder. Pack belongs under the blade roots; cage is a spacer; boss only seats the axle."],
     ["Separate axle disk + cage disk", "Two flats that should be one stator. Extra plastic, extra assembly, and a rubbing washer. Merge Y-frame + race + open fence + journal. Top-load the rollers. Clocked C-snap retainer sits on the journal shoulder, not on the rotor."],
+    ["Cookie race under the Y-frame", "One Ø74 disk under the rollers reprinted the plastic the merge was supposed to drop. Race is a ring where rollers contact. Fence sits on that ring. Y-frame stays open."],
   ];
   const usd = estimatedFilamentUsd().toFixed(2);
   const markdown = `# Print Kit Tutor — design report
@@ -1562,7 +1612,7 @@ ${iterations.map(([name, why]) => `| ${name} | ${why} |`).join("\n")}
 
 ## 2. Design process
 
-- **Architecture:** Helical H-Darrieus, directionless (no yaw). One printed stator (Y-frame + race + open fence + journal). Thin flat thrust under the plate (large PCD) so the tall blades rotate about Z. No tall mast. No tall drum. No separate axle puck + cage disk.
+- **Architecture:** Helical H-Darrieus, directionless (no yaw). One printed stator (Y-frame + race ring + open fence + journal). Thin flat thrust under the plate (large PCD) so the tall blades rotate about Z. No tall mast. No tall drum. No cookie disk. No separate axle puck + cage disk.
 - **Airfoil:** ${spec.airfoil} (t/c ${spec.airfoil_t_c}). 2026 VAWT dynamic-stall work favors t/c 21–24%. TE blunt to ${teMin()} mm (≥ 2 nozzles). Open drafted tips.
 - **Rotor:** one piece — root plate out to the blades (Ø${hubDeckOd().toFixed(1)}), underside is the upper thrust race, plus ${spec.wing_count} helical NACAs lofted from that plate (flat sit-plane cut, chord drafts toward the tip). c=${chordRoot().toFixed(1)}/${chordTip().toFixed(1)} mm, R=${wingRadius().toFixed(1)} mm, span=${wingH().toFixed(1)} mm, helix ${spec.helix_deg}°, σ=${solidity().toFixed(3)}. Envelope/rotor ${(baseEnvelope() / rotorD()).toFixed(2)}.
 - **Fits:** assembled running +${spec.fit_running_mm} (rollers on races). Top-load slots are running + two nozzles so rollers drop in from above without support. Same-plate PIP +${spec.fit_pip_mm} is the class; this kit does not PIP the rollers (lying OD would be layers). Clocked C-snap retainer: D-hole + C-gap, slip on the journal neck, sits on the shoulder 0.20 above the plate — it is not a running face. Slicer XY hole compensation stays 0. Plate **sits** 0.20 above the roller pack. Fence height is below pack height so rollers touch both races.
@@ -1581,7 +1631,7 @@ Three printed families, assembly order: ${spec.assembly_order.join(" → ")} (ro
 
 | Part | Count | Role |
 |------|------:|------|
-| Stator | 1 | Y-frame + lower race + open top-load fence + D-journal + snap bead. Print flat. |
+| Stator | 1 | Y-frame + race ring + open top-load fence + D-journal + snap bead. Print flat. |
 | Rotor | 1 | Root plate (upper thrust race) + 3× ${spec.airfoil} ending on the sit plane. Print standing. |
 | Rollers | ${spec.roller_count} | Radial-axis cylinders. Print standing; drop in from above. |
 | Retainer | 1 | Clocked C-snap (D-hole + C-gap). Sits on the journal shoulder, not on the rotor. |
@@ -1766,6 +1816,9 @@ try {
     writeFileSync(dest, bytes);
     plateFiles.push(dest);
     plateBytes.push(bytes);
+    if (name === "01-kit") {
+      copyFileSync(dest, path.join(defaultKitDir, "Print-Kit-Tutor-01-kit-stator.3mf"));
+    }
   }
   const leftoverPlates = plateDirListing().filter(
     (name) => !currentPlates.includes(name.replace(/\.3mf$/i, "")),
@@ -1848,7 +1901,7 @@ try {
     report.lessons,
     "print_flat",
     printFlatOk(),
-    `stator prints flat (race Ø${axleFlangeD().toFixed(1)}, fence h${fenceH().toFixed(1)} < pack ${packH().toFixed(1)}); rotor stands on deck ${hubDeckH().toFixed(1)}; rollers print standing, top-load +${topLoad().toFixed(2)}`,
+    `stator prints flat (race ring Ø${axleFlangeD().toFixed(1)}/ID ${raceId().toFixed(1)}, fence h${fenceH().toFixed(1)} < pack ${packH().toFixed(1)}); rotor stands on deck ${hubDeckH().toFixed(1)}; rollers print standing, top-load +${topLoad().toFixed(2)}`,
   );
   record(
     report.lessons,

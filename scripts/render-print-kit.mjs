@@ -215,7 +215,13 @@ try {
   check('web UI loaded the kit', loaded.bodyCount >= 5, `bodies=${loaded.bodyCount}`);
   check('WASM recompute has no scene errors', loaded.errors.length === 0, loaded.errors.join('; '));
 
-  const rotor = loaded.bodies.find((body) => /rotor|hub|blade/i.test(body.name)) ?? loaded.bodies[2];
+  const rotor =
+    loaded.bodies.find((body) => /rotor|hub|blade/i.test(body.name)) ??
+    loaded.bodies.reduce((best, body) => {
+      const span = body.box?.span?.[2] ?? 0;
+      const bestSpan = best?.box?.span?.[2] ?? 0;
+      return span > bestSpan ? body : best;
+    }, null);
   const hubZ = rotor?.hub?.span?.[2] ?? 0;
   check(
     'rotor hub is a thin plate, not a tall drum',

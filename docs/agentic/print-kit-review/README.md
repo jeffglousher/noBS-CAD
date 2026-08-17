@@ -1,6 +1,6 @@
 # Print-kit review shots (2026-08-17)
 
-Merged stator: Y-frame + lower race + open top-load fence + short
+Merged stator: Y-frame + race ring + open top-load fence + short
 D-journal. Radial-axis thin thrust **under the blade roots**. Rollers
 print standing and drop in from above (not PIP). Clocked C-snap retainer
 sits on the journal shoulder and does not rub the rotor. `pack` hides

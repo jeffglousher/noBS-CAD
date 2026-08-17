@@ -31,7 +31,7 @@ floors (roller Ø8, roller length 8, TE 0.8, 4-nozzle walls, plate 5 mm) are cla
 
 | Part | Role | How it mates |
 |------|------|----------------|
-| Stator | Y-frame + lower race + open top-load fence + short D-journal + snap bead, one piece | Grounded. Print flat. |
+| Stator | Y-frame + race ring + open top-load fence + short D-journal + snap bead, one piece | Grounded. Print flat. |
 | Rotor | Root plate (≥5 mm) out to the blades (underside = upper thrust race), 3 helical **NACA 0021** ending on that plate, **one body**, open drafted tips | Plate bore = journal + running. Print standing on the plate. PLA Glow. |
 | Rollers | 6 **radial-axis** cylinders, min Ø8, pack height = Ø, large PCD **under the blade roots** | Drop into top-load slots. Print standing. |
 | Retainer | Clocked C-snap (D-hole + C-gap) | Sits on the journal shoulder. Does not rub the rotor. |

@@ -110,7 +110,7 @@ Specify, in the report, all of:
 
 The bearing is a **printed thrust pack** (radial-axis rollers in a cage) on a **large pitch circle under the blade roots**. That is a normal 2026 printed turntable: width takes the moment; height is the roller diameter. No metal 608, no 623, no tall two-land sleeve, no orange tower, no standing-Z pucks, no inboard cracker.
 
-- Lower race: **stator** (Y-frame center disk, printed with the fence)
+- Lower race: **stator** (Y-frame + race **ring** under the rollers — not a cookie disk)
 - Rolling elements: ≥6 cylinders, **axis radial** (e_r), diameter = pack height, min Ø8. Print standing (circular layers); drop into top-load slots
 - Upper race: **plate underside**
 - Journal: short inner-race cylinder through the pack / plate — centering only. D-flat + snap bead above the plate

@@ -20,7 +20,7 @@ fence, or whose only bearing is a short two-land sleeve, is also a
 |-------|--------|-----|
 | Section | NACA 0021, TE ≥ 0.8 mm, root chord > tip | 2026 thick-symmetric band; drafted standing print |
 | Rotor | One body: root plate out to the blades (underside = upper thrust race), 3 helical blades ending on that plate. X2D-max R=85, span=220, scale 0.4 in the exam | Always some blade working; no tenons; no mid-air roots; no skinny-arm hangers |
-| Stand | One stator: Y-frame + lower race + open top-load fence + short journal | Envelope/rotor ≤ 1.55; no cookie; no tall mast; no separate axle disk |
+| Stand | One stator: Y-frame + race **ring** + open top-load fence + short journal | Envelope/rotor ≤ 1.55; no cookie disk; no tall mast; no separate axle disk |
 | Bearing | **Thin flat thrust** under the **blade roots**: 6× printed **radial-axis** rollers, min Ø8, pack height = Ø, large PCD. Top-load slots, not PIP. Fence ID looser than the plate bore. Plate ≥5 mm. Clocked C-snap retainer | Rotation about Z plus overturning as a couple under the roots. Not a 608. Not standing-Z pucks. Not an inboard cracker. Not a two-land sleeve. Not a loose bushing. Not a washer stack. Not a tall drum. Not two flats |
 | Fits | running +0.40 / PIP +0.80 / slip +0.28 / friction +0.16 | Role-based **and** same-plate vs assembled. 0.80 mm bed lead-in. Slicer XY hole comp = 0 |
 | Envelope | scale 1.0 fits Bambu Lab X2D 256×256×260 with 8 mm margin | `spec.scale` is the source parameter |
@@ -33,8 +33,9 @@ The center is short on purpose. A **thin flat thrust** under the
 **blade roots** takes rotation about Z. Overturning from the blade tips
 is a couple across that pitch circle, not a tall journal and not a
 5 mm plate cantilevering from an inboard pack. The fence is a spacer
-(ID looser than the plate bore). The Y-frame center **is** the lower
-race — do not print a second flat. A pile of unmatched-height
+(ID looser than the plate bore) and sits on the race ring only. The
+lower race is a **ring** under the rollers, joined to the Y-frame —
+do not print a cookie disk or a second flat. A pile of unmatched-height
 races with no housing is not a bearing. Matching more 8 mm flats is still
 a pancake stack. Standing-Z pucks slide on their end faces — that is not
 rolling under −Z. A 28 mm orange tower with webs climbing the wall is a
@@ -100,7 +101,7 @@ cannot take the moment at the blade tips.
 |---------|------|-----|
 | Thrust | Stator race (lower) ↔ thin rollers ↔ plate underside (upper), 0.20 float each land | Flat land, not a lifted cone, not a tall drum |
 | Overturning | Same pack, large PCD **under the blade roots** | Couple across the disk. Width, not height. An inboard PCD leaves the plate as a cracker |
-| Stator | One body: Y-frame + race + open fence + journal | Print-flat; plate freewheels on the short journal |
+| Stator | One body: Y-frame + race ring + open fence + journal | Print-flat; plate freewheels on the short journal |
 | Retain | Clocked C-snap on the journal shoulder | Removable; does not rub the rotor |
 
 PLA-on-PLA is a demo spin. Say so. No glue-as-fit.

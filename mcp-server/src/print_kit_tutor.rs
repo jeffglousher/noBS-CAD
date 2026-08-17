@@ -185,8 +185,13 @@ impl Spec {
         self.mm(self.post_circle_r)
     }
     fn base_boss_d(&self) -> f64 {
-        // The Y-frame center *is* the lower race. One printed stator.
-        self.axle_flange_d()
+        // Small Y-frame hub. The race is a ring under the rollers, not a cookie.
+        (self.journal_d() + 2.0 * self.wall())
+            .max(16.0)
+            .min(self.axle_flange_d() - 8.0)
+    }
+    fn race_id(&self) -> f64 {
+        (self.pcd() - self.roller_len()).max(self.base_boss_d() + 2.0 * self.wall())
     }
     fn top_load(&self) -> f64 {
         self.nozzle_mm * 2.0
@@ -234,9 +239,10 @@ impl Spec {
         self.pcd() + self.roller_len() + 2.0 * self.cage_rim()
     }
     fn cage_id(&self) -> f64 {
-        // Spacer, not a journal. Must be looser than the plate bore
-        // so the plate takes radial load and the cage does not rub.
-        self.plate_bore() + 2.0 * self.wall()
+        // Fence sits on the race ring only. Do not fill the Y-frame
+        // with a second cookie. Still looser than the plate bore.
+        self.race_id()
+            .max(self.plate_bore() + 2.0 * self.wall())
     }
     fn cage_h(&self) -> f64 {
         self.fence_h()
@@ -398,6 +404,10 @@ impl Spec {
             && self.cage_rim() + 1e-9 >= self.wall() * 2.0
             && self.bead_d() + 1e-9 > self.inner_race_d()
             && self.lock_flat_x() + 1e-9 < self.inner_race_d() * 0.5
+            && self.race_id() + 1e-9 > self.base_boss_d()
+            && self.race_id() + 1e-9 < self.axle_flange_d()
+            && self.cage_id() + 1e-9 >= self.race_id()
+            && self.post_circle_r() + self.pad_d() * 0.5 + 1e-9 >= self.race_id() * 0.5
             && axis0[2].abs() < 1e-9
             && (axis0[0] - 1.0).abs() < 1e-9
             && self.cage_od() * 0.5 + 1e-9 >= self.pack_outer_r()
@@ -437,6 +447,10 @@ impl Spec {
             && self.pack_outer_r() + 1e-9 >= self.wing_radius() * 0.9
             && self.cage_id() + 1e-9 > self.plate_bore()
             && self.bead_d() + 1e-9 > self.inner_race_d()
+            && self.race_id() + 1e-9 > self.base_boss_d()
+            && self.race_id() + 1e-9 < self.axle_flange_d()
+            && self.cage_id() + 1e-9 >= self.race_id()
+            && self.post_circle_r() + self.pad_d() * 0.5 + 1e-9 >= self.race_id() * 0.5
     }
     fn assembly_component_count(&self) -> usize {
         3 + self.roller_count
@@ -459,8 +473,11 @@ impl Spec {
             * ((self.chord_root() + self.chord_tip()) * 0.5)
             * self.wing_thick()
             * self.wing_h();
-        let stator = std::f64::consts::PI * (self.axle_flange_d() * 0.5).powi(2) * self.base_h()
+        let stator = std::f64::consts::PI * (self.base_boss_d() * 0.5).powi(2) * self.base_h()
             + (self.post_count as f64) * self.rib_w() * self.post_circle_r() * self.base_h()
+            + std::f64::consts::PI
+                * ((self.axle_flange_d() * 0.5).powi(2) - (self.race_id() * 0.5).powi(2))
+                * self.base_h()
             + std::f64::consts::PI
                 * ((self.cage_od() * 0.5).powi(2) - (self.cage_id() * 0.5).powi(2))
                 * self.fence_h()
@@ -850,7 +867,7 @@ fn build_stator(
     spec: &Spec,
 ) -> Result<u64, String> {
     begin_xy(call)?;
-    add_circle(call, [0.0, 0.0], spec.axle_flange_d())?;
+    add_circle(call, [0.0, 0.0], spec.base_boss_d())?;
     let sketch = finish_sketch(call)?;
     let update = require_clean(
         call(
@@ -865,7 +882,7 @@ fn build_stator(
                 "target_body_ids": []
             }),
         )?,
-        "stator race",
+        "stator hub",
     )?;
     let stator_id = newest_body_id(&update, &[])?;
     for index in 0..spec.post_count {
@@ -914,6 +931,25 @@ fn build_stator(
             &format!("stator pad {index}"),
         )?;
     }
+    begin_xy(call)?;
+    add_circle(call, [0.0, 0.0], spec.axle_flange_d())?;
+    add_circle(call, [0.0, 0.0], spec.race_id())?;
+    let race = finish_sketch(call)?;
+    require_clean(
+        call(
+            "solid_extrude",
+            json!({
+                "sketch_name": race,
+                "profile_indices": [0],
+                "operation": "join",
+                "extent": { "type": "distance", "distance": spec.base_h() },
+                "taper_angle_deg": 0.0,
+                "flip": false,
+                "target_body_ids": [stator_id]
+            }),
+        )?,
+        "stator race ring",
+    )?;
 
     let race_deck = offset_xy(call, spec.race_z())?;
     begin_datum(call, race_deck.clone())?;
@@ -1225,6 +1261,48 @@ fn build_retainer(
     Ok(retainer_id)
 }
 
+fn purge_orphan_components(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+) -> Result<(), String> {
+    let scene = call("solid_scene", json!({}))?;
+    let live: std::collections::HashSet<u64> = scene["bodies"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .filter_map(|body| body["id"].as_u64())
+        .collect();
+    let mut document = call("assembly_document", json!({}))?;
+    let Some(defs) = document["component_structure"]["definitions"].as_array().cloned() else {
+        return Ok(());
+    };
+    let keep: std::collections::HashSet<u64> = defs
+        .iter()
+        .filter(|definition| {
+            definition["body_ids"]
+                .as_array()
+                .map(|ids| {
+                    !ids.is_empty()
+                        && ids.iter().all(|id| id.as_u64().is_some_and(|id| live.contains(&id)))
+                })
+                .unwrap_or(false)
+        })
+        .filter_map(|definition| definition["id"].as_u64())
+        .collect();
+    if let Some(definitions) = document["component_structure"]["definitions"].as_array_mut() {
+        definitions.retain(|definition| definition["id"].as_u64().is_some_and(|id| keep.contains(&id)));
+    }
+    if let Some(occurrences) = document["component_structure"]["occurrences"].as_array_mut() {
+        occurrences.retain(|occurrence| {
+            occurrence["component_id"]
+                .as_u64()
+                .is_some_and(|id| keep.contains(&id))
+        });
+    }
+    call("assembly_set_document", document)?;
+    Ok(())
+}
+
 fn form_assembly(
     call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
     spec: &Spec,
@@ -1238,6 +1316,7 @@ fn form_assembly(
         json!({ "focus": "assembly", "explicit": true }),
     )?;
     let _ = call("cad_set_workspace", json!({ "workspace": "assembly" }));
+    purge_orphan_components(call)?;
     let mut parts: Vec<(String, Vec<u64>)> = vec![
         ("stator".to_string(), vec![stator_id]),
         ("rotor".to_string(), vec![rotor_id]),
@@ -1515,12 +1594,12 @@ fn make_assembly_drawing(
         ),
         (
             [18.0, 58.0],
-            "GDT  one stator (Y-frame + race + open fence + journal). Thin flat thrust under the blade roots: stator race = lower, plate underside = upper, radial-axis rollers between. Top-load slots, not PIP. Fence ID looser than the plate bore. Clocked C-snap retainer sits on the journal shoulder — it does not rub the rotor.".to_string(),
+            "GDT  one stator (Y-frame + race ring + open fence + journal). Thin flat thrust under the blade roots: stator race ring = lower, plate underside = upper, radial-axis rollers between. Top-load slots, not PIP. Fence sits on the race ring (ID looser than the plate bore). Clocked C-snap retainer sits on the journal shoulder — it does not rub the rotor.".to_string(),
         ),
         (
             [18.0, 68.0],
             format!(
-                "BOM  stator (Y-frame + race + fence + D-journal) · rotor (root plate+3×{}) · {} radial rollers · clocked C-snap retainer",
+                "BOM  stator (Y-frame + race ring + fence + D-journal) · rotor (root plate+3×{}) · {} radial rollers · clocked C-snap retainer",
                 spec.airfoil, spec.roller_count
             ),
         ),
@@ -1957,8 +2036,9 @@ fn grade(
         "print_flat",
         spec.print_flat_ok(),
         format!(
-            "stator prints flat (race Ø{:.1}, fence h{:.1} < pack {:.1}); rotor stands on deck {:.1}; rollers print standing, top-load +{:.2}",
+            "stator prints flat (race ring Ø{:.1}/ID {:.1}, fence h{:.1} < pack {:.1}); rotor stands on deck {:.1}; rollers print standing, top-load +{:.2}",
             spec.axle_flange_d(),
+            spec.race_id(),
             spec.fence_h(),
             spec.pack_h(),
             spec.hub_deck_h(),
@@ -2544,7 +2624,11 @@ mod spec_tests {
         assert!(spec.axle_flange_d() + 1e-9 >= spec.cage_od());
         assert!(spec.cage_id() > spec.plate_bore());
         assert!(spec.pack_outer_r() + 1e-9 >= spec.wing_radius() * 0.9);
-        assert!((spec.base_boss_d() - spec.axle_flange_d()).abs() < 1e-9);
+        assert!(spec.base_boss_d() + 8.0 <= spec.axle_flange_d() + 1e-9);
+        assert!(spec.race_id() > spec.base_boss_d());
+        assert!(spec.race_id() < spec.axle_flange_d());
+        assert!(spec.cage_id() + 1e-9 >= spec.race_id());
+        assert!(spec.post_circle_r() + spec.pad_d() * 0.5 + 1e-9 >= spec.race_id() * 0.5);
         assert!(spec.cage_rim() + 1e-9 >= spec.wall() * 2.0);
         assert!(spec.fence_h() + 1e-9 < spec.pack_h());
         assert!(spec.top_load_pocket() + 1e-9 > spec.cage_pocket());
