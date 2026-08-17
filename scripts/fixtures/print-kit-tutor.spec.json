@@ -18,7 +18,7 @@
   "fit_pip_mm": 0.8,
   "bed_relief_mm": 0.8,
   "filament": {
-    "name": "Bambu PLA Basic Orange + Bambu PLA Glow",
+    "name": "Bambu PLA Basic Orange + Bambu PLA Glow Green",
     "density_g_cm3": 1.24,
     "price_usd_per_kg": 20.0,
     "print_volume_factor": 0.42
