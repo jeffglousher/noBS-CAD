@@ -157,6 +157,24 @@ impl Spec {
     fn blade_root_z(&self) -> f64 {
         self.hub_z() + self.hub_deck_h()
     }
+    /// Inner radius of the moment web. Stays outside the raceway and
+    /// overlaps the cup wall so the blade root is the housing, not a
+    /// flag stuck on the plate.
+    fn root_web_inner(&self) -> f64 {
+        self.cup_id() * 0.5 + self.wall()
+    }
+    fn root_web_outer(&self) -> f64 {
+        self.wing_radius() + self.chord_root() * 0.12
+    }
+    fn root_web_len(&self) -> f64 {
+        (self.root_web_outer() - self.root_web_inner()).max(self.wall() * 8.0)
+    }
+    fn root_web_center(&self, index: usize) -> [f64; 2] {
+        let [cx, cy] = self.helix_center(index, 0.0);
+        let radius = self.wing_radius().max(1e-6);
+        let mid = (self.root_web_inner() + self.root_web_outer()) * 0.5;
+        [cx * mid / radius, cy * mid / radius]
+    }
     fn hub_square(&self) -> f64 {
         self.mm(self.axle_square) + self.fit_friction_mm
     }
@@ -381,6 +399,9 @@ impl Spec {
             && (self.cage_h() - self.roller_h()).abs() < 1e-9
             && self.hub_deck_h() + 1e-9 >= 5.0
             && self.roller_h() + 1e-9 >= 28.0
+            && self.root_web_inner() + 1e-9 > self.cup_id() * 0.5
+            && self.root_web_inner() + 1e-9 < self.cup_od() * 0.5
+            && self.root_web_outer() + 1e-9 >= self.wing_radius()
     }
     fn assembly_component_count(&self) -> usize {
         5 + self.roller_count
@@ -901,7 +922,7 @@ fn build_rotor(
     )?;
     let rotor_id = newest_body_id(&update, known)?;
     let cup_deck = offset_xy(call, spec.cup_z())?;
-    begin_datum(call, cup_deck)?;
+    begin_datum(call, cup_deck.clone())?;
     add_circle(call, [0.0, 0.0], spec.cup_od())?;
     add_circle(call, [0.0, 0.0], spec.cup_id())?;
     let cup = finish_sketch(call)?;
@@ -996,6 +1017,33 @@ fn build_rotor(
                 }),
             )?,
             &format!("blade root base {index}"),
+        )?;
+        // Moment path: blade → web (height = cup) → cup wall → rollers.
+        // Plate-height arms stay for the sit-plane print. Do not enter the
+        // raceway — that is why the web starts outside cup ID.
+        begin_datum(call, cup_deck.clone())?;
+        add_oriented_rect(
+            call,
+            spec.root_web_center(index),
+            spec.root_web_len(),
+            spec.blade_arm_w(),
+            spec.wing_angle_deg(index),
+        )?;
+        let web = finish_sketch(call)?;
+        require_clean(
+            call(
+                "solid_extrude",
+                json!({
+                    "sketch_name": web,
+                    "profile_indices": [0],
+                    "operation": "join",
+                    "extent": { "type": "distance", "distance": spec.cup_h() },
+                    "taper_angle_deg": 0.0,
+                    "flip": false,
+                    "target_body_ids": [rotor_id]
+                }),
+            )?,
+            &format!("blade root web {index}"),
         )?;
         let stations = spec.helix_stations.max(2);
         let mut sections = Vec::new();
@@ -2390,5 +2438,8 @@ mod spec_tests {
         assert!((spec.blade_root_z() - spec.cup_z()).abs() < 1e-9);
         assert!((spec.plate_z() - spec.hub_z()).abs() < 1e-9);
         assert!((spec.cup_z() - (spec.plate_z() + spec.hub_deck_h())).abs() < 1e-9);
+        assert!(spec.root_web_inner() > spec.cup_id() * 0.5);
+        assert!(spec.root_web_inner() < spec.cup_od() * 0.5);
+        assert!(spec.root_web_outer() >= spec.wing_radius());
     }
 }

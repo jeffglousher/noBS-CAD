@@ -28,14 +28,16 @@ each roller. The cup **is** the outer race — there is no loose bushing
 sandwich. Same-plate PIP pockets are +0.80; assembled races stay +0.40.
 Cage height matches roller height. Bed-printed locates get a 0.80 mm
 lead-in. The cup is not nested around the PIP rollers on the plate. The
-rotor is a **root plate** (≥5 mm) out to the blades with an **integral
-open-top drum** (thrust floor + outer race ≥28 mm at exam scale, 70 mm
-at scale 1.0). Matching 8 mm flats is still a pancake stack — look at
-the solid in the web UI (`npm run render:print-kit`) before calling it
-a housing. Blade lofts start on that plate (flat sit-plane cut — the
-draft ends on that horizontal, not from a surface above). Install: drop
-the rotor on the axle, then drop the cartridge into the cup. Blades stay
-one printed body with the plate. The exam starts from a blank document
+rotor is a **root plate** (≥5 mm, print sit + thrust) with an **integral
+open-top drum** (outer race ≥28 mm at exam scale) and a **moment web**
+per blade that climbs that wall out to the airfoil. A taller can on a
+plate is still a cracker — the overhung moment has to reach the race.
+Matching 8 mm flats is still a pancake stack. Look at the solid
+(`npm run render:print-kit`) as a check, not as the design method.
+Blade lofts start on that plate (flat sit-plane cut — the draft ends
+on that horizontal, not from a surface above). Install: drop the rotor
+on the axle, then drop the cartridge into the cup. Blades stay one
+printed body with the plate. The exam starts from a blank document
 (`cad_new_project`, 0 bodies) and hides construction planes before
 writing the `.nbcad`. Reruns wipe retired plates so `Print-Kit-Tutor/`
 holds only `01-kit.3mf` (parts laid out; PLA Orange + PLA Glow). Fits

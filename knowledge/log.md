@@ -2,6 +2,9 @@
 
 ## 2026-08-16
 
+- **Update**: Print-kit overhung load path is blade → root web
+  (height = cup) → cup wall → roller pack. A taller can on a 5 mm
+  plate is still a cracker. The web stays outside the raceway.
 - **Update**: Print-kit cup is a drum, not a washer. Matching 8 mm
   flats still read as pancakes on the plate. Roller / cup land floors
   at ≥28 mm (70 mm at scale 1.0); plate ≥5 mm. Look at the solid in

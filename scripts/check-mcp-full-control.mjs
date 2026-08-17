@@ -358,6 +358,9 @@ if (!tutorSrc.includes('plateZ') || !tutorSrc.includes('cupZ') || !tutorSrc.incl
 if (!tutorSrc.includes('Math.max(mm(spec.roller_h), 28)')) {
   fail('print-kit Node exam must size the cup as a drum (≥28 mm), not a washer');
 }
+if (!tutorSrc.includes('rootWebInner') || !tutorSrc.includes('blade root web')) {
+  fail('print-kit Node exam must run a moment web from the cup wall to each blade');
+}
 if (!tutorSrc.includes('solid_move_copy') || !tutorSrc.includes('layoutPrintPlate')) {
   fail('print-kit Node exam must lay the kit out on one plate before export');
 }
@@ -394,6 +397,9 @@ if (!rustTutor.includes('plate_z') || !rustTutor.includes('cup_z') || !rustTutor
 }
 if (!rustTutor.includes('.max(28.0)')) {
   fail('print-kit cargo exam must size the cup as a drum (≥28 mm), not a washer');
+}
+if (!rustTutor.includes('root_web_inner') || !rustTutor.includes('blade root web')) {
+  fail('print-kit cargo exam must run a moment web from the cup wall to each blade');
 }
 if (!rustTutor.includes('solid_move_copy') || !rustTutor.includes('layout_print_plate')) {
   fail('print-kit cargo exam must lay the kit out on one plate before export');

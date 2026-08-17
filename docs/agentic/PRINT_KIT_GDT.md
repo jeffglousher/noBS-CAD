@@ -197,6 +197,7 @@ If those steps are not visible in the solid, the exam failed.
 | Fault | Why it failed | Correction |
 |-------|---------------|------------|
 | Washer cup | Matching an 8 mm land to 8 mm rollers produced another stack of flats. From a 3/4 view the green wall disappeared and the orange cartridge sat on the plate. | Cup is a **drum** (≥28 mm at exam scale, 70 mm at scale 1.0) on a ≥5 mm plate. Rollers fill that height. Look at the solid in the web UI before calling it a housing. |
+| Can on a cracker | Cup got height; blades still only met a 5 mm plate. Overturning moment bent the disk and never reached the race. | Each blade root is a web as tall as the cup, from the cup wall (outside the raceway) out to the airfoil. |
 
 ### 2026-08-16 additive / FDM pass
 

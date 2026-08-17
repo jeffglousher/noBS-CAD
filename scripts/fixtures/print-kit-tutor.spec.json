@@ -126,7 +126,7 @@
     {
       "id": "one_piece_rotor",
       "title": "Blades and hub are one part",
-      "teach": "The rotor is a single printed body: a ≥5 mm root plate out to the blades with an integral open-top drum (thrust floor + outer race ≥28 mm at exam scale), plus three drafted helical NACAs whose first station is that plate (flat sit-plane cut — the draft continues down to that horizontal, not from a surface above). Do not hang blades off skinny arms. Do not ship an 8 mm washer as a cup. Print standing on the plate. Drop the rotor on the axle, then drop the cartridge into the cup."
+      "teach": "The rotor is a single printed body: a ≥5 mm root plate (print sit + thrust), an integral open-top drum (outer race), and a moment web per blade that climbs that drum wall out to the airfoil. The plate is not the load path — a can on a cracker still dumps the overhung moment into a 5 mm disk. First loft station is the plate (flat sit-plane cut). Do not hang blades off skinny arms. Do not ship an 8 mm washer as a cup. Print standing on the plate. Drop the rotor on the axle, then drop the cartridge into the cup."
     },
     {
       "id": "airfoil",

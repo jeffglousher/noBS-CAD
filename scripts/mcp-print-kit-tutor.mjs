@@ -317,6 +317,21 @@ function plateZ() {
 function bladeArmW() {
   return Math.max(chordRoot() * 0.4, wall() * 6);
 }
+function rootWebInner() {
+  return cupId() * 0.5 + wall();
+}
+function rootWebOuter() {
+  return wingRadius() + chordRoot() * 0.12;
+}
+function rootWebLen() {
+  return Math.max(rootWebOuter() - rootWebInner(), wall() * 8);
+}
+function rootWebCenter(index) {
+  const [cx, cy] = helixCenter(index, 0);
+  const radius = Math.max(wingRadius(), 1e-6);
+  const mid = (rootWebInner() + rootWebOuter()) * 0.5;
+  return [cx * mid / radius, cy * mid / radius];
+}
 function bladeRootZ() {
   return hubZ() + hubDeckH();
 }
@@ -532,7 +547,10 @@ function stackOk() {
     Math.abs(bladeRootZ() - cupZ()) < 1e-9 &&
     Math.abs(cageH() - rollerH()) < 1e-9 &&
     hubDeckH() + 1e-9 >= 5 &&
-    rollerH() + 1e-9 >= 28
+    rollerH() + 1e-9 >= 28 &&
+    rootWebInner() + 1e-9 > cupId() * 0.5 &&
+    rootWebInner() + 1e-9 < cupOd() * 0.5 &&
+    rootWebOuter() + 1e-9 >= wingRadius()
   );
 }
 function assemblyComponentCount() {
@@ -927,6 +945,26 @@ async function buildRotor(known) {
         target_body_ids: [rotorId],
       }),
       `blade root base ${index}`,
+    );
+    await beginDatum(await offsetXY(cupZ()));
+    await addOrientedRect(
+      rootWebCenter(index),
+      rootWebLen(),
+      bladeArmW(),
+      wingAngleDeg(index),
+    );
+    sketch = await finishSketch();
+    requireClean(
+      await call("solid_extrude", {
+        sketch_name: sketch,
+        profile_indices: [0],
+        operation: "join",
+        extent: { type: "distance", distance: cupH() },
+        taper_angle_deg: 0,
+        flip: false,
+        target_body_ids: [rotorId],
+      }),
+      `blade root web ${index}`,
     );
     const stations = Math.max(spec.helix_stations, 2);
     const sections = [];
@@ -1423,6 +1461,7 @@ function writeDesignReport({ bodies, rotorBox, rotorFaces, plateFiles }) {
     ["Hub as the outer race", "Cage stuffed inside a thin hub wall looked like a colander. The housing has to be the rotor itself — plate + cup — not a sleeve the blades hang off."],
     ["Loose bushing sandwich", "A separate orange ring, a postage-stamp flange, and unmatched roller/cage heights. No attach path for an overhung load. Thrust + roller land live in one rotor cup, heights matched."],
     ["Washer cup / pancake stack", "Matching an 8 mm land to 8 mm rollers still reads as flat cylinders stacked on the plate. The cup is a drum (≥28 mm at exam scale, 70 mm at scale 1.0) on a ≥5 mm plate. Look at the solid in the web UI before calling it a housing."],
+    ["Can on a cracker", "A tall cup with blades only stuck to the plate dumps the overhung moment into a thin disk. Each blade root climbs the cup wall (web height = cup, outside the raceway)."],
     ["PIP at assembled running clearance", "Cage pockets at +0.40 are 0.20/side. Same-plate first layers weld. PIP pockets are +0.80 (2 nozzles)."],
     ["Bed-printed friction bore, no lead-in", "Elephant foot closes a +0.16 locate. 0.80 mm lead-in on every bed-printed hole (plate bore, axle square, retainer square)."],
     ["Race nested around PIP rollers", "Race-to-roller at +0.40 is 0.10 mm/side. They fuse. Cup prints as part of the rotor; cage+rollers are the PIP cluster dropped in after."],
