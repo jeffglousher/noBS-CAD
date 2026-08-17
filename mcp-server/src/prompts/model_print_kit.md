@@ -85,10 +85,10 @@ Three printed families, then an **assembly** (components + occurrences + joints)
 
 | Part | What | Print |
 |------|------|-------|
-| Stator | **Y-frame** + lower race + open top-load fence + short D-journal + snap bead. One piece. No cookie. No separate axle disk | Flat |
-| Rotor | **Root plate** out to the blades (underside = upper thrust race), 3 helical drafted **NACA 0021** ending on that plate, **one body**, open tips. Plate bore = journal + running | Standing on the plate |
+| Stator | **Y-frame** + race ring + open top-load fence + **constant** journal + snap groove. One piece. No cookie. No fat shoulder/bead | Flat |
+| Rotor | **Root plate** out to the blades (underside = upper thrust race), 3 helical drafted **NACA 0021** ending on that plate, **one body**, open tips. Plate bore > journal pass Ø so it **drops on** | Standing on the plate |
 | Rollers | ≥6 **radial-axis** cylinders, min Ø8, pack height = Ø, large PCD **under the blade roots**. Drop into top-load slots | Standing (axis Z) |
-| Retainer | Clocked **C-snap** (D-hole + C-gap). Sits on the journal shoulder, 0.20 above the plate — does **not** rub the rotor | Flat |
+| Retainer | Clocked **C-clip** (D-hole + C-gap). Snaps into the journal groove, 0.20 above the plate — does **not** rub the rotor. Pull to remove | Flat |
 
 Girth gates: envelope/rotor D ≤ 1.55; span/chord ≥ 2.5; solidity 0.24–0.45. Scale 1.0 must fit the X2D usable bed (240×240×244).
 
@@ -113,10 +113,12 @@ The bearing is a **printed thrust pack** (radial-axis rollers in a cage) on a **
 - Lower race: **stator** (Y-frame + race **ring** under the rollers — not a cookie disk)
 - Rolling elements: ≥6 cylinders, **axis radial** (e_r), diameter = pack height, min Ø8. Print standing (circular layers); drop into top-load slots
 - Upper race: **plate underside**
-- Journal: short inner-race cylinder through the pack / plate — centering only. D-flat + snap bead above the plate
-- Top-load slots are **running + two nozzles**. Fence height is below pack height. The fence is a spacer (ID looser than the plate bore); axial capture is the race + clocked C-snap. Not a pickup cartridge
+- Journal: short inner-race cylinder through the pack / plate — centering only. **Constant pass Ø** (nothing fatter than the plate bore). Undercut snap groove + D-flat **above** the plate only
+- Top-load slots are **running + two nozzles**. Fence height is below pack height. The fence is a spacer (ID looser than the plate bore); axial capture is the race + clocked C-clip. Not a pickup cartridge
 - Do not PIP a lying roller. Do not nest rollers under the plate. Do not close a top inward lip over the rollers
-- The rotor does **not** key to the journal. The retainer clocks to one orientation and pulls off for service
+- Do not print a fat shoulder or snap bead the plate cannot pass — that is an hourglass you cannot assemble
+- The rotor does **not** key to the journal. The C-clip clocks to one orientation, snaps on, and pulls off for service
+- Plastics: **PLA Basic Orange** and **PLA Glow Green** only
 
 PLA-on-PLA is a demo spin, not a 1000 h bearing. Say that in the report.
 
@@ -124,7 +126,7 @@ PLA-on-PLA is a demo spin, not a 1000 h bearing. Say that in the report.
 
 No screws, nuts, heat-set inserts, metal shafts, metal bearings, glue as a fit, or rubber bands.
 
-Assembly order: **stator → rollers into the top-load slots → rotor → snap retainer**.
+Assembly order: **stator → rollers into the top-load slots → drop rotor over the journal → snap C-clip into the groove**.
 
 Then form a **linked** CAD assembly: `cad_set_focus assembly` (or `cad_set_workspace assembly`). `assembly_create_component` per body that moves — that call already inserts the one root occurrence. **Do not** `assembly_create_occurrence` again. Ground the stator. Joints:
 

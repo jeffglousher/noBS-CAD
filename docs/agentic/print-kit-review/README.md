@@ -2,8 +2,9 @@
 
 Merged stator: Y-frame + race ring + open top-load fence + short
 D-journal. Radial-axis thin thrust **under the blade roots**. Rollers
-print standing and drop in from above (not PIP). Clocked C-snap retainer
-sits on the journal shoulder and does not rub the rotor. `pack` hides
+print standing and drop in from above (not PIP). Clocked C-clip snaps
+into a journal groove and does not rub the rotor. The plate drops over
+a constant journal. `pack` hides
 the rotor so the lying rollers / top-load windows are visible. `races`
 looks up from under the plate. `hub` is a close stack. `side` shows the
 short pack — not a drum, not two flats.

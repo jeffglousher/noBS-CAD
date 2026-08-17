@@ -31,10 +31,10 @@ floors (roller Ø8, roller length 8, TE 0.8, 4-nozzle walls, plate 5 mm) are cla
 
 | Part | Role | How it mates |
 |------|------|----------------|
-| Stator | Y-frame + race ring + open top-load fence + short D-journal + snap bead, one piece | Grounded. Print flat. |
+| Stator | Y-frame + race ring + open top-load fence + constant journal + snap groove, one piece | Grounded. Print flat. |
 | Rotor | Root plate (≥5 mm) out to the blades (underside = upper thrust race), 3 helical **NACA 0021** ending on that plate, **one body**, open drafted tips | Plate bore = journal + running. Print standing on the plate. PLA Glow. |
 | Rollers | 6 **radial-axis** cylinders, min Ø8, pack height = Ø, large PCD **under the blade roots** | Drop into top-load slots. Print standing. |
-| Retainer | Clocked C-snap (D-hole + C-gap) | Sits on the journal shoulder. Does not rub the rotor. |
+| Retainer | Clocked C-clip (D-hole + C-gap) | Snaps into the journal groove. Pull to remove. Does not rub the rotor. |
 
 Fits are **per role** (running / PIP / slip) and per whether
 the parts share a plate. Assembled running +0.40. Top-load slots add two
@@ -44,7 +44,7 @@ nest the plate around the rollers on the bed. Slicer XY hole compensation
 stays 0. No metal 608s. No FDM press fits. No separate axle disk + cage
 disk. No tall drum. No standing-Z pucks.
 
-Assembly order: **stator → rollers into the top-load slots → rotor → snap retainer**.
+Assembly order: **stator → rollers into the top-load slots → drop rotor over the journal → snap C-clip**.
 
 Then: one `assembly_create_component` per **moving** body (stator,
 rotor, each roller, retainer). That call already inserts

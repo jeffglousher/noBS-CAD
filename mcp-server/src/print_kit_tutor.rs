@@ -203,16 +203,33 @@ impl Spec {
         (self.pack_h() * 0.62).max(self.wall() * 2.0)
     }
     fn shoulder_h(&self) -> f64 {
-        self.mm_min(3.0, 1.2)
+        0.0
     }
     fn shoulder_d(&self) -> f64 {
-        (self.inner_race_d() + 4.0).min(self.retainer_od() - 1.0)
+        // No fat flange above the plate — that blocked dropping the rotor on.
+        self.journal_d()
     }
     fn bead_h(&self) -> f64 {
-        self.mm_min(2.4, 1.2)
+        self.tip_h()
     }
     fn bead_d(&self) -> f64 {
-        self.inner_race_d() + self.nozzle_mm * 2.0
+        self.pass_d()
+    }
+    fn groove_depth(&self) -> f64 {
+        self.nozzle_mm * 2.0
+    }
+    fn groove_d(&self) -> f64 {
+        self.journal_d() - 2.0 * self.groove_depth()
+    }
+    fn groove_h(&self) -> f64 {
+        self.retainer_h() + self.thrust_float
+    }
+    fn tip_h(&self) -> f64 {
+        self.wall()
+    }
+    fn pass_d(&self) -> f64 {
+        // The plate must pass every diameter from the tip down. Nothing fatter.
+        self.journal_d()
     }
     fn lock_flat_x(&self) -> f64 {
         self.inner_race_d() * 0.22
@@ -224,13 +241,13 @@ impl Spec {
         self.inner_race_d()
     }
     fn retainer_d_hole(&self) -> f64 {
-        self.journal_d() + self.fit_slip_mm
+        self.groove_d() + self.fit_slip_mm
     }
     fn retainer_flat_x(&self) -> f64 {
         self.lock_flat_x() + self.fit_slip_mm * 0.5
     }
     fn journal_h(&self) -> f64 {
-        self.bead_z() + self.bead_h() + self.wall() - self.race_z()
+        self.groove_z() + self.groove_h() + self.tip_h() - self.race_z()
     }
     fn cage_rim(&self) -> f64 {
         self.wall() * 2.0
@@ -314,10 +331,13 @@ impl Spec {
         self.race_z()
     }
     fn shoulder_z(&self) -> f64 {
+        self.groove_z()
+    }
+    fn groove_z(&self) -> f64 {
         self.plate_z() + self.hub_deck_h() + self.thrust_float
     }
     fn bead_z(&self) -> f64 {
-        self.retainer_z() + self.retainer_h()
+        self.groove_z() + self.groove_h()
     }
     fn z_mid(&self) -> f64 {
         self.cage_z() + self.pack_h() * 0.5
@@ -329,7 +349,20 @@ impl Spec {
         self.cage_z() + self.pack_h() + self.thrust_float
     }
     fn retainer_z(&self) -> f64 {
-        self.shoulder_z() + self.shoulder_h()
+        self.groove_z()
+    }
+    fn assemble_ok(&self) -> bool {
+        self.pass_d() + 1e-9 < self.plate_bore()
+            && (self.pass_d() - self.journal_d()).abs() < 1e-9
+            && (self.bead_d() - self.pass_d()).abs() < 1e-9
+            && (self.shoulder_d() - self.pass_d()).abs() < 1e-9
+            && self.groove_d() + 1e-9 < self.pass_d()
+            && self.retainer_d_hole() + 1e-9 < self.pass_d()
+            && self.retainer_d_hole() + 1e-9 >= self.groove_d()
+            && self.snap_gap() + 1e-9 >= self.pass_d() - self.retainer_d_hole()
+            && self.groove_z() + 1e-9 >= self.plate_z() + self.hub_deck_h()
+            && (self.retainer_z() - self.groove_z()).abs() < 1e-9
+            && self.groove_h() + 1e-9 >= self.retainer_h()
     }
     fn post_h(&self) -> f64 {
         self.journal_h()
@@ -402,7 +435,7 @@ impl Spec {
             && self.top_load_pocket() + 1e-9 > self.cage_pocket()
             && self.cage_id() + 1e-9 > self.plate_bore()
             && self.cage_rim() + 1e-9 >= self.wall() * 2.0
-            && self.bead_d() + 1e-9 > self.inner_race_d()
+            && self.assemble_ok()
             && self.lock_flat_x() + 1e-9 < self.inner_race_d() * 0.5
             && self.race_id() + 1e-9 > self.base_boss_d()
             && self.race_id() + 1e-9 < self.axle_flange_d()
@@ -429,10 +462,10 @@ impl Spec {
             && (self.cage_z() - self.race_z()).abs() < 1e-9
             && (self.plate_z() - (self.race_z() + self.pack_h() + self.thrust_float)).abs() < 1e-9
             && (self.hub_z() - self.plate_z()).abs() < 1e-9
-            && (self.shoulder_z() - (self.plate_z() + self.hub_deck_h() + self.thrust_float))
+            && (self.groove_z() - (self.plate_z() + self.hub_deck_h() + self.thrust_float))
                 .abs()
                 < 1e-9
-            && (self.retainer_z() - (self.shoulder_z() + self.shoulder_h())).abs() < 1e-9
+            && (self.retainer_z() - self.groove_z()).abs() < 1e-9
             && (self.z_mid() - (self.race_z() + self.pack_h() * 0.5)).abs() < 1e-9
             && self.fence_h() + 1e-9 < self.pack_h()
             && self.bed_relief_h() + 1e-9 < self.hub_deck_h()
@@ -446,7 +479,7 @@ impl Spec {
             && self.base_boss_d() + 1e-9 < self.hub_deck_od()
             && self.pack_outer_r() + 1e-9 >= self.wing_radius() * 0.9
             && self.cage_id() + 1e-9 > self.plate_bore()
-            && self.bead_d() + 1e-9 > self.inner_race_d()
+            && self.assemble_ok()
             && self.race_id() + 1e-9 > self.base_boss_d()
             && self.race_id() + 1e-9 < self.axle_flange_d()
             && self.cage_id() + 1e-9 >= self.race_id()
@@ -990,47 +1023,28 @@ fn build_stator(
         "stator fence",
     )?;
 
-    let shoulder_deck = offset_xy(call, spec.shoulder_z())?;
-    begin_datum(call, shoulder_deck)?;
-    add_circle(call, [0.0, 0.0], spec.shoulder_d())?;
-    let shoulder = finish_sketch(call)?;
+    let groove_deck = offset_xy(call, spec.groove_z())?;
+    begin_datum(call, groove_deck.clone())?;
+    add_circle(call, [0.0, 0.0], spec.journal_d() + 4.0)?;
+    add_circle(call, [0.0, 0.0], spec.groove_d())?;
+    let groove = finish_sketch(call)?;
     require_clean(
         call(
             "solid_extrude",
             json!({
-                "sketch_name": shoulder,
+                "sketch_name": groove,
                 "profile_indices": [0],
-                "operation": "join",
-                "extent": { "type": "distance", "distance": spec.shoulder_h() },
+                "operation": "cut",
+                "extent": { "type": "distance", "distance": spec.groove_h() },
                 "taper_angle_deg": 0.0,
                 "flip": false,
                 "target_body_ids": [stator_id]
             }),
         )?,
-        "stator shoulder",
-    )?;
-    let bead_deck = offset_xy(call, spec.bead_z())?;
-    begin_datum(call, bead_deck)?;
-    add_circle(call, [0.0, 0.0], spec.bead_d())?;
-    let bead = finish_sketch(call)?;
-    require_clean(
-        call(
-            "solid_extrude",
-            json!({
-                "sketch_name": bead,
-                "profile_indices": [0],
-                "operation": "join",
-                "extent": { "type": "distance", "distance": spec.bead_h() },
-                "taper_angle_deg": 0.0,
-                "flip": false,
-                "target_body_ids": [stator_id]
-            }),
-        )?,
-        "stator snap bead",
+        "stator snap groove",
     )?;
 
-    let neck_deck = offset_xy(call, spec.retainer_z())?;
-    begin_datum(call, neck_deck)?;
+    begin_datum(call, groove_deck)?;
     add_oriented_rect(
         call,
         [spec.lock_flat_x() + spec.journal_d(), 0.0],
@@ -1039,7 +1053,7 @@ fn build_stator(
         0.0,
     )?;
     let flat = finish_sketch(call)?;
-    let neck_h = spec.race_z() + spec.journal_h() - spec.retainer_z();
+    let neck_h = spec.groove_h() + spec.tip_h();
     require_clean(
         call(
             "solid_extrude",
@@ -1410,9 +1424,18 @@ fn form_assembly(
             stator_id,
             [0.0, 0.0],
             spec.retainer_z(),
-            spec.shoulder_d() * 0.5,
+            spec.groove_d() * 0.5,
         )
-        .ok_or_else(|| "no on-axis stator shoulder for retainer_sit".to_string())?,
+        .or_else(|| {
+            axis_connector_at(
+                &scene,
+                stator_id,
+                [0.0, 0.0],
+                spec.retainer_z(),
+                spec.journal_d() * 0.5,
+            )
+        })
+        .ok_or_else(|| "no on-axis stator groove for retainer_sit".to_string())?,
         axis_connector_at(
             &scene,
             retainer_id,
@@ -1456,7 +1479,7 @@ fn form_assembly(
     }
     require_linked_solution(call)?;
     Ok(format!(
-        "{defs} linked parts, {joints} joints; one stator; radial-axis pack under the blade roots; top-load fence; clocked C-snap retainer; rollers spin about e_r"
+        "{defs} linked parts, {joints} joints; one stator; radial-axis pack under the blade roots; top-load fence; clocked C-clip in a groove; rollers spin about e_r"
     ))
 }
 
@@ -1590,16 +1613,16 @@ fn make_assembly_drawing(
         ),
         (
             [18.0, 48.0],
-            "PRINT  one plate, laid out. Rotor STANDING on the root plate. Rollers STANDING (axis Z), assemble lying (axis radial). Others FLAT. PLA Orange + PLA Glow (rotor).".to_string(),
+            "PRINT  one plate, laid out. Rotor STANDING on the root plate. Rollers STANDING (axis Z), assemble lying (axis radial). Others FLAT. PLA Basic Orange + PLA Glow Green only.".to_string(),
         ),
         (
             [18.0, 58.0],
-            "GDT  one stator (Y-frame + race ring + open fence + journal). Thin flat thrust under the blade roots: stator race ring = lower, plate underside = upper, radial-axis rollers between. Top-load slots, not PIP. Fence sits on the race ring (ID looser than the plate bore). Clocked C-snap retainer sits on the journal shoulder — it does not rub the rotor.".to_string(),
+            "GDT  one stator (Y-frame + race ring + open fence + constant journal). Thin flat thrust under the blade roots. Plate bore > journal pass Ø so the rotor drops on. Clocked C-clip snaps into an undercut groove above the plate — it does not rub the rotor. Pull the C-gap to remove.".to_string(),
         ),
         (
             [18.0, 68.0],
             format!(
-                "BOM  stator (Y-frame + race ring + fence + D-journal) · rotor (root plate+3×{}) · {} radial rollers · clocked C-snap retainer",
+                "BOM  stator (Y-frame + race ring + fence + grooved journal) · rotor (root plate+3×{}) · {} radial rollers · clocked C-clip",
                 spec.airfoil, spec.roller_count
             ),
         ),
@@ -1942,8 +1965,8 @@ fn grade(
     push_lesson(
         &mut lessons,
         "no_press",
-        spec.fit_friction_mm > 0.0 && spec.fit_friction_mm < spec.nozzle_mm,
-        "no press: clocked C-snap retainer; plate bore is running; retainer does not rub the rotor".to_string(),
+        spec.fit_friction_mm > 0.0 && spec.fit_friction_mm < spec.nozzle_mm && spec.assemble_ok(),
+        "no press: plate drops over a constant journal; clocked C-clip snaps into a groove; pull to remove; retainer does not rub the rotor".to_string(),
     );
     push_lesson(
         &mut lessons,
@@ -2645,7 +2668,9 @@ mod spec_tests {
         assert!((spec.roller_axis(0)[0] - 1.0).abs() < 1e-9);
         assert!(spec.roller_axis(0)[2].abs() < 1e-9);
         assert!(spec.pack_outer_r() + 1e-6 >= spec.wing_radius() * 0.9);
-        assert!(spec.bead_d() + 1e-9 > spec.inner_race_d());
+        assert!(spec.assemble_ok());
+        assert!(spec.pass_d() + 1e-9 < spec.plate_bore());
+        assert!(spec.groove_d() + 1e-9 < spec.pass_d());
         assert!(spec.lock_flat_x() + 1e-9 < spec.inner_race_d() * 0.5);
         assert!((spec.plate_z() - spec.hub_z()).abs() < 1e-9);
         assert!((spec.blade_root_z() - (spec.plate_z() + spec.hub_deck_h())).abs() < 1e-9);
@@ -2653,6 +2678,6 @@ mod spec_tests {
         assert!(
             (spec.plate_z() - (spec.cage_z() + spec.pack_h() + spec.thrust_float)).abs() < 1e-9
         );
-        assert!((spec.retainer_z() - (spec.shoulder_z() + spec.shoulder_h())).abs() < 1e-9);
+        assert!((spec.retainer_z() - spec.groove_z()).abs() < 1e-9);
     }
 }

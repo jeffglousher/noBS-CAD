@@ -343,9 +343,11 @@ if (
   !tutorSrc.includes('function fenceH') ||
   !tutorSrc.includes('function raceId') ||
   !tutorSrc.includes('stator race ring') ||
+  !tutorSrc.includes('function assembleOk') ||
+  !tutorSrc.includes('stator snap groove') ||
   !tutorSrc.includes('createStableJoint')
 ) {
-  fail('print-kit Node exam must merge the stator (Y-frame + race ring + top-load fence)');
+  fail('print-kit Node exam must merge the stator (Y-frame + race ring + top-load fence + assemble-able journal)');
 }
 if (tutorSrc.includes('axle_sit') || tutorSrc.includes('cage_spin')) {
   fail('print-kit Node exam must not keep a separate axle puck or spinning cage');
@@ -423,9 +425,11 @@ if (
   !rustTutor.includes('fn fence_h') ||
   !rustTutor.includes('fn race_id') ||
   !rustTutor.includes('stator race ring') ||
+  !rustTutor.includes('fn assemble_ok') ||
+  !rustTutor.includes('stator snap groove') ||
   !rustTutor.includes('create_stable_joint')
 ) {
-  fail('print-kit cargo exam must merge the stator (Y-frame + race ring + top-load fence)');
+  fail('print-kit cargo exam must merge the stator (Y-frame + race ring + top-load fence + assemble-able journal)');
 }
 if (rustTutor.includes('axle_sit') || rustTutor.includes('cage_spin')) {
   fail('print-kit cargo exam must not keep a separate axle puck or spinning cage');
@@ -508,6 +512,12 @@ if (!/under the blade roots/i.test(printKitPrompt)) {
 }
 if (!/inboard pack/i.test(printKitPrompt)) {
   fail('model_print_kit prompt must reject an inboard pack / cage-as-journal');
+}
+if (!/hourglass|constant pass/i.test(printKitPrompt)) {
+  fail('model_print_kit prompt must reject an hourglass journal the plate cannot pass');
+}
+if (!/PLA Basic Orange/i.test(printKitPrompt) || !/PLA Glow Green/i.test(printKitPrompt)) {
+  fail('model_print_kit prompt must name only PLA Basic Orange and PLA Glow Green');
 }
 if (spec.roller_h > 12) {
   fail('print-kit tutor spec roller_h must not be reused as a 70 mm drum height');

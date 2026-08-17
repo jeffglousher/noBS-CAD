@@ -370,16 +370,31 @@ function fenceH() {
   return Math.max(packH() * 0.62, wall() * 2);
 }
 function shoulderH() {
-  return mmMin(3, 1.2);
+  return 0;
 }
 function shoulderD() {
-  return Math.min(innerRaceD() + 4, retainerOd() - 1);
+  return journalD();
 }
 function beadH() {
-  return mmMin(2.4, 1.2);
+  return tipH();
 }
 function beadD() {
-  return innerRaceD() + spec.nozzle_mm * 2;
+  return passD();
+}
+function grooveDepth() {
+  return spec.nozzle_mm * 2;
+}
+function grooveD() {
+  return journalD() - 2 * grooveDepth();
+}
+function grooveH() {
+  return retainerH() + spec.thrust_float;
+}
+function tipH() {
+  return wall();
+}
+function passD() {
+  return journalD();
 }
 function lockFlatX() {
   return innerRaceD() * 0.22;
@@ -391,13 +406,13 @@ function journalD() {
   return innerRaceD();
 }
 function retainerDHole() {
-  return journalD() + spec.fit_slip_mm;
+  return grooveD() + spec.fit_slip_mm;
 }
 function retainerFlatX() {
   return lockFlatX() + spec.fit_slip_mm * 0.5;
 }
 function journalH() {
-  return beadZ() + beadH() + wall() - raceZ();
+  return grooveZ() + grooveH() + tipH() - raceZ();
 }
 function cageRim() {
   return wall() * 2;
@@ -468,10 +483,13 @@ function cageZ() {
   return raceZ();
 }
 function shoulderZ() {
+  return grooveZ();
+}
+function grooveZ() {
   return plateZ() + hubDeckH() + spec.thrust_float;
 }
 function beadZ() {
-  return retainerZ() + retainerH();
+  return grooveZ() + grooveH();
 }
 function zMid() {
   return cageZ() + packH() * 0.5;
@@ -480,7 +498,22 @@ function hubZ() {
   return plateZ();
 }
 function retainerZ() {
-  return shoulderZ() + shoulderH();
+  return grooveZ();
+}
+function assembleOk() {
+  return (
+    passD() + 1e-9 < plateBore() &&
+    Math.abs(passD() - journalD()) < 1e-9 &&
+    Math.abs(beadD() - passD()) < 1e-9 &&
+    Math.abs(shoulderD() - passD()) < 1e-9 &&
+    grooveD() + 1e-9 < passD() &&
+    retainerDHole() + 1e-9 < passD() &&
+    retainerDHole() + 1e-9 >= grooveD() &&
+    snapGap() + 1e-9 >= passD() - retainerDHole() &&
+    grooveZ() + 1e-9 >= plateZ() + hubDeckH() &&
+    Math.abs(retainerZ() - grooveZ()) < 1e-9 &&
+    grooveH() + 1e-9 >= retainerH()
+  );
 }
 function postH() {
   return retainerZ() + retainerH() + spec.thrust_float;
@@ -556,7 +589,7 @@ function rollersOk() {
     topLoadPocket() + 1e-9 > cagePocket() &&
     cageId() + 1e-9 > plateBore() &&
     cageRim() + 1e-9 >= wall() * 2 &&
-    beadD() + 1e-9 > innerRaceD() &&
+    assembleOk() &&
     lockFlatX() + 1e-9 < innerRaceD() * 0.5 &&
     raceId() + 1e-9 > baseBossD() &&
     raceId() + 1e-9 < axleFlangeD() &&
@@ -590,8 +623,8 @@ function stackOk() {
     Math.abs(cageZ() - raceZ()) < 1e-9 &&
     Math.abs(plateZ() - (raceZ() + packH() + spec.thrust_float)) < 1e-9 &&
     Math.abs(hubZ() - plateZ()) < 1e-9 &&
-    Math.abs(shoulderZ() - (plateZ() + hubDeckH() + spec.thrust_float)) < 1e-9 &&
-    Math.abs(retainerZ() - (shoulderZ() + shoulderH())) < 1e-9 &&
+    Math.abs(grooveZ() - (plateZ() + hubDeckH() + spec.thrust_float)) < 1e-9 &&
+    Math.abs(retainerZ() - grooveZ()) < 1e-9 &&
     Math.abs(zMid() - (raceZ() + packH() * 0.5)) < 1e-9 &&
     fenceH() + 1e-9 < packH() &&
     bedReliefH() + 1e-9 < hubDeckH() &&
@@ -605,7 +638,7 @@ function stackOk() {
     baseBossD() + 1e-9 < hubDeckOd() &&
     packOuterR() + 1e-9 >= wingRadius() * 0.9 &&
     cageId() + 1e-9 > plateBore() &&
-    beadD() + 1e-9 > innerRaceD() &&
+    assembleOk() &&
     raceId() + 1e-9 > baseBossD() &&
     raceId() + 1e-9 < axleFlangeD() &&
     cageId() + 1e-9 >= raceId() &&
@@ -910,37 +943,24 @@ async function buildStator() {
     }),
     "stator fence",
   );
-  await beginDatum(await offsetXY(shoulderZ()));
-  await addCircle(0, 0, shoulderD());
+  const grooveDeck = await offsetXY(grooveZ());
+  await beginDatum(grooveDeck);
+  await addCircle(0, 0, journalD() + 4);
+  await addCircle(0, 0, grooveD());
   sketch = await finishSketch();
   requireClean(
     await call("solid_extrude", {
       sketch_name: sketch,
       profile_indices: [0],
-      operation: "join",
-      extent: { type: "distance", distance: shoulderH() },
+      operation: "cut",
+      extent: { type: "distance", distance: grooveH() },
       taper_angle_deg: 0,
       flip: false,
       target_body_ids: [statorId],
     }),
-    "stator shoulder",
+    "stator snap groove",
   );
-  await beginDatum(await offsetXY(beadZ()));
-  await addCircle(0, 0, beadD());
-  sketch = await finishSketch();
-  requireClean(
-    await call("solid_extrude", {
-      sketch_name: sketch,
-      profile_indices: [0],
-      operation: "join",
-      extent: { type: "distance", distance: beadH() },
-      taper_angle_deg: 0,
-      flip: false,
-      target_body_ids: [statorId],
-    }),
-    "stator snap bead",
-  );
-  await beginDatum(await offsetXY(retainerZ()));
+  await beginDatum(grooveDeck);
   await addOrientedRect([lockFlatX() + journalD(), 0], journalD() * 2, journalD() * 2, 0);
   sketch = await finishSketch();
   requireClean(
@@ -948,7 +968,7 @@ async function buildStator() {
       sketch_name: sketch,
       profile_indices: [0],
       operation: "cut",
-      extent: { type: "distance", distance: raceZ() + journalH() - retainerZ() },
+      extent: { type: "distance", distance: grooveH() + tipH() },
       taper_angle_deg: 0,
       flip: false,
       target_body_ids: [statorId],
@@ -1389,8 +1409,9 @@ async function formAssembly(ids) {
     "retainer_sit",
     "rigid",
     need(
-      axisConnectorAt(scene, ids.statorId, [0, 0], retainerZ(), shoulderD() * 0.5),
-      "no on-axis stator shoulder for retainer_sit",
+      axisConnectorAt(scene, ids.statorId, [0, 0], retainerZ(), grooveD() * 0.5) ??
+        axisConnectorAt(scene, ids.statorId, [0, 0], retainerZ(), journalD() * 0.5),
+      "no on-axis stator groove for retainer_sit",
     ),
     need(
       axisConnectorAt(scene, ids.retainerId, [0, 0], retainerZ(), retainerOd() * 0.5),
@@ -1545,15 +1566,15 @@ async function makeAssemblyDrawing() {
     ],
     [
       [18, 48],
-      "PRINT  one plate, laid out. Rotor STANDING on the root plate. Rollers STANDING (axis Z), assemble lying (axis radial). Others FLAT. PLA Orange + PLA Glow (rotor).",
+      "PRINT  one plate, laid out. Rotor STANDING on the root plate. Rollers STANDING (axis Z), assemble lying (axis radial). Others FLAT. PLA Basic Orange + PLA Glow Green only.",
     ],
     [
       [18, 58],
-      "GDT  one stator (Y-frame + race ring + open fence + journal). Thin flat thrust under the blade roots: stator race ring = lower, plate underside = upper, radial-axis rollers between. Top-load slots, not PIP. Fence sits on the race ring (ID looser than the plate bore). Clocked C-snap retainer sits on the journal shoulder — it does not rub the rotor.",
+      "GDT  one stator (Y-frame + race ring + open fence + constant journal). Thin flat thrust under the blade roots. Plate bore > journal pass Ø so the rotor drops on. Clocked C-clip snaps into an undercut groove above the plate — it does not rub the rotor. Pull the C-gap to remove.",
     ],
     [
       [18, 68],
-      `BOM  stator (Y-frame + race ring + fence + D-journal) · rotor (root plate+3×${spec.airfoil}) · ${spec.roller_count} radial rollers · clocked C-snap retainer`,
+      `BOM  stator (Y-frame + race ring + fence + grooved journal) · rotor (root plate+3×${spec.airfoil}) · ${spec.roller_count} radial rollers · clocked C-clip`,
     ],
     [
       [18, 78],
@@ -1598,6 +1619,7 @@ function writeDesignReport({ bodies, rotorBox, rotorFaces, plateFiles }) {
     ["Inboard pack / cage as journal", "PCD at 58% of the plate left the blade roots cantilevered on 5 mm PLA. Cage ID tighter than the plate bore stole the radial land. Boss tracked the race OD and reprinted a solid orange cylinder. Pack belongs under the blade roots; cage is a spacer; boss only seats the axle."],
     ["Separate axle disk + cage disk", "Two flats that should be one stator. Extra plastic, extra assembly, and a rubbing washer. Merge Y-frame + race + open fence + journal. Top-load the rollers. Clocked C-snap retainer sits on the journal shoulder, not on the rotor."],
     ["Cookie race under the Y-frame", "One Ø74 disk under the rollers reprinted the plastic the merge was supposed to drop. Race is a ring where rollers contact. Fence sits on that ring. Y-frame stays open."],
+    ["Hourglass journal", "Fat shoulder + snap bead above a thinner neck. The plate bore cannot pass the fat top, so the rotor will not drop on. Journal stays a constant pass Ø. C-clip snaps into an undercut groove. Pull the C-gap to remove."],
   ];
   const usd = estimatedFilamentUsd().toFixed(2);
   const markdown = `# Print Kit Tutor — design report
@@ -1615,12 +1637,12 @@ ${iterations.map(([name, why]) => `| ${name} | ${why} |`).join("\n")}
 - **Architecture:** Helical H-Darrieus, directionless (no yaw). One printed stator (Y-frame + race ring + open fence + journal). Thin flat thrust under the plate (large PCD) so the tall blades rotate about Z. No tall mast. No tall drum. No cookie disk. No separate axle puck + cage disk.
 - **Airfoil:** ${spec.airfoil} (t/c ${spec.airfoil_t_c}). 2026 VAWT dynamic-stall work favors t/c 21–24%. TE blunt to ${teMin()} mm (≥ 2 nozzles). Open drafted tips.
 - **Rotor:** one piece — root plate out to the blades (Ø${hubDeckOd().toFixed(1)}), underside is the upper thrust race, plus ${spec.wing_count} helical NACAs lofted from that plate (flat sit-plane cut, chord drafts toward the tip). c=${chordRoot().toFixed(1)}/${chordTip().toFixed(1)} mm, R=${wingRadius().toFixed(1)} mm, span=${wingH().toFixed(1)} mm, helix ${spec.helix_deg}°, σ=${solidity().toFixed(3)}. Envelope/rotor ${(baseEnvelope() / rotorD()).toFixed(2)}.
-- **Fits:** assembled running +${spec.fit_running_mm} (rollers on races). Top-load slots are running + two nozzles so rollers drop in from above without support. Same-plate PIP +${spec.fit_pip_mm} is the class; this kit does not PIP the rollers (lying OD would be layers). Clocked C-snap retainer: D-hole + C-gap, slip on the journal neck, sits on the shoulder 0.20 above the plate — it is not a running face. Slicer XY hole compensation stays 0. Plate **sits** 0.20 above the roller pack. Fence height is below pack height so rollers touch both races.
+- **Fits:** assembled running +${spec.fit_running_mm} (rollers on races). Top-load slots are running + two nozzles so rollers drop in from above without support. Same-plate PIP +${spec.fit_pip_mm} is the class; this kit does not PIP the rollers (lying OD would be layers). Journal pass Ø is smaller than the plate bore so the rotor drops on. Clocked C-clip: D-hole + C-gap, snaps into an undercut groove 0.20 above the plate — it is not a running face. Pull the C-gap to remove. Slicer XY hole compensation stays 0. Plate **sits** 0.20 above the roller pack. Fence height is below pack height so rollers touch both races.
 - **Loads:** weight/thrust on the stator race (lower) and the plate underside (upper). Overturning is a couple across the pack **under the blade roots**. The plate bore (running) is the radial land; the fence ID is looser (spacer). Torque about Z stays in the rotor. Centrifugal blade load is taken by the one-piece plate.
 - **Friction:** only rolling contacts on the turbine (rollers ↔ races). Plate bore is running, not friction. Fence does not rub the journal. Retainer never rubs the rotor. PLA-on-PLA is a demo; service dry PTFE on the races.
-- **Links:** grounded stator; revolute rotor_spin about Z; each roller revolute about its radial axis; rigid retainer_sit on the journal shoulder. assembly_solution must stay solved without yanking parts off-axis.
+- **Links:** grounded stator; revolute rotor_spin about Z; each roller revolute about its radial axis; rigid retainer_sit in the journal groove. assembly_solution must stay solved without yanking parts off-axis.
 - **Materials:** ${plaOrange} (stator, rollers, retainer) and ${plaGlow} (rotor). Hardened nozzle for glow. AMS lite is not recommended for glow.
-- **Thrust pack:** ${spec.roller_count}× Ø${rollerD().toFixed(1)}×L${rollerLen().toFixed(1)} radial-axis rollers on PCD ${pcd().toFixed(1)} (outer land r=${packOuterR().toFixed(1)}, blade R=${wingRadius().toFixed(1)}) between stator race Ø${axleFlangeD().toFixed(1)} and plate Ø${hubDeckOd().toFixed(1)}. Pack height = roller Ø. Fence ID ${cageId().toFixed(1)} > plate bore ${plateBore().toFixed(1)}. Short journal Ø${innerRaceD().toFixed(1)}×h${raceH().toFixed(1)} centers the plate. Drop rollers into the top-load slots, then the rotor, then snap the retainer. Not a pickup cartridge. Not a tall drum. Not standing-Z pucks.
+- **Thrust pack:** ${spec.roller_count}× Ø${rollerD().toFixed(1)}×L${rollerLen().toFixed(1)} radial-axis rollers on PCD ${pcd().toFixed(1)} (outer land r=${packOuterR().toFixed(1)}, blade R=${wingRadius().toFixed(1)}) between stator race Ø${axleFlangeD().toFixed(1)} and plate Ø${hubDeckOd().toFixed(1)}. Pack height = roller Ø. Fence ID ${cageId().toFixed(1)} > plate bore ${plateBore().toFixed(1)}. Constant journal Ø${innerRaceD().toFixed(1)}×h${raceH().toFixed(1)} (pass Ø ${passD().toFixed(1)} < plate bore ${plateBore().toFixed(1)}). Drop rollers into the top-load slots, drop the rotor over the journal, then snap the C-clip into the groove. Not a pickup cartridge. Not a tall drum. Not standing-Z pucks.
 - **Scale:** source numbers are X2D-max (256×256×260, 8 mm margin). Exam scale ${spec.scale}. Feature floors: roller Ø${spec.roller_min_d}, TE ${spec.airfoil_te_min_mm}, 4-nozzle walls.
 - **Service finish:** rotor standing so layer lines run spanwise; sand PLA 400→1000 on skins. Do not vapor-smooth a running fit.
 - **Assembly drawing:** A3 sheet, auto-layout, notes for fits / scale / print / BOM.
@@ -1631,10 +1653,10 @@ Three printed families, assembly order: ${spec.assembly_order.join(" → ")} (ro
 
 | Part | Count | Role |
 |------|------:|------|
-| Stator | 1 | Y-frame + race ring + open top-load fence + D-journal + snap bead. Print flat. |
+| Stator | 1 | Y-frame + race ring + open top-load fence + constant journal + snap groove. Print flat. |
 | Rotor | 1 | Root plate (upper thrust race) + 3× ${spec.airfoil} ending on the sit plane. Print standing. |
 | Rollers | ${spec.roller_count} | Radial-axis cylinders. Print standing; drop in from above. |
-| Retainer | 1 | Clocked C-snap (D-hole + C-gap). Sits on the journal shoulder, not on the rotor. |
+| Retainer | 1 | Clocked C-clip (D-hole + C-gap). Snaps into the journal groove, not onto the rotor. |
 
 Rotor bbox (exam): ${rotorBox ? `${rotorBox.span.map((n) => n.toFixed(1)).join(" × ")} mm` : "n/a"}; faces=${rotorFaces}. Bodies=${bodies.length}.
 
@@ -1652,7 +1674,7 @@ Print plate in \`${out3mfDir}\` (folder wiped first; parts laid out on one plate
 
 ${plateFiles.map((file) => `- \`${file}\``).join("\n")}
 
-Slicer: one plate, two materials (PLA Orange + PLA Glow). Stator/retainer flat. Rotor standing on the root plate, tips up. Rollers standing.
+Slicer: one plate, two materials only (PLA Basic Orange + PLA Glow Green). Stator/retainer/rollers orange. Rotor glow green. Stator/retainer flat. Rotor standing on the root plate, tips up. Rollers standing.
 
 Project: \`${outProject}\`
 
@@ -1753,7 +1775,7 @@ try {
   try {
     await formAssembly({ statorId, rotorId, rollerIds, retainerId });
     assemblyOk = true;
-    assemblyDetail = `${assemblyComponentCount()} linked parts, ≥${assemblyJointCount()} joints; one stator; radial-axis pack under the blade roots; top-load fence; clocked C-snap retainer; rollers spin about e_r`;
+    assemblyDetail = `${assemblyComponentCount()} linked parts, ≥${assemblyJointCount()} joints; one stator; radial-axis pack under the blade roots; top-load fence; clocked C-clip in a groove; rollers spin about e_r`;
   } catch (error) {
     assemblyDetail = String(error?.message ?? error);
   }
@@ -1851,8 +1873,8 @@ try {
   record(
     report.lessons,
     "no_press",
-    spec.fit_friction_mm > 0 && spec.fit_friction_mm < spec.nozzle_mm,
-    "no press: clocked C-snap retainer; plate bore is running; retainer does not rub the rotor",
+    spec.fit_friction_mm > 0 && spec.fit_friction_mm < spec.nozzle_mm && assembleOk(),
+    "no press: plate drops over a constant journal; clocked C-clip snaps into a groove; pull to remove; retainer does not rub the rotor",
   );
   record(
     report.lessons,

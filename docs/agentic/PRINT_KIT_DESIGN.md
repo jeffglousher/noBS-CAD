@@ -21,7 +21,7 @@ fence, or whose only bearing is a short two-land sleeve, is also a
 | Section | NACA 0021, TE ≥ 0.8 mm, root chord > tip | 2026 thick-symmetric band; drafted standing print |
 | Rotor | One body: root plate out to the blades (underside = upper thrust race), 3 helical blades ending on that plate. X2D-max R=85, span=220, scale 0.4 in the exam | Always some blade working; no tenons; no mid-air roots; no skinny-arm hangers |
 | Stand | One stator: Y-frame + race **ring** + open top-load fence + short journal | Envelope/rotor ≤ 1.55; no cookie disk; no tall mast; no separate axle disk |
-| Bearing | **Thin flat thrust** under the **blade roots**: 6× printed **radial-axis** rollers, min Ø8, pack height = Ø, large PCD. Top-load slots, not PIP. Fence ID looser than the plate bore. Plate ≥5 mm. Clocked C-snap retainer | Rotation about Z plus overturning as a couple under the roots. Not a 608. Not standing-Z pucks. Not an inboard cracker. Not a two-land sleeve. Not a loose bushing. Not a washer stack. Not a tall drum. Not two flats |
+| Bearing | **Thin flat thrust** under the **blade roots**: 6× printed **radial-axis** rollers, min Ø8, pack height = Ø, large PCD. Top-load slots, not PIP. Fence ID looser than the plate bore. Plate ≥5 mm. Constant journal the plate can drop over. Clocked C-clip in a groove | Rotation about Z plus overturning as a couple under the roots. Not a 608. Not standing-Z pucks. Not an inboard cracker. Not a two-land sleeve. Not a loose bushing. Not a washer stack. Not a tall drum. Not two flats. Not an hourglass journal |
 | Fits | running +0.40 / PIP +0.80 / slip +0.28 / friction +0.16 | Role-based **and** same-plate vs assembled. 0.80 mm bed lead-in. Slicer XY hole comp = 0 |
 | Envelope | scale 1.0 fits Bambu Lab X2D 256×256×260 with 8 mm margin | `spec.scale` is the source parameter |
 
@@ -42,8 +42,9 @@ rolling under −Z. A 28 mm orange tower with webs climbing the wall is a
 tall system we do not need. The stator and retainer print flat. Rollers
 print **standing** and drop into top-load slots (axis radial). The rotor
 stands on that plate. Blade roots are XY airfoils through the plate, not
-rectangular arms. The retainer is a clocked C-snap on the journal
-shoulder — it does not rub the rotor.
+rectangular arms. The retainer is a clocked C-clip in a journal
+groove — the plate drops over a constant journal, then the clip snaps
+on and pulls off. It does not rub the rotor.
 
 ## Why this page exists
 
@@ -102,7 +103,7 @@ cannot take the moment at the blade tips.
 | Thrust | Stator race (lower) ↔ thin rollers ↔ plate underside (upper), 0.20 float each land | Flat land, not a lifted cone, not a tall drum |
 | Overturning | Same pack, large PCD **under the blade roots** | Couple across the disk. Width, not height. An inboard PCD leaves the plate as a cracker |
 | Stator | One body: Y-frame + race ring + open fence + journal | Print-flat; plate freewheels on the short journal |
-| Retain | Clocked C-snap on the journal shoulder | Removable; does not rub the rotor |
+| Retain | Clocked C-clip in a journal groove | Plate drops on; clip snaps on and pulls off; does not rub the rotor |
 
 PLA-on-PLA is a demo spin. Say so. No glue-as-fit.
 

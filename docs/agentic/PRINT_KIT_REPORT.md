@@ -27,6 +27,7 @@ Contract: [PRINT_KIT_DESIGN.md](PRINT_KIT_DESIGN.md).
 | Tall skinny shaft + two-land sleeve | Cannot take blade-tip moment and needs a support tower. Short post + large-PCD thin thrust. |
 | Separate axle disk + cage disk | Two flats that should be one stator. Extra plastic and a rubbing washer. Merge Y-frame + race + open fence + journal. Top-load rollers. Clocked C-snap on the journal shoulder. |
 | Cookie race under the Y-frame | One Ø74 disk under the rollers reprinted the plastic the merge was supposed to drop. | Race is a ring where rollers contact. Fence sits on that ring. Y-frame stays open. |
+| Hourglass journal | Fat shoulder + bead above a thinner neck. The rotor plate cannot drop on. | Constant pass Ø journal. C-clip snaps into an undercut groove and pulls off. |
 
 ## 2. Design process
 
