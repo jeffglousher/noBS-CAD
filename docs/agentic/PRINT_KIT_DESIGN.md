@@ -3,7 +3,9 @@
 Build contract for pipeline #1. The recipe is `prompts/get model_print_kit`
 (`mcp-server/src/prompts/model_print_kit.md`). Numbers live in
 `scripts/fixtures/print-kit-tutor.spec.json`. Fits and closed faults:
-[PRINT_KIT_GDT.md](PRINT_KIT_GDT.md).
+[PRINT_KIT_GDT.md](PRINT_KIT_GDT.md). Why this section and why it
+takes wind from any heading:
+[PRINT_KIT_AERO.md](PRINT_KIT_AERO.md).
 
 Start from a **blank document** (`cad_new_project`, 0 bodies). Do not
 continue a recovered or older Print Kit Tutor. Hide construction planes
@@ -14,9 +16,9 @@ before save.
 | Group | Number | Why |
 |-------|--------|-----|
 | Section | NACA 0024-4.5/3.5, TE ≥ 0.8 mm, root chord > tip | Low-TSR Tirandaz/Rezaeiha section; drafted standing print |
-| Rotor | One body: root plate out to the blades (underside = upper thrust race), 3 helical blades ending on that plate. X2D-max R=85, span=220, scale 0.4 in the exam | Always some blade working; no tenons; no mid-air roots; no skinny-arm hangers |
+| Rotor | One body: root plate out to the blades (underside = upper thrust race), 3 helical blades ending on that plate. X2D-max R=85, span=236, scale 0.4 in the exam | Always some blade working; no tenons; no mid-air roots; no skinny-arm hangers |
 | Stand | One stator: Y-frame + race **ring** + open top-load fence + short journal | Envelope/rotor ≤ 1.55; no cookie disk; no tall mast; no separate axle disk |
-| Bearing | **Thin flat thrust** under the **blade roots**: 6× printed **radial-axis** rollers, min Ø8, pack height = Ø, large PCD. Top-load slots. **Keeper walls**. Fence ID looser than the plate bore. Thin plate (≥3.2 mm) with **organic airfoil roots**. Constant journal the plate can drop over. Clocked C-clip in a groove | Rotation about Z plus overturning as a couple under the roots |
+| Bearing | **Thin flat thrust** under the **blade roots**: 8× printed **radial-axis** rollers, min Ø8, pack height = Ø, large PCD. Top-load slots. **Keeper walls**. Fence ID looser than the plate bore. Thin plate (≥3.2 mm) with **organic airfoil roots**. Constant journal the plate can drop over. Clocked C-clip in a groove | Rotation about Z plus overturning as a couple under the roots |
 | Fits | running +0.40 / PIP +0.80 / slip +0.28 / friction +0.16 | Role-based **and** same-plate vs assembled. 0.80 mm bed lead-in. Slicer XY hole comp = 0 |
 | Envelope | scale 1.0 fits Bambu Lab X2D 256×256×260 with 8 mm margin | `spec.scale` is the source parameter |
 
