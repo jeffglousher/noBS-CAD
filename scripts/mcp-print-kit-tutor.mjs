@@ -1652,7 +1652,7 @@ try {
   try {
     await formAssembly({ baseId, axleId, rotorId, cageId, rollerIds, retainerId });
     assemblyOk = true;
-    assemblyDetail = `${assemblyComponentCount()} linked parts, ≥${assemblyJointCount()} joints; axle sits on base; thin thrust pack under the plate; rollers spin in the cage`;
+    assemblyDetail = `${assemblyComponentCount()} linked parts, ≥${assemblyJointCount()} joints; axle sits on base; radial-axis thin thrust under the plate; rollers spin about e_r`;
   } catch (error) {
     assemblyDetail = String(error?.message ?? error);
   }
