@@ -32,6 +32,7 @@
     "check:ids": "node scripts/check-nbcad-id.mjs",
     "check:mcp-control": "node scripts/check-mcp-full-control.mjs",
     "test:mcp-print-kit": "node scripts/mcp-print-kit-tutor.mjs",
+    "render:print-kit": "node scripts/run-e2e.mjs render-print-kit.mjs",
     "test:session-bridge": "node scripts/test-session-http-bridge.mjs",
     "audit:icons": "node scripts/audit-icons.mjs",
     "e2e": "node scripts/run-e2e.mjs",

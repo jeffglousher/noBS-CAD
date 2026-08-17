@@ -27,14 +27,14 @@ A five-part **printed VAWT assembly** (spec
 `scripts/fixtures/print-kit-tutor.spec.json`, id `fdm-print-vawt`).
 Linear numbers are the Bambu Lab X2D-max design (256×256×260, 8 mm
 margin). `spec.scale` shrinks the source (exam default **0.4**). Feature
-floors (roller Ø8, TE 0.8, 4-nozzle walls) are clamped.
+floors (roller Ø8 / h28, TE 0.8, 4-nozzle walls, plate 5 mm) are clamped.
 
 | Part | Role | How it mates |
 |------|------|----------------|
 | Base | Y-frame + short square stator post, one piece | Post is the grounded axis. Print flat. |
 | Axle | Flanged inner-race puck, square bore | Friction on the post (+0.16). Print on the flange. |
-| Rotor | Root plate out to the blades, integral cup (thrust floor + outer race), 3 helical **NACA 0021** ending on that plate, **one body**, open drafted tips | Plate bore = inner race + running. Cup ID is the outer race. Print standing on the plate. PLA Glow. |
-| Roller cartridge | Cage + 6 PIP rollers, min Ø8 / h8, large PCD. Cage height = roller height | Running +0.40 on rollers / inner race / cup ID. PIP on the kit plate. |
+| Rotor | Root plate (≥5 mm) out to the blades, integral **drum** (thrust floor + outer race ≥28 mm at exam scale), 3 helical **NACA 0021** ending on that plate, **one body**, open drafted tips | Plate bore = inner race + running. Cup ID is the outer race. Print standing on the plate. PLA Glow. |
+| Roller cartridge | Cage + 6 PIP rollers, min Ø8 / h28, large PCD. Cage height = roller height | Running +0.40 on rollers / inner race / cup ID. PIP on the kit plate. |
 | Retainer | Washer covering the open cup | Slip +0.28 on the post. Floats 0.20 above the cup. |
 
 Fits are **per role** (running / PIP / slip / friction) and per whether

@@ -22,6 +22,7 @@ Contract: [PRINT_KIT_DESIGN.md](PRINT_KIT_DESIGN.md).
 | Overhung blade roots | Loft started mid-hub. First layers of a standing print were air. Root plate is the cup floor; roots on the bed. |
 | Tiny ring + blades from the surface above | Skinny arms, loft from the arm top. Root plate + integral cup; loft from the sit plane. |
 | Loose bushing sandwich | Separate ring, unmatched roller/cage heights, no attach for an overhung load. One-frame cup. |
+| Washer cup / pancake stack | Matching 8 mm flats still read as cylinders on the plate. Cup is a drum (≥28 mm) on a ≥5 mm plate. |
 | Tall skinny shaft + two-land sleeve | Cannot take blade-tip moment and needs a support tower. Short post + large-PCD roller pack. |
 
 ## 2. Design process
@@ -30,7 +31,7 @@ Contract: [PRINT_KIT_DESIGN.md](PRINT_KIT_DESIGN.md).
 - **Airfoil:** NACA 0021 (t/c 0.21). 2026 band is t/c 21–24%. TE blunt to 0.8 mm. Open drafted tips.
 - **Rotor:** one piece — root plate (cup floor) + integral cup + print arms + root stumps + 3 helical NACAs from the plate. N=3, 60° helix, σ in 0.24–0.45. Envelope/rotor ≤ 1.55.
 - **Fits:** assembled running +0.40 (rollers on races), PIP +0.80 (cage pockets), slip +0.28 (retainer), friction +0.16 on a land above a 0.80 mm bed lead-in. Cage height matches roller height. Do not nest the cup around the PIP rollers. Slicer XY hole compensation stays 0. No press. No 608.
-- **Cup:** integral outer race on the rotor. PIP roller cartridge (6× min Ø8 / h8) on a large PCD inside the ID. A two-land sleeve or a loose bushing is not enough for tip moment.
+- **Cup:** integral **drum** on the rotor (land ≥28 mm at exam scale, plate ≥5 mm). PIP roller cartridge (6× min Ø8 / h28) on a large PCD inside the ID. A two-land sleeve, a loose bushing, or an 8 mm washer is not enough for tip moment.
 - **Scale:** X2D-max source; exam scale 0.4. Feature floors clamped.
 - **Service finish:** rotor standing on the deck so layer lines run spanwise; sand PLA 400→1000 on skins.
 - **Assembly drawing:** A3 sheet, auto-layout, notes for fits / scale / print / BOM.

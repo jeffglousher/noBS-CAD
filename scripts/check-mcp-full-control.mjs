@@ -355,6 +355,9 @@ if (!tutorSrc.includes('hubDeckH') || !tutorSrc.includes('bladeRootZ') || !tutor
 if (!tutorSrc.includes('plateZ') || !tutorSrc.includes('cupZ') || !tutorSrc.includes('cupH')) {
   fail('print-kit Node exam must match cup height to the roller land');
 }
+if (!tutorSrc.includes('Math.max(mm(spec.roller_h), 28)')) {
+  fail('print-kit Node exam must size the cup as a drum (≥28 mm), not a washer');
+}
 if (!tutorSrc.includes('solid_move_copy') || !tutorSrc.includes('layoutPrintPlate')) {
   fail('print-kit Node exam must lay the kit out on one plate before export');
 }
@@ -389,12 +392,18 @@ if (!rustTutor.includes('hub_deck_h') || !rustTutor.includes('blade_root_z') || 
 if (!rustTutor.includes('plate_z') || !rustTutor.includes('cup_z') || !rustTutor.includes('cup_h')) {
   fail('print-kit cargo exam must match cup height to the roller land');
 }
+if (!rustTutor.includes('.max(28.0)')) {
+  fail('print-kit cargo exam must size the cup as a drum (≥28 mm), not a washer');
+}
 if (!rustTutor.includes('solid_move_copy') || !rustTutor.includes('layout_print_plate')) {
   fail('print-kit cargo exam must lay the kit out on one plate before export');
 }
 const printKitPrompt = await read('mcp-server/src/prompts/model_print_kit.md');
 if (!/blank document|0 bodies|recovered/i.test(printKitPrompt)) {
   fail('model_print_kit prompt must start from a blank document');
+}
+if (!/washer cup|pancake/i.test(printKitPrompt) || !/drum/i.test(printKitPrompt)) {
+  fail('model_print_kit prompt must reject a washer cup and require a drum');
 }
 if (!spec.lessons.some((lesson) => lesson.id === 'blank')) {
   fail('print-kit tutor spec must include the blank-document lesson');

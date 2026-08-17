@@ -3,7 +3,7 @@ CAD synthesis tutor — design a fully printed, omnidirectional VAWT *assembly* 
 Spec: scripts/fixtures/print-kit-tutor.spec.json (id fdm-print-vawt).
 Contract: docs/agentic/PRINT_KIT_DESIGN.md.
 Rerun: npm run test:mcp-print-kit.
-Printer: Bambu Lab X2D (256×256×260, 8 mm margin). `spec.scale` shrinks the X2D-max source (exam default 0.4). Clamp rollers ≥ Ø8 / h8, TE ≥ 0.8, walls ≥ 4 nozzles.
+Printer: Bambu Lab X2D (256×256×260, 8 mm margin). `spec.scale` shrinks the X2D-max source (exam default 0.4). Clamp rollers ≥ Ø8 / h28, TE ≥ 0.8, walls ≥ 4 nozzles. The cup is a **drum** (land ≥28 mm at exam scale, 70 mm at scale 1.0) on a ≥5 mm plate — not a washer.
 
 Nozzle = {nozzle} mm. Fits are **per role**, not one clearance for every hole:
 
@@ -12,7 +12,7 @@ Nozzle = {nozzle} mm. Fits are **per role**, not one clearance for every hole:
 - slip (retainer on the post): +0.28 mm
 - friction locate (axle on the square post only): +0.16 mm on a land **above** a 0.80 mm bed lead-in
 
-No FDM press fits. Slicer XY hole compensation stays 0. Thrust is a flat land with 0.20 mm float at **every** running land (flange↔plate, rollers↔cup floor, cup↔retainer). The rotor **is** the housing: plate = thrust floor, cup ID = outer race, blades grow from that plate. Cage height **matches** roller height. The retainer is a washer that covers the open cup (OD between cup ID and cup OD), not a cap through the plate. Every bed-printed functional hole gets a 2-nozzle elephant-foot lead-in. Do **not** print the cup around the PIP rollers on the plate.
+No FDM press fits. Slicer XY hole compensation stays 0. Thrust is a flat land with 0.20 mm float at **every** running land (flange↔plate, rollers↔cup floor, cup↔retainer). The rotor **is** the housing: a **thick plate** (thrust floor) plus a **tall cup** (outer race) you can see from a 3/4 view, blades growing from that plate. Matching more 8 mm flats is still a pancake stack. Cage height **matches** roller height. The retainer is a washer that covers the open cup (OD between cup ID and cup OD), not a cap through the plate. Every bed-printed functional hole gets a 2-nozzle elephant-foot lead-in. Do **not** print the cup around the PIP rollers on the plate.
 
 This prompt is adversarial. A kit that spins in the grader and fails as a turbine is a FAIL. Read the reject list before you sketch.
 
@@ -25,6 +25,7 @@ Do not ship any of these. They have already been built. They are not turbines.
 - A tall skinny shaft or sleeve that needs a tower of support
 - A short **two-land** sleeve as the only bearing — that cannot take blade-tip moment. Print a large-PCD roller pack
 - A **loose bushing sandwich**: separate outer-race ring, postage-stamp flange, unmatched roller / cage / race heights, and no meaningful attach. For a heavy overhung load, thrust + roller live in **one frame** at the **correct matching dimensions**. Do not invent metal 608s to paper over that
+- A **washer cup** / postage-stamp land sold as a housing. Matching 8 mm flats to 8 mm rollers still reads as pancakes stacked on the plate. The cup is a **drum** (≥28 mm at exam scale) on a ≥5 mm plate. Look at the solid — do not grade numbers and ship another stack of flats
 - Assembled spinner whose rotor collides with the stand
 - Leftover helical C-loft buckets
 - Concentric ring sector / hoop / “scoop” whose concave face points at the axis (no net torque)
@@ -81,7 +82,7 @@ Five **individual** functional parts, then an **assembly** (components + occurre
 | Base | **Y-frame** + short square stator post. One piece. No cookie. | Flat |
 | Axle | Flanged inner-race **puck**, square bore (friction on the post). Never a tall skinny shaft | On the flange |
 | Rotor | **Root plate** out to the blades, **integral cup** (thrust floor + outer race), 3 helical drafted **NACA 0021** ending on that plate, **one body**, open tips. Plate bore = inner race + running | Standing on the plate |
-| Roller cartridge | Cage + ≥6 PIP rollers, min Ø8 / h8, large PCD **inside the cup ID**. Cage height = roller height | Flat, PIP on the kit plate |
+| Roller cartridge | Cage + ≥6 PIP rollers, min Ø8 / **h28**, large PCD **inside the cup ID**. Cage height = roller height. The cup they sit in is a drum, not a washer | Flat, PIP on the kit plate |
 | Retainer | Washer covering the open cup, slip on the post | Flat |
 
 Girth gates: envelope/rotor D ≤ 1.55; span/chord ≥ 2.5; solidity 0.24–0.45. Scale 1.0 must fit the X2D usable bed (240×240×244).
@@ -102,11 +103,11 @@ Specify, in the report, all of:
 
 ## Rotation — printed roller pack in one cup, not a 608
 
-The bearing is a **printed roller cartridge** (PIP rollers in a cage) inside a **rotor cup** at a large pitch circle so it can take the moment at the blade tips. Thrust on the axle flange land (0.20 float under the plate) **and** on the cup floor under the rollers. No metal 608, no 623, no tall two-land sleeve as the only bearing. No loose bushing the blades cannot attach to.
+The bearing is a **printed roller cartridge** (PIP rollers in a cage) inside a **rotor cup** at a large pitch circle so it can take the moment at the blade tips. The cup is a **drum you can see** — not another ring of flats. Thrust on the axle flange land (0.20 float under the plate) **and** on the cup floor under the rollers. No metal 608, no 623, no tall two-land sleeve as the only bearing. No loose bushing the blades cannot attach to.
 
 - Inner race: cylindrical OD on the axle puck (printed separately)
-- Outer race: **cup ID** (integral to the rotor), height = roller height + 0.20 float
-- Cup floor / root plate: thrust land the rollers sit on; blades grow from this plate
+- Outer race: **cup ID** (integral to the rotor), height = roller height + 0.20 float, **≥28 mm at exam scale**
+- Cup floor / root plate: **≥5 mm** thrust land the rollers sit on; blades grow from this plate
 - Cage + rollers are the **PIP cluster** (pockets +0.80). Cage height **equals** roller height. The cage is a spacer; axial capture is the axle flange + retainer
 - Do not PIP the rollers inside the cup. Do not close a top inward lip over the rollers
 - Square post is the **stator** (friction in the axle, slip in the retainer). The rotor does **not** key to the post
@@ -138,12 +139,12 @@ Minimum wall 1.6 mm (4 nozzles). Functional holes are complete XY circles. Disab
 1. prompts/get model_print_kit. cad_list_all_tools. **cad_new_project on a blank document.** `solid_scene` must show **0 bodies** before the first extrude. Do not continue a recovered or older Print Kit Tutor (tan nest, red disc, leftover helix planes). Desktop: File → New, then build — or File → Open the current `Print-Kit-Tutor.nbcad` after this exam writes it. cad_set_document_name Print Kit Tutor
 2. Base **Y-frame** + square stator post. One piece, print flat
 3. Axle: flange + inner-race cylinder, square bore, print on the flange
-4. Rotor: **root plate** (out to the blades) with an **integral cup** on the plate top. Loft three helical **NACA 0021** from the plate top (sit plane), open drafted tips. Do not start the loft from a surface above the plate. The cup **is** the outer race
+4. Rotor: **root plate** (out to the blades, ≥5 mm) with an **integral drum** on the plate top (land ≥28 mm at exam scale). Loft three helical **NACA 0021** from the plate top (sit plane), open drafted tips. Do not start the loft from a surface above the plate. The cup **is** the outer race. If a 3/4 view still looks like pancakes on a plate, the land is too short — start over
 5. Roller cage + PIP rollers on a large PCD **inside the cup**. Cage height = roller height. Retainer washer over the raceway
 6. cad_set_workspace assembly. One `assembly_create_component` per moving body (base, axle, rotor, cage, each roller, retainer — no extra occurrence). Ground the base. Rigid axle_sit + retainer_sit; revolute rotor_spin / cage / rollers on axes (not a spar). cad_set_focus drawing. Sheet + auto-layout + notes
 7. cad_set_focus print. set_body_appearance to **PLA Orange** and **PLA Glow** only. solid_export_preflight. Save the assembled `.nbcad`. **Delete** any prior `Print-Kit-Tutor/` 3MFs (and `Print-Kit-Tutor.3mf`). `solid_move_copy` the parts onto one bed (rotor standing on the root plate, others flat). Then `solid_export_3mf` **once** as `01-kit` with every kit body_id. The folder must contain exactly that file.
 8. `cad_set_project_visibility`: hide every construction plane (`hidden_datum_plane_ids`) and finished loft sketches (`hidden_sketch_names`). The shipped `.nbcad` must read as the five-part kit, not orange datum stacks.
-9. Write the design report. Include role-based fits, scale vs X2D, roller PCD, why the cup is one frame with the blades, and why a loose bushing sandwich fails an overhung load
+9. Write the design report. Include role-based fits, scale vs X2D, roller PCD, why the cup is a drum (not a washer), and why a loose bushing sandwich fails an overhung load
 
 ## Design report (required deliverable)
 

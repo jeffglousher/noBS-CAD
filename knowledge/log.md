@@ -2,9 +2,13 @@
 
 ## 2026-08-16
 
+- **Update**: Print-kit cup is a drum, not a washer. Matching 8 mm
+  flats still read as pancakes on the plate. Roller / cup land floors
+  at ≥28 mm (70 mm at scale 1.0); plate ≥5 mm. Look at the solid in
+  the web UI (`npm run render:print-kit`) before calling it a housing.
 - **Update**: Print-kit bearing is one rotor cup, not a loose bushing
   sandwich. Plate = thrust floor, cup ID = outer race, cage height =
-  roller height (floor Ø8 / h8). `rotor_spin` mates cup ↔ inner race.
+  roller height (floor Ø8 / h28). `rotor_spin` mates cup ↔ inner race.
   11 bodies / 10 joints. Drop rotor, then cartridge, then retainer.
   Unmatched roller/bushing heights with no attach path fail an overhung
   load.

@@ -21,7 +21,7 @@ fence, or whose only bearing is a short two-land sleeve, is also a
 | Section | NACA 0021, TE ≥ 0.8 mm, root chord > tip | 2026 thick-symmetric band; drafted standing print |
 | Rotor | One body: root plate out to the blades, integral cup (thrust floor + outer race), 3 helical blades ending on that plate. X2D-max R=85, span=220, scale 0.4 in the exam | Always some blade working; no tenons; no mid-air roots; no skinny-arm hangers |
 | Stand | Y-frame + short square stator post | Envelope/rotor ≤ 1.55; no cookie; no tall mast |
-| Bearing | Rotor cup + 6× printed PIP rollers, min Ø8 / h8, large PCD. Cage height = roller height | Tip moment in one frame. Not a 608. Not a two-land sleeve. Not a loose bushing sandwich |
+| Bearing | Rotor **drum** + 6× printed PIP rollers, min Ø8 / h28, large PCD. Cage height = roller height. Plate ≥5 mm | Tip moment in one visible housing. Not a 608. Not a two-land sleeve. Not a loose bushing sandwich. Not an 8 mm washer cup |
 | Fits | running +0.40 / PIP +0.80 / slip +0.28 / friction +0.16 | Role-based **and** same-plate vs assembled. 0.80 mm bed lead-in. Slicer XY hole comp = 0 |
 | Envelope | scale 1.0 fits Bambu Lab X2D 256×256×260 with 8 mm margin | `spec.scale` is the source parameter |
 
@@ -30,9 +30,11 @@ dead azimuths. Helix is required. Mid-chord stays on the cylinder;
 chord stays tangent. Open drafted tips. Do not twist the section in place.
 
 The center is short on purpose. A stout roller pack inside the **rotor
-cup** takes angular load from the blade tips. Thrust floor, outer race,
-and blade plate are one printed frame. A pile of unmatched-height races
-with no housing is not a bearing. Rotational parts print lying down
+drum** takes angular load from the blade tips. Thrust floor, outer race,
+and blade plate are one printed frame whose height you can see (≥28 mm
+land at exam scale, 70 mm at scale 1.0, plate ≥5 mm). A pile of
+unmatched-height races with no housing is not a bearing. Matching more
+8 mm flats is still a pancake stack. Rotational parts print lying down
 (flanged puck / ring). Only the rotor stands — on that plate — and its
 tips are open. Blade roots are XY airfoils on the bed, not overhangs.
 

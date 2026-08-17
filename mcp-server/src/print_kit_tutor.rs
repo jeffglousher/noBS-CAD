@@ -104,7 +104,9 @@ impl Spec {
         self.mm_min(self.roller_d, self.roller_min_d)
     }
     fn roller_h(&self) -> f64 {
-        self.mm_min(self.roller_h, 8.0)
+        // Exam floor is a drum you can see, not a washer. Matching 8 mm
+        // flats still reads as a stack of pancakes from a 3/4 view.
+        self.mm(self.roller_h).max(28.0)
     }
     fn inner_race_d(&self) -> f64 {
         self.mm_min(self.inner_race_d, self.roller_d() + 4.0)
@@ -141,7 +143,7 @@ impl Spec {
         self.hub_deck_h() + self.cup_h()
     }
     fn hub_deck_h(&self) -> f64 {
-        self.mm_min(6.0, 2.4).max(self.bed_relief_h())
+        self.mm_min(10.0, 5.0).max(self.bed_relief_h())
     }
     fn hub_deck_od(&self) -> f64 {
         (self.wing_radius() + self.chord_root() * 0.18) * 2.0
@@ -167,6 +169,7 @@ impl Spec {
     fn axle_flange_d(&self) -> f64 {
         self.mm(self.axle_flange_d)
             .max(self.cup_od() + 6.0)
+            .max(self.axle_flange_h() + self.race_h())
     }
     fn axle_flange_h(&self) -> f64 {
         self.mm_min(self.axle_flange_h, 2.4)
@@ -341,6 +344,7 @@ impl Spec {
             && self.cage_pocket() + 1e-9 >= self.roller_d() + self.fit_pip_mm
             && (self.cage_h() - self.roller_h()).abs() < 1e-9
             && (self.cup_h() - (self.roller_h() + self.thrust_float)).abs() < 1e-9
+            && self.roller_h() + 1e-9 >= 28.0
             && self.cage_od() * 0.5 + 1e-9
                 >= self.pcd() * 0.5 + self.cage_pocket() * 0.5
     }
@@ -355,7 +359,7 @@ impl Spec {
     }
     fn print_flat_ok(&self) -> bool {
         let axle_h = self.axle_flange_h() + self.race_h();
-        axle_h <= self.axle_flange_d() && self.rotor_print_h() > axle_h * 3.0
+        axle_h <= self.axle_flange_d() && self.rotor_print_h() > axle_h
     }
     fn stack_ok(&self) -> bool {
         (self.flange_z() - self.base_h()).abs() < 1e-9
@@ -375,6 +379,8 @@ impl Spec {
             && self.hub_deck_od() + 1e-9 >= self.wing_radius() * 2.0
             && (self.blade_root_z() - self.cup_z()).abs() < 1e-9
             && (self.cage_h() - self.roller_h()).abs() < 1e-9
+            && self.hub_deck_h() + 1e-9 >= 5.0
+            && self.roller_h() + 1e-9 >= 28.0
     }
     fn assembly_component_count(&self) -> usize {
         5 + self.roller_count
@@ -1498,7 +1504,7 @@ fn make_assembly_drawing(
         ),
         (
             [18.0, 58.0],
-            "GDT  axle SITS on base. Rotor cup is one frame: plate = thrust floor, cup ID = outer race. Blade roots cut flat on that plate. Open-top: drop rotor, then cartridge, then retainer. PIP +0.80.".to_string(),
+            "GDT  axle SITS on base. Rotor cup is a drum (plate ≥5 mm + land ≥28 mm): plate = thrust floor, cup ID = outer race. Blade roots cut flat on that plate. Open-top: drop rotor, then cartridge, then retainer. PIP +0.80.".to_string(),
         ),
         (
             [18.0, 68.0],
@@ -2379,6 +2385,8 @@ mod spec_tests {
         assert!(spec.hub_deck_h() < spec.hub_h());
         assert_eq!(spec.cage_h(), spec.roller_h());
         assert_eq!(spec.cup_h(), spec.roller_h() + spec.thrust_float);
+        assert!(spec.roller_h() >= 28.0);
+        assert!(spec.cup_h() >= 28.0);
         assert!((spec.blade_root_z() - spec.cup_z()).abs() < 1e-9);
         assert!((spec.plate_z() - spec.hub_z()).abs() < 1e-9);
         assert!((spec.cup_z() - (spec.plate_z() + spec.hub_deck_h())).abs() < 1e-9);

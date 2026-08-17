@@ -134,7 +134,7 @@ graded, but it was the wrong product for additive manufacturing:
 | Uniform +0.40 | Every hole used the running clearance. Locates were sloppy; nothing that should be tight was. | Role-based: running +0.40, slip +0.28, friction +0.16. Slicer XY hole comp stays 0. |
 | Tenoned wings | Three separate blades + hub is a puzzle, not a rotor. | Hub + 3 helical NACAs are **one body**. Open drafted tips. |
 | Tall skinny shaft | Support tower; weak in bending at the blade tips. | Short square stator post. Axle is a flanged inner-race **puck**, printed on the flange. |
-| Two-land sleeve only | L/D 1.0 is a journal, not a moment bearing. | Large-PCD printed roller cartridge (PIP, min Ø8 / h8) inside a rotor cup. |
+| Two-land sleeve only | L/D 1.0 is a journal, not a moment bearing. | Large-PCD printed roller cartridge (PIP, min Ø8 / h28) inside a rotor drum. |
 | No CAD assembly | Multi-body nest, no components/joints, no drawing. | 5 components, grounded base, revolute, A3 sheet with notes. |
 | No scale | Desk-size only; not an X2D-max source. | Spec numbers are X2D-max (256×256×260, 8 mm margin). `scale` 0.4 in the exam. |
 
@@ -191,6 +191,12 @@ If those steps are not visible in the solid, the exam failed.
 | Fault | Why it failed | Correction |
 |-------|---------------|------------|
 | Loose bushing sandwich | Separate orange ring, postage-stamp flange, cage taller than the rollers, blades not attached to the race. Unmatched heights. No way to take a heavy overhung load. | Rotor **is** the frame: plate = thrust floor, cup ID = outer race (height = roller + float), blades grow from that plate. Drop rotor, then cartridge, then retainer. |
+
+### 2026-08-16 washer-cup / pancake pass
+
+| Fault | Why it failed | Correction |
+|-------|---------------|------------|
+| Washer cup | Matching an 8 mm land to 8 mm rollers produced another stack of flats. From a 3/4 view the green wall disappeared and the orange cartridge sat on the plate. | Cup is a **drum** (≥28 mm at exam scale, 70 mm at scale 1.0) on a ≥5 mm plate. Rollers fill that height. Look at the solid in the web UI before calling it a housing. |
 
 ### 2026-08-16 additive / FDM pass
 
