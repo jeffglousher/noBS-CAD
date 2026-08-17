@@ -19,11 +19,11 @@ revolute). See [ASSEMBLY.md](ASSEMBLY.md). It starts with
 `cad_new_project` and fails if the scene is not empty — do not continue
 a recovered or older Print Kit Tutor. Construction planes and finished
 loft sketches are hidden before the `.nbcad` is written so File → Open
-shows the five-part kit, not orange datum stacks.
+shows the merged-stator kit, not orange datum stacks.
 
 ## What to build
 
-A five-part **printed VAWT assembly** (spec
+A **printed VAWT assembly** (spec
 `scripts/fixtures/print-kit-tutor.spec.json`, id `fdm-print-vawt`).
 Linear numbers are the Bambu Lab X2D-max design (256×256×260, 8 mm
 margin). `spec.scale` shrinks the source (exam default **0.4**). Feature
@@ -31,27 +31,28 @@ floors (roller Ø8, roller length 8, TE 0.8, 4-nozzle walls, plate 5 mm) are cla
 
 | Part | Role | How it mates |
 |------|------|----------------|
-| Base | Y-frame + short square stator post, one piece | Post is the grounded axis. Print flat. |
-| Axle | Large thin flange (lower thrust race) + short journal, square bore | Friction on the post (+0.16). Print on the flange. |
+| Stator | Y-frame + lower race + open top-load fence + short D-journal + snap bead, one piece | Grounded. Print flat. |
 | Rotor | Root plate (≥5 mm) out to the blades (underside = upper thrust race), 3 helical **NACA 0021** ending on that plate, **one body**, open drafted tips | Plate bore = journal + running. Print standing on the plate. PLA Glow. |
-| Roller cage | Cage + 6 **radial-axis** rollers, min Ø8, pack height = Ø, large PCD **under the blade roots**. Cage height = roller Ø. Cage ID looser than the plate bore | Running +0.40 on rollers / races / pockets. Cage on the flange, rollers into the windows. |
-| Retainer | Washer above the plate | Slip +0.28 on the post. Floats 0.20 above the plate. |
+| Rollers | 6 **radial-axis** cylinders, min Ø8, pack height = Ø, large PCD **under the blade roots** | Drop into top-load slots. Print standing. |
+| Retainer | Clocked C-snap (D-hole + C-gap) | Sits on the journal shoulder. Does not rub the rotor. |
 
-Fits are **per role** (running / PIP / slip / friction) and per whether
-the parts share a plate. Assembled running +0.40. Same-plate PIP +0.80.
-Every bed-printed locate gets a 0.80 mm elephant-foot lead-in. Do not
+Fits are **per role** (running / PIP / slip) and per whether
+the parts share a plate. Assembled running +0.40. Top-load slots add two
+nozzles. Same-plate PIP +0.80 — do not PIP a lying roller. Every
+bed-printed locate gets a 0.80 mm elephant-foot lead-in. Do not
 nest the plate around the rollers on the bed. Slicer XY hole compensation
-stays 0. No metal 608s. No FDM press fits. No loose bushing sandwich. No tall drum. No standing-Z pucks.
+stays 0. No metal 608s. No FDM press fits. No separate axle disk + cage
+disk. No tall drum. No standing-Z pucks.
 
-Assembly order: **base → axle → cage on the flange → rollers into the windows → rotor → retainer**.
+Assembly order: **stator → rollers into the top-load slots → rotor → snap retainer**.
 
-Then: one `assembly_create_component` per **moving** body (base, axle,
-rotor, cage, each roller, retainer). That call already inserts
+Then: one `assembly_create_component` per **moving** body (stator,
+rotor, each roller, retainer). That call already inserts
 the root occurrence — a second `assembly_create_occurrence` duplicates
-every part. Ground the base. **Rigid** the stator (axle sits on the
-base; retainer sits on the post). **Revolute** `rotor_spin` (plate bore ↔
-short journal), the cage about Z, and each roller about its **radial**
-axis — not a blade spar. Ship an A3 assembly drawing with notes.
+every part. Ground the stator. **Revolute** `rotor_spin` (plate bore ↔
+short journal) and each roller about its **radial**
+axis — not a blade spar. **Rigid** `retainer_sit` on the journal
+shoulder. Ship an A3 assembly drawing with notes.
 
 Print each functional part in its own orientation on **one** plate.
 Rollers print standing (axis Z). The exam **wipes**

@@ -20,8 +20,8 @@ fence, or whose only bearing is a short two-land sleeve, is also a
 |-------|--------|-----|
 | Section | NACA 0021, TE ≥ 0.8 mm, root chord > tip | 2026 thick-symmetric band; drafted standing print |
 | Rotor | One body: root plate out to the blades (underside = upper thrust race), 3 helical blades ending on that plate. X2D-max R=85, span=220, scale 0.4 in the exam | Always some blade working; no tenons; no mid-air roots; no skinny-arm hangers |
-| Stand | Y-frame + short square stator post | Envelope/rotor ≤ 1.55; no cookie; no tall mast |
-| Bearing | **Thin flat thrust** under the **blade roots**: 6× printed **radial-axis** rollers, min Ø8, pack height = Ø, large PCD. Cage height = roller Ø. Cage ID looser than the plate bore. Plate ≥5 mm | Rotation about Z plus overturning as a couple under the roots. Not a 608. Not standing-Z pucks. Not an inboard cracker. Not a two-land sleeve. Not a loose bushing. Not a washer stack. Not a tall drum |
+| Stand | One stator: Y-frame + lower race + open top-load fence + short journal | Envelope/rotor ≤ 1.55; no cookie; no tall mast; no separate axle disk |
+| Bearing | **Thin flat thrust** under the **blade roots**: 6× printed **radial-axis** rollers, min Ø8, pack height = Ø, large PCD. Top-load slots, not PIP. Fence ID looser than the plate bore. Plate ≥5 mm. Clocked C-snap retainer | Rotation about Z plus overturning as a couple under the roots. Not a 608. Not standing-Z pucks. Not an inboard cracker. Not a two-land sleeve. Not a loose bushing. Not a washer stack. Not a tall drum. Not two flats |
 | Fits | running +0.40 / PIP +0.80 / slip +0.28 / friction +0.16 | Role-based **and** same-plate vs assembled. 0.80 mm bed lead-in. Slicer XY hole comp = 0 |
 | Envelope | scale 1.0 fits Bambu Lab X2D 256×256×260 with 8 mm margin | `spec.scale` is the source parameter |
 
@@ -32,16 +32,17 @@ chord stays tangent. Open drafted tips. Do not twist the section in place.
 The center is short on purpose. A **thin flat thrust** under the
 **blade roots** takes rotation about Z. Overturning from the blade tips
 is a couple across that pitch circle, not a tall journal and not a
-5 mm plate cantilevering from an inboard pack. The cage is a spacer
-(ID looser than the plate bore). The base boss seats the axle — it
-does not match the race OD. A pile of unmatched-height
+5 mm plate cantilevering from an inboard pack. The fence is a spacer
+(ID looser than the plate bore). The Y-frame center **is** the lower
+race — do not print a second flat. A pile of unmatched-height
 races with no housing is not a bearing. Matching more 8 mm flats is still
 a pancake stack. Standing-Z pucks slide on their end faces — that is not
 rolling under −Z. A 28 mm orange tower with webs climbing the wall is a
-tall system we do not need. Rotational parts print lying down (flanged
-puck / ring) except the rollers, which print **standing** and assemble
-lying down (axis radial). The rotor stands on that plate. Blade roots
-are XY airfoils through the plate, not rectangular arms.
+tall system we do not need. The stator and retainer print flat. Rollers
+print **standing** and drop into top-load slots (axis radial). The rotor
+stands on that plate. Blade roots are XY airfoils through the plate, not
+rectangular arms. The retainer is a clocked C-snap on the journal
+shoulder — it does not rub the rotor.
 
 ## Why this page exists
 
@@ -97,10 +98,10 @@ cannot take the moment at the blade tips.
 
 | Station | What | Why |
 |---------|------|-----|
-| Thrust | Axle flange (lower race) ↔ thin rollers ↔ plate underside (upper race), 0.20 float each land | Flat land, not a lifted cone, not a tall drum |
+| Thrust | Stator race (lower) ↔ thin rollers ↔ plate underside (upper), 0.20 float each land | Flat land, not a lifted cone, not a tall drum |
 | Overturning | Same pack, large PCD **under the blade roots** | Couple across the disk. Width, not height. An inboard PCD leaves the plate as a cracker |
-| Stator | Square post on the base (friction in the axle puck) | Print-flat; plate freewheels on the short journal |
-| Retain | Slip washer on the post above the plate | Not a press |
+| Stator | One body: Y-frame + race + open fence + journal | Print-flat; plate freewheels on the short journal |
+| Retain | Clocked C-snap on the journal shoulder | Removable; does not rub the rotor |
 
 PLA-on-PLA is a demo spin. Say so. No glue-as-fit.
 

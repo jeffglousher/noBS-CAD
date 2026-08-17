@@ -337,8 +337,16 @@ if (tutorSrc.includes('name: `${name}_1`') || /assembly_create_occurrence/.test(
 if (!tutorSrc.includes('axisConnectorAt') || !tutorSrc.includes('circularEdgeAt')) {
   fail('print-kit Node exam must mate joints on circular edges or cylinders');
 }
-if (!tutorSrc.includes('axle_sit') || !tutorSrc.includes('cage_spin') || !tutorSrc.includes('createStableJoint')) {
-  fail('print-kit Node exam must link the stator, rotor, cage, and rollers');
+if (
+  !tutorSrc.includes('function buildStator') ||
+  !tutorSrc.includes('function topLoad') ||
+  !tutorSrc.includes('function fenceH') ||
+  !tutorSrc.includes('createStableJoint')
+) {
+  fail('print-kit Node exam must merge the stator (Y-frame + race + top-load fence)');
+}
+if (tutorSrc.includes('axle_sit') || tutorSrc.includes('cage_spin')) {
+  fail('print-kit Node exam must not keep a separate axle puck or spinning cage');
 }
 if (!tutorSrc.includes('rotor_spin') || !tutorSrc.includes('plateBore')) {
   fail('print-kit Node exam must mate the plate bore on the short journal');
@@ -407,8 +415,16 @@ if (rustTutor.includes('assembly_create_occurrence')) {
 if (!rustTutor.includes('axis_connector_at') || !rustTutor.includes('circular_edge_at')) {
   fail('print-kit cargo exam must mate joints on circular edges or cylinders');
 }
-if (!rustTutor.includes('axle_sit') || !rustTutor.includes('cage_spin') || !rustTutor.includes('create_stable_joint')) {
-  fail('print-kit cargo exam must link the stator, rotor, cage, and rollers');
+if (
+  !rustTutor.includes('fn build_stator') ||
+  !rustTutor.includes('fn top_load') ||
+  !rustTutor.includes('fn fence_h') ||
+  !rustTutor.includes('create_stable_joint')
+) {
+  fail('print-kit cargo exam must merge the stator (Y-frame + race + top-load fence)');
+}
+if (rustTutor.includes('axle_sit') || rustTutor.includes('cage_spin')) {
+  fail('print-kit cargo exam must not keep a separate axle puck or spinning cage');
 }
 if (!rustTutor.includes('rotor_spin') || !rustTutor.includes('plate_bore')) {
   fail('print-kit cargo exam must mate the plate bore on the short journal');

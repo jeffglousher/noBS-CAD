@@ -25,10 +25,11 @@ Contract: [PRINT_KIT_DESIGN.md](PRINT_KIT_DESIGN.md).
 | Washer cup / pancake stack | Matching 8 mm flats still read as cylinders on the plate. Height-matching flats is not a bearing. |
 | Tall drum / can on a cracker | A 28 mm orange tower with webs climbing the wall is a journal you can see from the side. Thin flat thrust under the plate. |
 | Tall skinny shaft + two-land sleeve | Cannot take blade-tip moment and needs a support tower. Short post + large-PCD thin thrust. |
+| Separate axle disk + cage disk | Two flats that should be one stator. Extra plastic and a rubbing washer. Merge Y-frame + race + open fence + journal. Top-load rollers. Clocked C-snap on the journal shoulder. |
 
 ## 2. Design process
 
-- **Architecture:** Helical H-Darrieus, directionless (no yaw). Short fixed square post. Thin flat thrust under the plate. No tall mast. No tall drum. No loose bushing sandwich.
+- **Architecture:** Helical H-Darrieus, directionless (no yaw). One printed stator (Y-frame + race + open fence + journal). Thin flat thrust under the plate. No tall mast. No tall drum. No separate axle puck + cage disk.
 - **Airfoil:** NACA 0021 (t/c 0.21). 2026 band is t/c 21–24%. TE blunt to 0.8 mm. Open drafted tips.
 - **Rotor:** one piece — root plate (upper thrust race) + print arms + root stumps + 3 helical NACAs from the plate. N=3, 60° helix, σ in 0.24–0.45. Envelope/rotor ≤ 1.55.
 - **Fits:** assembled running +0.40 (rollers on races), PIP +0.80 (cage pockets), slip +0.28 (retainer), friction +0.16 on a land above a 0.80 mm bed lead-in. Cage height matches roller height. Do not nest the plate around the PIP rollers. Slicer XY hole compensation stays 0. No press. No 608.
@@ -39,7 +40,7 @@ Contract: [PRINT_KIT_DESIGN.md](PRINT_KIT_DESIGN.md).
 
 ## 3. Final product
 
-Five functional parts: base → axle → roller cartridge → rotor → retainer.
+Three printed families: stator → rollers into top-load slots → rotor → snap retainer.
 
 Open in CAD: `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor.nbcad`
 

@@ -2,6 +2,13 @@
 
 ## 2026-08-17
 
+- **Update**: Print-kit stator merge: Y-frame + lower race + open
+  top-load fence + short D-journal are **one body**. Do not print a
+  separate axle disk and cage disk. Rollers print standing and drop
+  into top-load slots (running + 2 nozzles) — do not PIP a lying
+  roller. Clocked C-snap retainer (D-hole + C-gap) sits on the journal
+  shoulder and must not rub the rotor. Only rolling contacts on the
+  turbine (rollers ↔ races). 9 bodies / 8 joints.
 - **Update**: Print-kit load path: pack outer land under the blade
   roots (not PCD at 58% of the plate). Cage ID is looser than the
   plate bore (spacer, not a journal). Base boss seats the axle and

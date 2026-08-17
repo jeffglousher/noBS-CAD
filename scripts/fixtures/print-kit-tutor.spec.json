@@ -60,7 +60,7 @@
   "cage_h": 12.0,
   "retainer_h": 3.0,
   "thrust_float": 0.2,
-  "min_bodies": 11,
+  "min_bodies": 9,
   "min_rotor_faces": 16,
   "min_print_plates": 1,
   "print_plates": ["01-kit"],
@@ -77,57 +77,57 @@
     "06-bushing",
     "07-cap"
   ],
-  "assembly_order": ["base", "axle", "roller_cage", "rotor", "retainer"],
+  "assembly_order": ["stator", "rotor", "retainer"],
   "gdt": {
     "datums": {
-      "A": "Base bottom (primary). Print bed for the stand.",
-      "B": "Axle / roller axis (secondary). Turbine axis.",
+      "A": "Stator bottom (primary). Print bed for the stand.",
+      "B": "Journal / roller axis (secondary). Turbine axis.",
       "C": "Three Y-frame pads at 120° (tertiary)."
     },
     "fits_mm": {
-      "running_rollers": "+0.40 diametral PLA-on-PLA for parts printed separately and assembled (rollers on both races, and rollers in cage pockets). Slicer XY hole compensation stays 0.",
-      "pip_cage_pockets": "+0.80 diametral (2 nozzles) is the same-plate PIP class. This kit does not PIP the rollers — they print standing (axis Z) and drop into radial pockets at running +0.40. PIP a lying roller and the OD is layers.",
-      "slip_axle_retainer": "+0.28 diametral — drops together, not sloppy.",
-      "friction_square_drive_and_cage": "+0.16 diametral — tap-in locate of the axle on the square post. Not a press. Functional land starts above a 0.80 mm bed lead-in. The plate bore must NOT friction-fit the journal.",
-      "thrust_land": "Axle sits on the base (stator). Thin flat thrust under the blade roots: flange is the lower race, plate underside is the upper race, radial-axis rollers between (pack height = roller Ø, 0.20 float each land). The pack outer land must reach the blade radius so the 5 mm plate is not a cantilever. Cage ID is looser than the plate bore (spacer, not a journal). Short journal centers the plate bore. Retainer is a washer above the plate (OD between plate bore and flange OD). Base boss seats the axle only — it does not match the race OD.",
-      "do_not_nest_cup_pip": "Do not print the plate around the rollers on the bed. Race-to-roller at +0.40 is 0.10 mm/side — they fuse. Print rollers standing. Put the cage on the flange, drop rollers into the windows, then the rotor. The cage cannot be picked up as a preloaded cartridge (windows are open top and bottom so the rollers can touch both races). Axial capture is the axle flange + retainer, not a top lip."
+      "running_rollers": "+0.40 diametral PLA-on-PLA for parts printed separately and assembled (rollers on both races). Slicer XY hole compensation stays 0.",
+      "top_load_slots": "Slot width = roller Ø + running + 2 nozzles. Drop in from above. No support. This kit does not PIP the rollers — a lying OD prints as layers.",
+      "slip_retainer": "+0.28 diametral D-hole on the journal neck. Clocked to one orientation. C-gap lets it snap over the bead.",
+      "no_rotor_rub": "Retainer sits on the journal shoulder, 0.20 above the plate. It is not a running face on the turbine.",
+      "thrust_land": "One stator: Y-frame + lower race + open fence + journal. Thin flat thrust under the blade roots: stator race is the lower land, plate underside is the upper land, radial-axis rollers between (pack height = roller Ø, 0.20 float each land). The pack outer land must reach the blade radius so the 5 mm plate is not a cantilever. Fence ID is looser than the plate bore (spacer, not a journal). Short journal centers the plate bore. Do not keep a separate axle disk and cage disk.",
+      "do_not_nest_cup_pip": "Do not print the plate around the rollers on the bed. Race-to-roller at +0.40 is 0.10 mm/side — they fuse. Print rollers standing. Drop them into the top-load slots, then the rotor, then snap the retainer. Axial capture is the race + clocked C-snap, not a top lip and not a rubbing washer."
     }
   },
   "lessons": [
     {
       "id": "blank",
       "title": "Start from a blank document",
-      "teach": "cad_new_project first. solid_scene must show 0 bodies before the first extrude. Do not continue a recovered or older Print Kit Tutor (tan nest, red disc, leftover helix planes). Hide construction planes and finished loft sketches before save so File → Open is the five-part kit, not orange datums."
+      "teach": "cad_new_project first. solid_scene must show 0 bodies before the first extrude. Do not continue a recovered or older Print Kit Tutor (tan nest, red disc, leftover helix planes). Hide construction planes and finished loft sketches before save so File → Open is the merged-stator kit, not orange datums."
     },
     {
       "id": "fits",
       "title": "Fits are per role and material",
-      "teach": "Fits are per role *and* per whether the parts share a plate. Assembled running (rollers on races, and rollers in cage pockets) is +0.40 because those parts print as other bodies. Same-plate PIP is +0.80 — two nozzles — or the first layers weld. This kit does not PIP the rollers. Slip +0.28. Friction +0.16 on a land *above* a 0.80 mm bed lead-in; a bed-printed friction hole with no relief will not assemble after elephant foot. Model 0.20 axial float at every running land. Cage height equals roller diameter (the pack height). Cage ID is looser than the plate bore — the cage is a spacer, not a tighter journal. Do not nest the plate around the rollers on the bed."
+      "teach": "Fits are per role *and* per whether the parts share a plate. Assembled running (rollers on races) is +0.40 because those parts print as other bodies. Top-load slots add two nozzles so rollers drop in from above without support. Same-plate PIP is +0.80 — do not PIP a lying roller (the OD is layers). Clocked C-snap retainer uses slip +0.28 on a D-neck and sits on the journal shoulder, 0.20 above the plate — it must not rub the rotor. Model 0.20 axial float at every running land. Fence height is below pack height so rollers touch both races. Fence ID is looser than the plate bore. Do not nest the plate around the rollers on the bed."
     },
     {
       "id": "no_press",
       "title": "Snug is not a press",
-      "teach": "FDM press fits fail from elephant foot. Friction locate is still a modeled gap, and the functional land starts above a 2-nozzle lead-in on every bed-printed bore (plate bore, axle square, retainer square). Retain with a flange, land, or retainer — not interference. No metal 608s. No inward top lip over PIP rollers."
+      "teach": "FDM press fits fail from elephant foot. The plate bore is running, not friction. Retain with a clocked C-snap on the journal shoulder — not a washer that rubs the rotor, and not interference. Functional lands start above a 2-nozzle lead-in on every bed-printed bore. No metal 608s. No inward top lip over the rollers."
     },
     {
       "id": "assemble",
       "title": "Individual parts, then an assembly",
-      "teach": "Each body that moves is its own component with exactly one occurrence. assembly_create_component already inserts the root instance — do not create a second copy. Link the stator with rigid joints (axle sits on the base; retainer sits on the post). Revolute the plate bore and cage on the short journal about Z, and each roller about its radial axis — never a blade-spar face, never a standing-Z puck axis. rotor_spin is plate bore ↔ journal. There is no separate bushing. Blades stay one printed body with the plate. Assemble on the flange: cage, then rollers into the windows, then the rotor. Do not claim a pickup cartridge — open-top/bottom windows are how the rollers touch both races."
+      "teach": "Each body that moves is its own component with exactly one occurrence. assembly_create_component already inserts the root instance — do not create a second copy. Ground the one stator. Revolute the plate bore on the short journal about Z, and each roller about its radial axis — never a blade-spar face, never a standing-Z puck axis. rotor_spin is plate bore ↔ journal. Rigid retainer_sit on the journal shoulder. There is no separate axle puck, cage disk, or bushing. Blades stay one printed body with the plate. Drop rollers into the top-load slots, then the rotor, then snap the retainer. Do not claim a pickup cartridge."
     },
     {
       "id": "rollers",
       "title": "Print a thin flat thrust that takes rotation about Z",
-      "teach": "A tall skinny sleeve cannot hold aero loads at the blade tips. A tall drum with webs climbing the wall is the same mistake in orange. Matching 8 mm flats is still a pancake stack. Standing-Z pucks slide on their end faces — that is not rolling under −Z. An inboard pack at ~58% of the plate leaves the blade roots cantilevered on 5 mm PLA — the couple never reaches the race. Use a **thin flat thrust**: ≥6 cylinders, axis **radial** (e_r), diameter = pack height (min Ø8), on a large PCD **under the blade roots**. Relative motion at the race is circumferential; a tangent axis would roll inward/outward. The flange is the lower race; the plate underside is the upper race; a short journal only centers. The plate bore is the radial land; the cage ID must be looser. Overturning is a couple across that disk, not a tall land. Print rollers standing (circular layers); assemble them lying down at running +0.40. Do not PIP a lying roller. The cage is a spacer; axial capture is the flange + retainer."
+      "teach": "A tall skinny sleeve cannot hold aero loads at the blade tips. A tall drum with webs climbing the wall is the same mistake in orange. Matching 8 mm flats is still a pancake stack. Two separate flats (axle disk + cage disk) are extra plastic. Standing-Z pucks slide on their end faces — that is not rolling under −Z. An inboard pack at ~58% of the plate leaves the blade roots cantilevered on 5 mm PLA — the couple never reaches the race. Use a **thin flat thrust** on **one stator**: ≥6 cylinders, axis **radial** (e_r), diameter = pack height (min Ø8), on a large PCD **under the blade roots**. Relative motion at the race is circumferential; a tangent axis would roll inward/outward. The stator race is the lower land; the plate underside is the upper land; a short journal only centers. The plate bore is the radial land; the fence ID must be looser. Overturning is a couple across that disk, not a tall land. Print rollers standing (circular layers); drop them into top-load slots. Do not PIP a lying roller. Axial capture is the race + clocked C-snap."
     },
     {
       "id": "even",
       "title": "Keep the machine even",
-      "teach": "Three helical blades at 120°. Root azimuth 30° so a 60° helix stays balanced. The square post is the stator — the plate freewheels on the thin thrust pack. An odd one-sided vane is not a turbine."
+      "teach": "Three helical blades at 120°. Root azimuth 30° so a 60° helix stays balanced. The merged stator is grounded — the plate freewheels on the thin thrust pack. An odd one-sided vane is not a turbine."
     },
     {
       "id": "one_piece_rotor",
       "title": "Blades and hub are one part",
-      "teach": "The rotor is a single printed body: a ≥5 mm root plate (print sit + upper thrust race) and helical blades that end on that sit plane. First loft station is the plate (flat sit-plane cut). The airfoil goes through the plate — no rectangular print arms or spars. Do not grow a tall drum or moment webs on the plate — overturning is taken by the wide thrust pack **under the blade roots**. Print standing on the plate. Cage on the flange, rollers into the windows, then the rotor on the pack."
+      "teach": "The rotor is a single printed body: a ≥5 mm root plate (print sit + upper thrust race) and helical blades that end on that sit plane. First loft station is the plate (flat sit-plane cut). The airfoil goes through the plate — no rectangular print arms or spars. Do not grow a tall drum or moment webs on the plate — overturning is taken by the wide thrust pack **under the blade roots**. Print standing on the plate. Drop rollers into the stator slots, then the rotor on the pack."
     },
     {
       "id": "airfoil",
@@ -142,7 +142,7 @@
     {
       "id": "print_flat",
       "title": "Print rotational parts lying down",
-      "teach": "Never design a tall skinny shaft that needs a tower of support. The axle is a flanged square puck, printed on the flange. Base, cage, and retainer print flat, each with a 2-nozzle bed lead-in on functional holes. Rollers print standing (axis Z, circular layers) and assemble lying down (axis radial). The rotor stands on its root plate so each blade ends on that flat horizontal. Put the cage on the flange, drop rollers into the windows, then the rotor. The plate is not nested around the rollers on the bed. The base boss seats the axle — it does not match the race OD."
+      "teach": "Never design a tall skinny shaft that needs a tower of support. The stator prints flat: Y-frame, race, open fence, journal. Retainer prints flat. Rollers print standing (axis Z, circular layers) and drop into top-load slots (axis radial). The rotor stands on its root plate so each blade ends on that flat horizontal. The plate is not nested around the rollers on the bed. Do not print a separate axle disk and cage disk."
     },
     {
       "id": "helix",

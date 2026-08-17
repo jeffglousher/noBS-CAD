@@ -354,8 +354,47 @@ function postCircleR() {
   return mm(spec.post_circle_r);
 }
 function baseBossD() {
-  // Seat the axle only. Matching the race OD reprints a solid orange cylinder.
-  return Math.min(mmMin(spec.base_boss_d, 16), axleFlangeD() - 8, hubDeckOd() - 2);
+  // The Y-frame center *is* the lower race. One printed stator.
+  return axleFlangeD();
+}
+function topLoad() {
+  return spec.nozzle_mm * 2;
+}
+function topLoadPocket() {
+  return rollerD() + spec.fit_running_mm + topLoad();
+}
+function fenceH() {
+  return Math.max(packH() * 0.62, wall() * 2);
+}
+function shoulderH() {
+  return mmMin(3, 1.2);
+}
+function shoulderD() {
+  return Math.min(innerRaceD() + 4, retainerOd() - 1);
+}
+function beadH() {
+  return mmMin(2.4, 1.2);
+}
+function beadD() {
+  return innerRaceD() + spec.nozzle_mm * 2;
+}
+function lockFlatX() {
+  return innerRaceD() * 0.22;
+}
+function snapGap() {
+  return Math.max(innerRaceD() * 0.28, wall() * 2);
+}
+function journalD() {
+  return innerRaceD();
+}
+function retainerDHole() {
+  return journalD() + spec.fit_slip_mm;
+}
+function retainerFlatX() {
+  return lockFlatX() + spec.fit_slip_mm * 0.5;
+}
+function journalH() {
+  return beadZ() + beadH() + wall() - raceZ();
 }
 function cageRim() {
   return wall() * 2;
@@ -368,7 +407,7 @@ function cageId() {
   return plateBore() + 2 * wall();
 }
 function cageH() {
-  return packH();
+  return fenceH();
 }
 function cagePocket() {
   return rollerD() + spec.fit_running_mm;
@@ -414,16 +453,22 @@ function rotorPrintH() {
   return Math.max(wingH(), hubZ() + hubH() - plateZ());
 }
 function flangeZ() {
-  return baseH();
+  return 0;
 }
 function raceZ() {
-  return flangeZ() + axleFlangeH();
+  return baseH();
 }
 function raceH() {
-  return packH() + hubDeckH() + retainerH() + 3 * spec.thrust_float;
+  return journalH();
 }
 function cageZ() {
-  return raceZ() + spec.thrust_float;
+  return raceZ();
+}
+function shoulderZ() {
+  return plateZ() + hubDeckH() + spec.thrust_float;
+}
+function beadZ() {
+  return retainerZ() + retainerH();
 }
 function zMid() {
   return cageZ() + packH() * 0.5;
@@ -432,7 +477,7 @@ function hubZ() {
   return plateZ();
 }
 function retainerZ() {
-  return plateZ() + hubDeckH() + spec.thrust_float;
+  return shoulderZ() + shoulderH();
 }
 function postH() {
   return retainerZ() + retainerH() + spec.thrust_float;
@@ -504,10 +549,12 @@ function rollersOk() {
     axleFlangeD() + 1e-9 >= cageOd() &&
     axleFlangeD() + 1e-9 < hubDeckOd() &&
     Math.abs(cagePocket() - (rollerD() + spec.fit_running_mm)) < 1e-9 &&
-    Math.abs(cageH() - packH()) < 1e-9 &&
+    fenceH() + 1e-9 < packH() &&
+    topLoadPocket() + 1e-9 > cagePocket() &&
     cageId() + 1e-9 > plateBore() &&
-    baseBossD() + 8 <= axleFlangeD() + 1e-9 &&
     cageRim() + 1e-9 >= wall() * 2 &&
+    beadD() + 1e-9 > innerRaceD() &&
+    lockFlatX() + 1e-9 < innerRaceD() * 0.5 &&
     Math.abs(axis0[2]) < 1e-9 &&
     Math.abs(axis0[0] - 1) < 1e-9 &&
     cageOd() * 0.5 + 1e-9 >= packOuterR()
@@ -528,39 +575,37 @@ function scaleOk() {
   return spec.scale > 0 && spec.scale <= spec.max_scale + 1e-9 && fitsX2dAtMax() && spec.printer.bed_mm[2] >= 260;
 }
 function printFlatOk() {
-  const axleH = axleFlangeH() + raceH();
-  return axleH <= axleFlangeD() && rotorPrintH() > axleH;
+  return journalH() <= axleFlangeD() && rotorPrintH() > journalH();
 }
 function stackOk() {
   return (
-    Math.abs(flangeZ() - baseH()) < 1e-9 &&
-    Math.abs(cageZ() - (raceZ() + spec.thrust_float)) < 1e-9 &&
-    Math.abs(plateZ() - (cageZ() + packH() + spec.thrust_float)) < 1e-9 &&
+    Math.abs(raceZ() - baseH()) < 1e-9 &&
+    Math.abs(cageZ() - raceZ()) < 1e-9 &&
+    Math.abs(plateZ() - (raceZ() + packH() + spec.thrust_float)) < 1e-9 &&
     Math.abs(hubZ() - plateZ()) < 1e-9 &&
-    Math.abs(retainerZ() - (plateZ() + hubDeckH() + spec.thrust_float)) < 1e-9 &&
-    Math.abs(raceH() - (packH() + hubDeckH() + retainerH() + 3 * spec.thrust_float)) < 1e-9 &&
-    Math.abs(zMid() - (cageZ() + packH() * 0.5)) < 1e-9 &&
+    Math.abs(shoulderZ() - (plateZ() + hubDeckH() + spec.thrust_float)) < 1e-9 &&
+    Math.abs(retainerZ() - (shoulderZ() + shoulderH())) < 1e-9 &&
+    Math.abs(zMid() - (raceZ() + packH() * 0.5)) < 1e-9 &&
+    fenceH() + 1e-9 < packH() &&
     bedReliefH() + 1e-9 < hubDeckH() &&
     bedReliefH() + 1e-9 < retainerH() &&
-    bedReliefH() + 1e-9 < axleFlangeH() &&
     Math.abs(hubH() - hubDeckH()) < 1e-9 &&
     hubDeckOd() + 1e-9 > axleFlangeD() &&
     hubDeckOd() + 1e-9 >= wingRadius() * 2 &&
     Math.abs(bladeRootZ() - (plateZ() + hubDeckH())) < 1e-9 &&
-    Math.abs(cageH() - packH()) < 1e-9 &&
     Math.abs(packH() - rollerD()) < 1e-9 &&
     hubDeckH() + 1e-9 >= 5 &&
     baseBossD() + 1e-9 < hubDeckOd() &&
     packOuterR() + 1e-9 >= wingRadius() * 0.9 &&
     cageId() + 1e-9 > plateBore() &&
-    baseBossD() + 8 <= axleFlangeD() + 1e-9
+    beadD() + 1e-9 > innerRaceD()
   );
 }
 function assemblyComponentCount() {
-  return 5 + spec.roller_count;
+  return 3 + spec.roller_count;
 }
 function assemblyJointCount() {
-  return 4 + spec.roller_count;
+  return 2 + spec.roller_count;
 }
 function sanityOk() {
   return (
@@ -575,15 +620,15 @@ function estimatedSolidCm3() {
     Math.PI * ((hubDeckOd() * 0.5) ** 2 - (plateBore() * 0.5) ** 2) * hubDeckH();
   const wings =
     spec.wing_count * 0.62 * ((chordRoot() + chordTip()) * 0.5) * wingThick() * wingH();
-  const base =
-    Math.PI * (baseBossD() * 0.5) ** 2 * baseH() + spec.post_count * ribW() * postCircleR() * baseH();
-  const axle =
-    Math.PI * (axleFlangeD() * 0.5) ** 2 * axleFlangeH() +
-    Math.PI * (innerRaceD() * 0.5) ** 2 * raceH();
-  const cage = Math.PI * ((cageOd() * 0.5) ** 2 - (cageId() * 0.5) ** 2) * cageH();
+  const stator =
+    Math.PI * (axleFlangeD() * 0.5) ** 2 * baseH() +
+    spec.post_count * ribW() * postCircleR() * baseH() +
+    Math.PI * ((cageOd() * 0.5) ** 2 - (cageId() * 0.5) ** 2) * fenceH() +
+    Math.PI * (innerRaceD() * 0.5) ** 2 * journalH();
   const rollers = spec.roller_count * Math.PI * (rollerD() * 0.5) ** 2 * rollerLen();
-  const retainer = (Math.PI * (retainerOd() * 0.5) ** 2 - retainerSquare() ** 2) * retainerH();
-  return (plate + wings + base + axle + cage + rollers + retainer) / 1000;
+  const retainer =
+    (Math.PI * (retainerOd() * 0.5) ** 2 - (innerRaceD() * 0.5) ** 2) * retainerH();
+  return (plate + wings + stator + rollers + retainer) / 1000;
 }
 function estimatedPrintMassG() {
   return estimatedSolidCm3() * spec.filament.density_g_cm3 * spec.filament.print_volume_factor;
@@ -646,6 +691,22 @@ async function addPoly(points, ctrlHeld = false) {
     if (dx * dx + dy * dy < 1e-8) continue;
     await call("sketch_add_line", { from: points[i], to_raw: points[i + 1], ctrl_held: ctrlHeld });
   }
+}
+async function addDProfile(diameter, flatX) {
+  const r = diameter / 2;
+  const half = Math.sqrt(Math.max(0, r * r - flatX * flatX));
+  const start = Math.atan2(-half, flatX);
+  const end = Math.atan2(half, flatX);
+  let short = end - start;
+  if (short <= 0) short += Math.PI * 2;
+  const long = Math.PI * 2 - short;
+  const points = [{ x: flatX, y: -half }];
+  for (let i = 1; i <= 20; i++) {
+    const a = start - (long * i) / 20;
+    points.push({ x: r * Math.cos(a), y: r * Math.sin(a) });
+  }
+  points.push({ x: flatX, y: -half });
+  await addPoly(points, true);
 }
 async function addOrientedRect(center, length, width, angleDeg) {
   const angle = (angleDeg * Math.PI) / 180;
@@ -738,9 +799,9 @@ async function addAirfoil(center, angleDeg, chord, thicknessRatio, stations, te)
   await addPoly(world, true);
 }
 
-async function buildBase() {
+async function buildStator() {
   await beginXY();
-  await addCircle(0, 0, baseBossD());
+  await addCircle(0, 0, axleFlangeD());
   let sketch = await finishSketch();
   let update = requireClean(
     await call("solid_extrude", {
@@ -752,9 +813,9 @@ async function buildBase() {
       flip: false,
       target_body_ids: [],
     }),
-    "base boss",
+    "stator race",
   );
-  const baseId = newestBody(update, []);
+  const statorId = newestBody(update, []);
   for (let i = 0; i < spec.post_count; i++) {
     const [px, py] = postXY(i);
     const angle = (360 / spec.post_count) * i;
@@ -769,9 +830,9 @@ async function buildBase() {
         extent: { type: "distance", distance: baseH() },
         taper_angle_deg: 0,
         flip: false,
-        target_body_ids: [baseId],
+        target_body_ids: [statorId],
       }),
-      `base rib ${i}`,
+      `stator rib ${i}`,
     );
     await beginXY();
     await addCircle(px, py, padD());
@@ -784,79 +845,90 @@ async function buildBase() {
         extent: { type: "distance", distance: baseH() },
         taper_angle_deg: 0,
         flip: false,
-        target_body_ids: [baseId],
+        target_body_ids: [statorId],
       }),
-      `base pad ${i}`,
+      `stator pad ${i}`,
     );
   }
-  await beginXY();
-  await addOrientedRect([0, 0], axleSquare(), axleSquare(), 0);
+  const raceDeck = await offsetXY(raceZ());
+  await beginDatum(raceDeck);
+  await addCircle(0, 0, journalD());
   sketch = await finishSketch();
   requireClean(
     await call("solid_extrude", {
       sketch_name: sketch,
       profile_indices: [0],
       operation: "join",
-      extent: { type: "distance", distance: postH() },
+      extent: { type: "distance", distance: journalH() },
       taper_angle_deg: 0,
       flip: false,
-      target_body_ids: [baseId],
+      target_body_ids: [statorId],
     }),
-    "base square post",
+    "stator journal",
   );
-  return baseId;
-}
-
-async function buildAxle(known) {
-  const deck = await offsetXY(flangeZ());
-  await beginDatum(deck);
-  await addCircle(0, 0, axleFlangeD());
-  let sketch = await finishSketch();
-  let update = requireClean(
-    await call("solid_extrude", {
-      sketch_name: sketch,
-      profile_indices: [0],
-      operation: "new_body",
-      extent: { type: "distance", distance: axleFlangeH() },
-      taper_angle_deg: 0,
-      flip: false,
-      target_body_ids: [],
-    }),
-    "axle flange",
-  );
-  const axleId = newestBody(update, known);
-  await beginDatum(await offsetXY(raceZ()));
-  await addCircle(0, 0, innerRaceD());
+  await beginDatum(raceDeck);
+  await addCircle(0, 0, cageOd());
+  await addCircle(0, 0, cageId());
   sketch = await finishSketch();
   requireClean(
     await call("solid_extrude", {
       sketch_name: sketch,
       profile_indices: [0],
       operation: "join",
-      extent: { type: "distance", distance: raceH() },
+      extent: { type: "distance", distance: fenceH() },
       taper_angle_deg: 0,
       flip: false,
-      target_body_ids: [axleId],
+      target_body_ids: [statorId],
     }),
-    "axle inner race",
+    "stator fence",
   );
-  await beginDatum(deck);
-  await addOrientedRect([0, 0], hubSquare(), hubSquare(), 0);
+  await beginDatum(await offsetXY(shoulderZ()));
+  await addCircle(0, 0, shoulderD());
+  sketch = await finishSketch();
+  requireClean(
+    await call("solid_extrude", {
+      sketch_name: sketch,
+      profile_indices: [0],
+      operation: "join",
+      extent: { type: "distance", distance: shoulderH() },
+      taper_angle_deg: 0,
+      flip: false,
+      target_body_ids: [statorId],
+    }),
+    "stator shoulder",
+  );
+  await beginDatum(await offsetXY(beadZ()));
+  await addCircle(0, 0, beadD());
+  sketch = await finishSketch();
+  requireClean(
+    await call("solid_extrude", {
+      sketch_name: sketch,
+      profile_indices: [0],
+      operation: "join",
+      extent: { type: "distance", distance: beadH() },
+      taper_angle_deg: 0,
+      flip: false,
+      target_body_ids: [statorId],
+    }),
+    "stator snap bead",
+  );
+  await beginDatum(await offsetXY(retainerZ()));
+  await addOrientedRect([lockFlatX() + journalD(), 0], journalD() * 2, journalD() * 2, 0);
   sketch = await finishSketch();
   requireClean(
     await call("solid_extrude", {
       sketch_name: sketch,
       profile_indices: [0],
       operation: "cut",
-      extent: { type: "distance", distance: axleFlangeH() + raceH() },
+      extent: { type: "distance", distance: raceZ() + journalH() - retainerZ() },
       taper_angle_deg: 0,
       flip: false,
-      target_body_ids: [axleId],
+      target_body_ids: [statorId],
     }),
-    "axle square bore",
+    "stator D-flat",
   );
-  await cutBedReliefSquare(flangeZ(), hubSquare() + bedReliefD(), axleId, "axle square bed lead-in");
-  return axleId;
+  await cutTopLoadSlots(statorId, [statorId]);
+  return statorId;
 }
 
 async function buildRotor(known) {
@@ -933,34 +1005,15 @@ async function buildRotor(known) {
   return rotorId;
 }
 
-async function buildCartridge(known) {
-  const deck = await offsetXY(cageZ());
-  await beginDatum(deck);
-  await addCircle(0, 0, cageOd());
-  await addCircle(0, 0, cageId());
-  const sketch = await finishSketch();
-  const update = requireClean(
-    await call("solid_extrude", {
-      sketch_name: sketch,
-      profile_indices: [0],
-      operation: "new_body",
-      extent: { type: "distance", distance: cageH() },
-      taper_angle_deg: 0,
-      flip: false,
-      target_body_ids: [],
-    }),
-    "roller cage",
-  );
-  const cageIdBody = newestBody(update, known);
-  await cutRadialPockets(cageIdBody);
-  const seen = [...known, cageIdBody];
+async function placeRollers(known) {
+  const seen = [...known];
   const rollerIds = [];
   for (let i = 0; i < spec.roller_count; i++) {
     const id = await placeRadialCylinder(rollerD(), rollerLen(), i, seen, `roller ${i}`);
     seen.push(id);
     rollerIds.push(id);
   }
-  return { cageId: cageIdBody, rollerIds };
+  return rollerIds;
 }
 
 async function buildRetainer(known) {
@@ -982,7 +1035,7 @@ async function buildRetainer(known) {
   );
   const retainerIdBody = newestBody(update, known);
   await beginDatum(deck);
-  await addOrientedRect([0, 0], retainerSquare(), retainerSquare(), 0);
+  await addDProfile(retainerDHole(), retainerFlatX());
   sketch = await finishSketch();
   requireClean(
     await call("solid_extrude", {
@@ -994,13 +1047,28 @@ async function buildRetainer(known) {
       flip: false,
       target_body_ids: [retainerIdBody],
     }),
-    "retainer square slip",
+    "retainer D-hole",
   );
-  await cutBedReliefSquare(
+  await beginDatum(deck);
+  await addOrientedRect([-retainerOd() * 0.5, 0], retainerOd(), snapGap(), 0);
+  sketch = await finishSketch();
+  requireClean(
+    await call("solid_extrude", {
+      sketch_name: sketch,
+      profile_indices: [0],
+      operation: "cut",
+      extent: { type: "distance", distance: retainerH() },
+      taper_angle_deg: 0,
+      flip: false,
+      target_body_ids: [retainerIdBody],
+    }),
+    "retainer C-gap",
+  );
+  await cutBedReliefCircle(
     retainerZ(),
-    retainerSquare() + bedReliefD(),
+    retainerDHole() + bedReliefD(),
     retainerIdBody,
-    "retainer square bed lead-in",
+    "retainer D-hole bed lead-in",
   );
   return retainerIdBody;
 }
@@ -1201,14 +1269,12 @@ async function formAssembly(ids) {
     /* workspace follow is optional in headless */
   }
   const parts = [
-    ["base", [ids.baseId]],
-    ["axle", [ids.axleId]],
+    ["stator", [ids.statorId]],
     ["rotor", [ids.rotorId]],
-    ["cage", [ids.cageId]],
     ...ids.rollerIds.map((rollerId, index) => [`roller_${index}`, [rollerId]]),
     ["retainer", [ids.retainerId]],
   ];
-  let baseOccurrenceId = null;
+  let statorOccurrenceId = null;
   for (const [name, bodyIds] of parts) {
     const created = await call("assembly_create_component", {
       name,
@@ -1220,16 +1286,16 @@ async function formAssembly(ids) {
     const document = await call("assembly_document");
     const occurrenceId = authoredOccurrenceId(document, componentId);
     if (!occurrenceId) throw new Error(`component ${name} has no root occurrence`);
-    if (name === "base") baseOccurrenceId = occurrenceId;
+    if (name === "stator") statorOccurrenceId = occurrenceId;
   }
-  if (baseOccurrenceId) {
+  if (statorOccurrenceId) {
     await call("assembly_set_occurrence_grounded", {
-      occurrence_id: baseOccurrenceId,
+      occurrence_id: statorOccurrenceId,
       grounded: true,
     });
   }
   try {
-    await call("assembly_set_grounded_body", { body_id: ids.baseId });
+    await call("assembly_set_grounded_body", { body_id: ids.statorId });
   } catch {
     /* optional on some hosts */
   }
@@ -1238,13 +1304,6 @@ async function formAssembly(ids) {
     if (!connector) throw new Error(label);
     return connector;
   };
-  await createStableJoint(
-    "axle_sit",
-    "rigid",
-    need(axisConnectorAt(scene, ids.baseId, [0, 0], baseH(), baseBossD() * 0.5), "no on-axis base land for axle_sit"),
-    need(axisConnectorAt(scene, ids.axleId, [0, 0], flangeZ(), axleFlangeD() * 0.5), "no on-axis axle flange for axle_sit"),
-    ids.baseId,
-  );
   const plateSpin = need(
     axisConnectorAt(scene, ids.rotorId, [0, 0], plateZ() + hubDeckH(), plateBore() * 0.5),
     "no on-axis plate bore for rotor_spin",
@@ -1253,25 +1312,11 @@ async function formAssembly(ids) {
     "rotor_spin",
     "revolute",
     need(
-      journalAxisAt(scene, ids.axleId, connectorZ(plateSpin) ?? plateZ() + hubDeckH(), innerRaceD() * 0.5),
-      "no on-axis axle journal for rotor_spin",
+      journalAxisAt(scene, ids.statorId, connectorZ(plateSpin) ?? plateZ() + hubDeckH(), journalD() * 0.5),
+      "no on-axis stator journal for rotor_spin",
     ),
     plateSpin,
-    ids.axleId,
-  );
-  const cageSpin = need(
-    axisConnectorAt(scene, ids.cageId, [0, 0], cageZ() + cageH(), cageId() * 0.5),
-    "no on-axis cage circle for cage_spin",
-  );
-  await createStableJoint(
-    "cage_spin",
-    "revolute",
-    need(
-      journalAxisAt(scene, ids.axleId, connectorZ(cageSpin) ?? cageZ() + cageH(), innerRaceD() * 0.5),
-      "no on-axis axle journal for cage_spin",
-    ),
-    cageSpin,
-    ids.axleId,
+    ids.statorId,
   );
   for (let index = 0; index < ids.rollerIds.length; index++) {
     const [x, y] = rollerXY(index);
@@ -1281,37 +1326,37 @@ async function formAssembly(ids) {
       `roller_${index}_spin`,
       "revolute",
       need(
-        radialConnectorAt(scene, ids.cageId, [x, y], z, cagePocket() * 0.5, axis),
-        `no cage pocket radial axis for roller ${index}`,
+        radialConnectorAt(scene, ids.statorId, [x, y], z, topLoadPocket() * 0.5, axis),
+        `no stator pocket radial axis for roller ${index}`,
       ),
       need(
         radialConnectorAt(scene, ids.rollerIds[index], [x, y], z, rollerD() * 0.5, axis),
         `no roller radial axis for roller ${index}`,
       ),
-      ids.cageId,
+      ids.statorId,
     );
   }
   await createStableJoint(
     "retainer_sit",
     "rigid",
     need(
-      axisConnectorAt(scene, ids.axleId, [0, 0], retainerZ(), innerRaceD() * 0.5),
-      "no on-axis axle axis for retainer_sit",
+      axisConnectorAt(scene, ids.statorId, [0, 0], retainerZ(), shoulderD() * 0.5),
+      "no on-axis stator shoulder for retainer_sit",
     ),
     need(
       axisConnectorAt(scene, ids.retainerId, [0, 0], retainerZ(), retainerOd() * 0.5),
       "no on-axis retainer washer for retainer_sit",
     ),
-    ids.axleId,
+    ids.statorId,
   );
-  if (baseOccurrenceId) {
+  if (statorOccurrenceId) {
     try {
       await call("assembly_set_occurrence_grounded", {
-        occurrence_id: baseOccurrenceId,
+        occurrence_id: statorOccurrenceId,
         grounded: true,
       });
     } catch {
-      /* axle remains in the grounded cluster */
+      /* stator remains in the grounded cluster */
     }
   }
   const document = await call("assembly_document");
@@ -1350,31 +1395,24 @@ function quatAxisAngle(axis, deg) {
   const s = Math.sin(half);
   return [a[0] * s, a[1] * s, a[2] * s, Math.cos(half)];
 }
-async function cutRadialPockets(cageIdBody) {
-  const x0 = pcd() * 0.5 - pocketLen() * 0.5;
-  const deck = await offsetYZ(x0);
-  const step = 360 / Math.max(spec.roller_count, 1);
+async function cutTopLoadSlots(statorId, known) {
+  const seen = [...known, statorId];
   for (let index = 0; index < spec.roller_count; index++) {
-    await beginDatum(deck);
-    await addCircle(0, zMid(), cagePocket());
-    const sketch = await finishSketch();
-    requireClean(
-      await call("solid_extrude", {
-        sketch_name: sketch,
-        profile_indices: [0],
-        operation: "cut",
-        extent: { type: "distance", distance: pocketLen() },
-        taper_angle_deg: 0,
-        flip: false,
-        target_body_ids: [cageIdBody],
-      }),
-      `radial cage pocket ${index}`,
+    const toolId = await placeRadialCylinder(
+      topLoadPocket(),
+      pocketLen(),
+      index,
+      seen,
+      `top-load slot ${index}`,
     );
-    await transformBodies(
-      [cageIdBody],
-      [0, 0, 0],
-      quatAxisAngle([0, 0, 1], step),
-      [0, 0, zMid()],
+    requireClean(
+      await call("solid_combine", {
+        target_body_id: statorId,
+        tool_body_ids: [toolId],
+        operation: "cut",
+        keep_tools: false,
+      }),
+      `top-load slot cut ${index}`,
     );
   }
 }
@@ -1417,30 +1455,23 @@ async function standRoller(rollerId, index) {
 async function layoutPrintPlate(ids) {
   const gap = 10;
   const rotorR = Math.max(rotorD(), hubDeckOd()) * 0.5;
-  const baseR = baseEnvelope() * 0.5;
-  const axleR = axleFlangeD() * 0.5;
-  const cartR = cageOd() * 0.5;
+  const statorR = Math.max(baseEnvelope(), axleFlangeD()) * 0.5;
   const retR = retainerOd() * 0.5;
-  const colX = rotorR + gap + Math.max(baseR, axleR);
-  const smallX = colX + Math.max(baseR, axleR) + gap + Math.max(cartR, retR);
+  const colX = rotorR + gap + statorR;
   await moveBodies([ids.rotorId], [-rotorR - gap * 0.5, 0, -plateZ()]);
-  await moveBodies([ids.baseId], [colX, baseR + gap * 0.5, 0]);
-  await moveBodies([ids.axleId], [colX, -(axleR + gap * 0.5), -flangeZ()]);
-  // Rollers print standing (axis Z). Do not nest them in the cage
-  // or under the plate — race-to-roller at +0.40 welds.
-  await moveBodies([ids.cageId], [smallX, -(cartR + gap), -cageZ()]);
+  await moveBodies([ids.statorId], [colX, statorR + gap * 0.5, 0]);
   const rollPitch = rollerD() + 4;
-  const slotX = smallX + cartR + gap + rollerD() * 0.5;
+  const slotX = colX + statorR + gap + rollerD() * 0.5;
   for (let index = 0; index < ids.rollerIds.length; index++) {
     await standRoller(ids.rollerIds[index], index);
     const [x, y] = rollerXY(index);
-    const slotY = -(cartR + gap) + index * rollPitch;
+    const slotY = -(statorR * 0.4) + index * rollPitch;
     await moveBodies(
       [ids.rollerIds[index]],
       [slotX - x, slotY - y, -(zMid() - rollerLen() * 0.5)],
     );
   }
-  await moveBodies([ids.retainerId], [smallX, cartR + gap + retR, -retainerZ()]);
+  await moveBodies([ids.retainerId], [colX, -(statorR + gap + retR), -retainerZ()]);
 }
 
 async function makeAssemblyDrawing() {
@@ -1469,11 +1500,11 @@ async function makeAssemblyDrawing() {
     ],
     [
       [18, 58],
-      "GDT  axle SITS on base. Thin flat thrust under the blade roots: flange = lower race, plate underside = upper race, radial-axis rollers between. Cage is a spacer (ID looser than the plate bore). Short journal centers the plate. Cage on flange, drop rollers into the windows, then the rotor. Pockets running +0.40.",
+      "GDT  one stator (Y-frame + race + open fence + journal). Thin flat thrust under the blade roots: stator race = lower, plate underside = upper, radial-axis rollers between. Top-load slots, not PIP. Fence ID looser than the plate bore. Clocked C-snap retainer sits on the journal shoulder — it does not rub the rotor.",
     ],
     [
       [18, 68],
-      `BOM  base (Y-frame + square post) · axle (flange + short journal) · rotor (root plate+3×${spec.airfoil}) · thin thrust cage + ${spec.roller_count} radial rollers · retainer`,
+      `BOM  stator (Y-frame + race + fence + D-journal) · rotor (root plate+3×${spec.airfoil}) · ${spec.roller_count} radial rollers · clocked C-snap retainer`,
     ],
     [
       [18, 78],
@@ -1516,6 +1547,7 @@ function writeDesignReport({ bodies, rotorBox, rotorFaces, plateFiles }) {
     ["Tangent-axis rollers", "A tangent axis rolls inward/outward. Relative motion at the race is circumferential, so the roller axis must be radial."],
     ["Rectangular print arms", "Blade roots were rectangular arms + stumps. The airfoil goes through the plate. No spars."],
     ["Inboard pack / cage as journal", "PCD at 58% of the plate left the blade roots cantilevered on 5 mm PLA. Cage ID tighter than the plate bore stole the radial land. Boss tracked the race OD and reprinted a solid orange cylinder. Pack belongs under the blade roots; cage is a spacer; boss only seats the axle."],
+    ["Separate axle disk + cage disk", "Two flats that should be one stator. Extra plastic, extra assembly, and a rubbing washer. Merge Y-frame + race + open fence + journal. Top-load the rollers. Clocked C-snap retainer sits on the journal shoulder, not on the rotor."],
   ];
   const usd = estimatedFilamentUsd().toFixed(2);
   const markdown = `# Print Kit Tutor — design report
@@ -1530,29 +1562,29 @@ ${iterations.map(([name, why]) => `| ${name} | ${why} |`).join("\n")}
 
 ## 2. Design process
 
-- **Architecture:** Helical H-Darrieus, directionless (no yaw). Short fixed square post. Thin flat thrust under the plate (large PCD) so the tall blades rotate about Z. No tall mast. No tall drum. No loose bushing sandwich.
+- **Architecture:** Helical H-Darrieus, directionless (no yaw). One printed stator (Y-frame + race + open fence + journal). Thin flat thrust under the plate (large PCD) so the tall blades rotate about Z. No tall mast. No tall drum. No separate axle puck + cage disk.
 - **Airfoil:** ${spec.airfoil} (t/c ${spec.airfoil_t_c}). 2026 VAWT dynamic-stall work favors t/c 21–24%. TE blunt to ${teMin()} mm (≥ 2 nozzles). Open drafted tips.
 - **Rotor:** one piece — root plate out to the blades (Ø${hubDeckOd().toFixed(1)}), underside is the upper thrust race, plus ${spec.wing_count} helical NACAs lofted from that plate (flat sit-plane cut, chord drafts toward the tip). c=${chordRoot().toFixed(1)}/${chordTip().toFixed(1)} mm, R=${wingRadius().toFixed(1)} mm, span=${wingH().toFixed(1)} mm, helix ${spec.helix_deg}°, σ=${solidity().toFixed(3)}. Envelope/rotor ${(baseEnvelope() / rotorD()).toFixed(2)}.
-- **Fits:** assembled running +${spec.fit_running_mm} (rollers on races and in cage pockets — those parts print as other bodies). Same-plate PIP +${spec.fit_pip_mm} is the class; this kit does not PIP the rollers. Slip +${spec.fit_slip_mm} (square retainer). Friction +${spec.fit_friction_mm} on a land above a ${spec.bed_relief_mm} mm bed lead-in (axle square). Slicer XY hole compensation stays 0. Axle **sits** on the base. Plate **sits** 0.20 above the roller pack. Cage height equals roller diameter. Do **not** nest the plate around the rollers on the bed.
-- **Loads:** weight/thrust on the axle flange (lower race) and the plate underside (upper race). Overturning is a couple across the pack **under the blade roots** — not a tall journal, and not a 5 mm plate cantilevering from an inboard PCD. The plate bore (running) is the radial land; the cage ID is looser (spacer). Torque about Z stays in the rotor; the square post is the stator. Centrifugal blade load is taken by the one-piece plate.
-- **Links:** rigid axle_sit + retainer_sit; revolute rotor_spin / cage_spin about Z; each roller revolute about its radial axis. assembly_solution must stay solved without yanking parts off-axis.
-- **Materials:** ${plaOrange} (base, axle, cage, rollers, retainer) and ${plaGlow} (rotor). Hardened nozzle for glow. AMS lite is not recommended for glow.
-- **Thrust pack:** ${spec.roller_count}× Ø${rollerD().toFixed(1)}×L${rollerLen().toFixed(1)} radial-axis rollers on PCD ${pcd().toFixed(1)} (outer land r=${packOuterR().toFixed(1)}, blade R=${wingRadius().toFixed(1)}) between flange Ø${axleFlangeD().toFixed(1)} and plate Ø${hubDeckOd().toFixed(1)}. Pack height = roller Ø. Cage ID ${cageId().toFixed(1)} > plate bore ${plateBore().toFixed(1)}. Short journal Ø${innerRaceD().toFixed(1)}×h${raceH().toFixed(1)} centers the plate. Cage on the flange, rollers into the windows, then the rotor. Not a pickup cartridge. Not a tall drum. Not standing-Z pucks.
+- **Fits:** assembled running +${spec.fit_running_mm} (rollers on races). Top-load slots are running + two nozzles so rollers drop in from above without support. Same-plate PIP +${spec.fit_pip_mm} is the class; this kit does not PIP the rollers (lying OD would be layers). Clocked C-snap retainer: D-hole + C-gap, slip on the journal neck, sits on the shoulder 0.20 above the plate — it is not a running face. Slicer XY hole compensation stays 0. Plate **sits** 0.20 above the roller pack. Fence height is below pack height so rollers touch both races.
+- **Loads:** weight/thrust on the stator race (lower) and the plate underside (upper). Overturning is a couple across the pack **under the blade roots**. The plate bore (running) is the radial land; the fence ID is looser (spacer). Torque about Z stays in the rotor. Centrifugal blade load is taken by the one-piece plate.
+- **Friction:** only rolling contacts on the turbine (rollers ↔ races). Plate bore is running, not friction. Fence does not rub the journal. Retainer never rubs the rotor. PLA-on-PLA is a demo; service dry PTFE on the races.
+- **Links:** grounded stator; revolute rotor_spin about Z; each roller revolute about its radial axis; rigid retainer_sit on the journal shoulder. assembly_solution must stay solved without yanking parts off-axis.
+- **Materials:** ${plaOrange} (stator, rollers, retainer) and ${plaGlow} (rotor). Hardened nozzle for glow. AMS lite is not recommended for glow.
+- **Thrust pack:** ${spec.roller_count}× Ø${rollerD().toFixed(1)}×L${rollerLen().toFixed(1)} radial-axis rollers on PCD ${pcd().toFixed(1)} (outer land r=${packOuterR().toFixed(1)}, blade R=${wingRadius().toFixed(1)}) between stator race Ø${axleFlangeD().toFixed(1)} and plate Ø${hubDeckOd().toFixed(1)}. Pack height = roller Ø. Fence ID ${cageId().toFixed(1)} > plate bore ${plateBore().toFixed(1)}. Short journal Ø${innerRaceD().toFixed(1)}×h${raceH().toFixed(1)} centers the plate. Drop rollers into the top-load slots, then the rotor, then snap the retainer. Not a pickup cartridge. Not a tall drum. Not standing-Z pucks.
 - **Scale:** source numbers are X2D-max (256×256×260, 8 mm margin). Exam scale ${spec.scale}. Feature floors: roller Ø${spec.roller_min_d}, TE ${spec.airfoil_te_min_mm}, 4-nozzle walls.
 - **Service finish:** rotor standing so layer lines run spanwise; sand PLA 400→1000 on skins. Do not vapor-smooth a running fit.
 - **Assembly drawing:** A3 sheet, auto-layout, notes for fits / scale / print / BOM.
 
 ## 3. Final product
 
-Five functional parts, assembly order: ${spec.assembly_order.join(" → ")}.
+Three printed families, assembly order: ${spec.assembly_order.join(" → ")} (rollers drop into the stator first).
 
 | Part | Count | Role |
 |------|------:|------|
-| Base | 1 | Y-frame + square stator post. Print flat. |
-| Axle | 1 | Lower thrust flange + short centering journal, square bore, print on the flange. |
+| Stator | 1 | Y-frame + lower race + open top-load fence + D-journal + snap bead. Print flat. |
 | Rotor | 1 | Root plate (upper thrust race) + 3× ${spec.airfoil} ending on the sit plane. Print standing. |
-| Roller cage | 1 | Spacer ring + ${spec.roller_count} radial-axis rollers. Cage on the flange, rollers into the windows. |
-| Retainer | 1 | Washer on the post above the plate. |
+| Rollers | ${spec.roller_count} | Radial-axis cylinders. Print standing; drop in from above. |
+| Retainer | 1 | Clocked C-snap (D-hole + C-gap). Sits on the journal shoulder, not on the rotor. |
 
 Rotor bbox (exam): ${rotorBox ? `${rotorBox.span.map((n) => n.toFixed(1)).join(" × ")} mm` : "n/a"}; faces=${rotorFaces}. Bodies=${bodies.length}.
 
@@ -1570,7 +1602,7 @@ Print plate in \`${out3mfDir}\` (folder wiped first; parts laid out on one plate
 
 ${plateFiles.map((file) => `- \`${file}\``).join("\n")}
 
-Slicer: one plate, two materials (PLA Orange + PLA Glow). Base/axle/cage/retainer flat. Rotor standing on the root plate, tips up.
+Slicer: one plate, two materials (PLA Orange + PLA Glow). Stator/retainer flat. Rotor standing on the root plate, tips up. Rollers standing.
 
 Project: \`${outProject}\`
 
@@ -1661,18 +1693,17 @@ try {
   const blankDetail = await requireBlankDocument();
   await call("cad_set_document_name", { name: spec.document_name });
 
-  const baseId = await buildBase();
-  const axleId = await buildAxle([baseId]);
-  const rotorId = await buildRotor([baseId, axleId]);
-  const { cageId, rollerIds } = await buildCartridge([baseId, axleId, rotorId]);
-  const retainerId = await buildRetainer([baseId, axleId, rotorId, cageId, ...rollerIds]);
+  const statorId = await buildStator();
+  const rotorId = await buildRotor([statorId]);
+  const rollerIds = await placeRollers([statorId, rotorId]);
+  const retainerId = await buildRetainer([statorId, rotorId, ...rollerIds]);
 
   let assemblyOk = false;
   let assemblyDetail = "";
   try {
-    await formAssembly({ baseId, axleId, rotorId, cageId, rollerIds, retainerId });
+    await formAssembly({ statorId, rotorId, rollerIds, retainerId });
     assemblyOk = true;
-    assemblyDetail = `${assemblyComponentCount()} linked parts, ≥${assemblyJointCount()} joints; axle sits on base; radial-axis pack under the blade roots; cage is a spacer; rollers spin about e_r`;
+    assemblyDetail = `${assemblyComponentCount()} linked parts, ≥${assemblyJointCount()} joints; one stator; radial-axis pack under the blade roots; top-load fence; clocked C-snap retainer; rollers spin about e_r`;
   } catch (error) {
     assemblyDetail = String(error?.message ?? error);
   }
@@ -1689,10 +1720,8 @@ try {
 
   await call("cad_set_focus", { focus: "print", explicit: true });
   const appearances = [
-    [baseId, plaOrange],
-    [axleId, plaOrange],
+    [statorId, plaOrange],
     [rotorId, plaGlow],
-    [cageId, plaOrange],
     [retainerId, plaOrange],
   ];
   for (const [id, preset] of appearances) {
@@ -1722,8 +1751,8 @@ try {
     outProject,
   );
   const removedPlates = cleanKitOutputs();
-  await layoutPrintPlate({ baseId, axleId, rotorId, cageId, rollerIds, retainerId });
-  const kitBodies = [baseId, axleId, rotorId, cageId, retainerId, ...rollerIds];
+  await layoutPrintPlate({ statorId, rotorId, rollerIds, retainerId });
+  const kitBodies = [statorId, rotorId, retainerId, ...rollerIds];
   const plateFiles = [];
   const plateBytes = [];
   for (const name of currentPlates) {
@@ -1770,7 +1799,7 @@ try {
     report.lessons,
     "no_press",
     spec.fit_friction_mm > 0 && spec.fit_friction_mm < spec.nozzle_mm,
-    "friction locate is a modeled gap; retain with flange/retainer",
+    "no press: clocked C-snap retainer; plate bore is running; retainer does not rub the rotor",
   );
   record(
     report.lessons,
@@ -1819,7 +1848,7 @@ try {
     report.lessons,
     "print_flat",
     printFlatOk(),
-    `axle puck h${(axleFlangeH() + raceH()).toFixed(1)} on flange Ø${axleFlangeD().toFixed(1)}; rotor stands on deck ${hubDeckH().toFixed(1)}; rollers print standing, pockets running +${spec.fit_running_mm.toFixed(2)}`,
+    `stator prints flat (race Ø${axleFlangeD().toFixed(1)}, fence h${fenceH().toFixed(1)} < pack ${packH().toFixed(1)}); rotor stands on deck ${hubDeckH().toFixed(1)}; rollers print standing, top-load +${topLoad().toFixed(2)}`,
   );
   record(
     report.lessons,
