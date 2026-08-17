@@ -61,7 +61,7 @@ Prefer `prompts/get` for the same loops (`model_box`, `model_hole`,
 | Hole | box → hole on a face |
 | Solid | profiles → revolve / sweep / loft / rib |
 | Printable tool | locked sketches → face features → fillet/chamfer/hole → 3MF (`model_print_tool`) |
-| Print kit tutor | **Benchmark #1** — printed VAWT assembly (one-piece helical NACA 0021, role-based fits, printed roller pack, drawing); `npm run test:mcp-print-kit` (`model_print_kit`). Catalog: [agentic/INTEGRATION_TESTS.md](agentic/INTEGRATION_TESTS.md). Contract: [agentic/PRINT_KIT_DESIGN.md](agentic/PRINT_KIT_DESIGN.md). Assembly: [agentic/ASSEMBLY.md](agentic/ASSEMBLY.md) |
+| Print kit tutor | **Benchmark #1** — printed VAWT assembly (one-piece helical NACA 0024-4.5/3.5, role-based fits, printed roller pack, drawing); `npm run test:mcp-print-kit` (`model_print_kit`). Catalog: [agentic/INTEGRATION_TESTS.md](agentic/INTEGRATION_TESTS.md). Contract: [agentic/PRINT_KIT_DESIGN.md](agentic/PRINT_KIT_DESIGN.md). Assembly: [agentic/ASSEMBLY.md](agentic/ASSEMBLY.md) |
 | STEP | `solid_import_step` / `solid_export_step` |
 | Drawing | sheet → HLR → DXF / SVG |
 | History | `cad_undo` / `cad_redo` / timeline tools |

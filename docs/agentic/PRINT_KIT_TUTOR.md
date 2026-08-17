@@ -28,7 +28,7 @@ floors (roller Ø8, roller length 8, TE 0.8, 4-nozzle walls, plate 3.2 mm, base 
 | Part | Role | How it mates |
 |------|------|----------------|
 | Stator | Thin Y-frame + race ring with keeper walls + open top-load fence + constant journal + snap groove, one piece | Grounded. Print flat. |
-| Rotor | Thin root plate out to the blades (underside = upper thrust race), organic airfoil roots, 3 helical **NACA 0021** ending on that plate, **one body**, open tips with a short taper to a flat landing | Plate bore = journal + running. Print standing on the plate. PLA Glow. |
+| Rotor | Thin root plate out to the blades (underside = upper thrust race), organic airfoil roots (appearance), 3 helical **NACA 0024-4.5/3.5** ending on that plate, **one body**, open tips with a short taper to a flat landing | Plate bore = journal + running. Print standing on the plate. PLA Glow. |
 | Rollers | 6 **radial-axis** cylinders, min Ø8, pack height = Ø, large PCD **under the blade roots**, captured by keepers | Drop into top-load slots. Print standing. |
 | Retainer | Clocked C-clip (D-hole + C-gap) | Snaps into the journal groove. Pull to remove. Does not rub the rotor. Clip CAD unchanged this pass — see the GDT clip study. |
 

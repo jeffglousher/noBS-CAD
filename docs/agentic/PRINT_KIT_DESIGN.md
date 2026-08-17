@@ -13,7 +13,7 @@ before save.
 
 | Group | Number | Why |
 |-------|--------|-----|
-| Section | NACA 0021, TE ≥ 0.8 mm, root chord > tip | 2026 thick-symmetric band; drafted standing print |
+| Section | NACA 0024-4.5/3.5, TE ≥ 0.8 mm, root chord > tip | Low-TSR Tirandaz/Rezaeiha section; drafted standing print |
 | Rotor | One body: root plate out to the blades (underside = upper thrust race), 3 helical blades ending on that plate. X2D-max R=85, span=220, scale 0.4 in the exam | Always some blade working; no tenons; no mid-air roots; no skinny-arm hangers |
 | Stand | One stator: Y-frame + race **ring** + open top-load fence + short journal | Envelope/rotor ≤ 1.55; no cookie disk; no tall mast; no separate axle disk |
 | Bearing | **Thin flat thrust** under the **blade roots**: 6× printed **radial-axis** rollers, min Ø8, pack height = Ø, large PCD. Top-load slots. **Keeper walls**. Fence ID looser than the plate bore. Thin plate (≥3.2 mm) with **organic airfoil roots**. Constant journal the plate can drop over. Clocked C-clip in a groove | Rotation about Z plus overturning as a couple under the roots |
@@ -60,9 +60,11 @@ required architecture on the printed Y-frame stand.
 | Thin vs thick + plain/Gurney/hybrid flaps, *Results in Engineering* | 2026 | Low-Re Darrieus: thick 0021 + hybrid flap can raise Cp; a flap is not a substitute for a section |
 | Gu, MacDonald, Tang, *Flow* 6 | 2026 | Adaptive Darrieus–Savonius flap: optional starter, not the wing |
 
-**Printable required section for the exam:** NACA **0021** (t/c = 0.21)
-with trailing edge blunt to **≥ 2 nozzles**. Construct 0024–4.5/3.5 if
-you can. A rectangle with the same bounding box is a vane.
+**Printable required section:** NACA **0024-4.5/3.5** (t/c = 0.24,
+xt/c = 0.35, LE index I = 4.5) with trailing edge blunt to **≥ 2 nozzles**.
+Organic root blend and tip landing are appearance only
+([PRINT_KIT_ORGANIC_REFERENCE.md](PRINT_KIT_ORGANIC_REFERENCE.md)).
+A rectangle with the same bounding box is a vane.
 
 ## Service finish
 

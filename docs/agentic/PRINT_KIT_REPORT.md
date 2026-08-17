@@ -34,7 +34,7 @@ Contract: [PRINT_KIT_DESIGN.md](PRINT_KIT_DESIGN.md).
 ## 2. Design process
 
 - **Architecture:** Helical H-Darrieus, directionless (no yaw). One printed stator (Y-frame + race ring + open fence + journal). Thin flat thrust under the plate. No tall mast. No tall drum. No cookie disk. No separate axle puck + cage disk.
-- **Airfoil:** NACA 0021 (t/c 0.21). 2026 band is t/c 21–24%. TE blunt to 0.8 mm. Open drafted tips.
+- **Airfoil:** NACA 0024-4.5/3.5 (t/c 0.24, xt/c 0.35, I = 4.5). Low-TSR Tirandaz/Rezaeiha section. TE blunt to 0.8 mm. Open drafted tips. Organic roots are appearance only.
 - **Rotor:** one piece — root plate (upper thrust race) + print arms + root stumps + 3 helical NACAs from the plate. N=3, 60° helix, σ in 0.24–0.45. Envelope/rotor ≤ 1.55.
 - **Fits:** assembled running +0.40 (rollers on races), PIP +0.80 (cage pockets), slip +0.28 (retainer), friction +0.16 on a land above a 0.80 mm bed lead-in. Cage height matches roller height. Do not nest the plate around the PIP rollers. Slicer XY hole compensation stays 0. No press. No 608.
 - **Thrust pack:** thin PIP rollers (6× min Ø8 / h3.2) on a large PCD between the axle flange and the plate underside. Short journal centers. A two-land sleeve, a loose bushing, a washer stack, or a tall drum is not the bearing.

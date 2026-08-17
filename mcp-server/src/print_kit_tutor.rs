@@ -38,6 +38,10 @@ pub struct Spec {
     pub helix_stations: usize,
     pub airfoil: String,
     pub airfoil_t_c: f64,
+    #[serde(default = "default_airfoil_le_index")]
+    pub airfoil_le_index: f64,
+    #[serde(default = "default_airfoil_xt_c")]
+    pub airfoil_xt_c: f64,
     pub airfoil_te_min_mm: f64,
     pub airfoil_stations: usize,
     pub hub_h: f64,
@@ -65,6 +69,13 @@ pub struct Spec {
     pub min_print_plates: usize,
     pub print_plates: Vec<String>,
     pub retired_print_plates: Vec<String>,
+}
+
+fn default_airfoil_le_index() -> f64 {
+    4.5
+}
+fn default_airfoil_xt_c() -> f64 {
+    0.35
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -421,6 +432,10 @@ impl Spec {
         self.airfoil.to_ascii_uppercase().contains("NACA")
             && self.airfoil_t_c >= 0.18
             && self.airfoil_t_c <= 0.26
+            && self.airfoil_xt_c >= 0.275
+            && self.airfoil_xt_c <= 0.40
+            && self.airfoil_le_index >= 4.0
+            && self.airfoil_le_index <= 6.0
             && (self.wing_thick - self.wing_chord_root * self.airfoil_t_c).abs() < 0.2
             && self.te_min() + 1e-9 >= self.nozzle_mm * 2.0
             && self.chord_root() > self.chord_tip()
@@ -1166,6 +1181,8 @@ fn build_rotor(
             spec.helix_azimuth_deg(index, 0.0) + 90.0,
             spec.chord_root(),
             spec.airfoil_t_c,
+            spec.airfoil_xt_c,
+            spec.airfoil_le_index,
             spec.airfoil_stations,
             spec.te_min(),
         )?;
@@ -1195,6 +1212,8 @@ fn build_rotor(
                 spec.helix_azimuth_deg(index, t) + 90.0,
                 chord,
                 spec.airfoil_t_c,
+                spec.airfoil_xt_c,
+                spec.airfoil_le_index,
                 spec.airfoil_stations,
                 spec.te_min(),
             )?;
@@ -2209,16 +2228,41 @@ fn decode_3mf_bytes(exported: &Value) -> Vec<u8> {
         .unwrap_or_default()
 }
 
-fn naca_00_thickness(x: f64, thickness_ratio: f64) -> f64 {
+/// NACA 4-digit modified half-thickness / chord (Ladson TM 4741 family).
+/// `t` is t/c, `xt` is xt/c, `le_index` is I. The 20% model is scaled by t/0.20.
+fn naca4_modified_yt_over_c(x: f64, t: f64, xt: f64, le_index: f64) -> f64 {
     let x = x.clamp(0.0, 1.0);
-    5.0 * thickness_ratio
-        * (0.2969 * x.sqrt() - 0.1260 * x - 0.3516 * x * x + 0.2843 * x.powi(3)
-            - 0.1015 * x.powi(4))
+    let p = xt.clamp(0.22, 0.42);
+    let i = le_index.clamp(3.0, 9.0);
+    let a0 = 0.2969 * (i / 6.0);
+    let d0 = 0.002;
+    let d1 = 0.234;
+    let u = 1.0 - p;
+    let rhs_aft = 0.10 - d0 - d1 * u;
+    let d3 = -2.0 * (rhs_aft + d1 * u * 0.5) / u.powi(3);
+    let d2 = (-d1 - 3.0 * d3 * u * u) / (2.0 * u);
+    let ypp = 2.0 * d2 + 6.0 * d3 * u;
+    let s = p.sqrt();
+    let rhs0 = 0.10 - a0 * s;
+    let rhs1 = -0.5 * a0 / s;
+    let rhs2 = ypp + 0.25 * a0 / p.powf(1.5);
+    let a3 = (rhs0 - p * rhs1 + 0.5 * p * p * rhs2) / p.powi(3);
+    let a2 = rhs2 * 0.5 - 3.0 * a3 * p;
+    let a1 = rhs1 - p * rhs2 + 3.0 * a3 * p * p;
+    let y20 = if x <= p {
+        a0 * x.sqrt() + a1 * x + a2 * x * x + a3 * x.powi(3)
+    } else {
+        let uu = 1.0 - x;
+        d0 + d1 * uu + d2 * uu * uu + d3 * uu.powi(3)
+    };
+    (y20 * (t / 0.20)).max(0.0)
 }
 
 fn naca_symmetric_loop(
     chord: f64,
     thickness_ratio: f64,
+    xt_c: f64,
+    le_index: f64,
     stations: usize,
     te_min: f64,
 ) -> Vec<[f64; 2]> {
@@ -2231,7 +2275,7 @@ fn naca_symmetric_loop(
     let mut upper = Vec::new();
     let mut lower = Vec::new();
     for x in xs {
-        let mut yt = naca_00_thickness(x, thickness_ratio) * chord;
+        let mut yt = naca4_modified_yt_over_c(x, thickness_ratio, xt_c, le_index) * chord;
         if x > 0.85 {
             yt = yt.max(te_min / 2.0);
         }
@@ -2255,15 +2299,24 @@ fn add_airfoil(
     angle_deg: f64,
     chord: f64,
     thickness_ratio: f64,
+    xt_c: f64,
+    le_index: f64,
     stations: usize,
     te_min: f64,
 ) -> Result<(), String> {
     let angle = angle_deg.to_radians();
     let (cos, sin) = (angle.cos(), angle.sin());
-    let world: Vec<[f64; 2]> = naca_symmetric_loop(chord, thickness_ratio, stations, te_min)
-        .into_iter()
-        .map(|[x, y]| [center[0] + cos * x - sin * y, center[1] + sin * x + cos * y])
-        .collect();
+    let world: Vec<[f64; 2]> = naca_symmetric_loop(
+        chord,
+        thickness_ratio,
+        xt_c,
+        le_index,
+        stations,
+        te_min,
+    )
+    .into_iter()
+    .map(|[x, y]| [center[0] + cos * x - sin * y, center[1] + sin * x + cos * y])
+    .collect();
     add_poly(call, &world, true)
 }
 
@@ -2698,8 +2751,11 @@ mod spec_tests {
         assert_eq!(spec.materials.glow, "bambu.pla.glow.green");
         assert!(spec.stack_ok());
         assert!(spec.retainer_od() < spec.hub_od());
-        assert_eq!(spec.assembly_component_count(), 9);
-        assert_eq!(spec.assembly_joint_count(), 8);
+        assert_eq!(spec.assembly_component_count(), 3 + spec.roller_count);
+        assert_eq!(spec.assembly_joint_count(), 2 + spec.roller_count);
+        assert!((spec.airfoil_t_c - 0.24).abs() < 1e-9);
+        assert!((spec.airfoil_xt_c - 0.35).abs() < 1e-9);
+        assert!((spec.airfoil_le_index - 4.5).abs() < 1e-9);
         assert!(spec.flange_z().abs() < 1e-9);
         assert!((spec.wing_offset_deg + spec.helix_deg * 0.5 - 60.0).abs() < 1e-9);
         assert!(spec.rotor_print_h() / spec.scale <= spec.usable_bed()[2] + 1e-6);
@@ -2717,6 +2773,10 @@ mod spec_tests {
         assert!(spec.fence_h() + 1e-9 < spec.pack_h());
         assert!(spec.top_load_pocket() + 1e-9 > spec.cage_pocket());
         assert!(spec.fit_pip_mm > spec.fit_running_mm);
+        let yt_max = naca4_modified_yt_over_c(0.35, 0.24, 0.35, 4.5);
+        assert!((yt_max - 0.12).abs() < 0.004);
+        assert!(naca4_modified_yt_over_c(0.35, 0.24, 0.35, 4.5) > naca4_modified_yt_over_c(0.10, 0.24, 0.35, 4.5));
+        assert!(naca4_modified_yt_over_c(0.35, 0.24, 0.35, 4.5) > naca4_modified_yt_over_c(0.70, 0.24, 0.35, 4.5));
         assert!((spec.bed_relief_mm - spec.nozzle_mm * 2.0).abs() < 1e-9);
         assert!((spec.cage_pocket() - (spec.roller_d() + spec.fit_running_mm)).abs() < 1e-9);
         assert!(spec.hub_deck_od() > spec.axle_flange_d());

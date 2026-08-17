@@ -7,10 +7,11 @@ the frame away — and left the wing with nothing to use. This page is the
 correction record. Numbers live in `scripts/fixtures/print-kit-tutor.spec.json`.
 
 **Current machine (2026-08-17):** one-piece helical rotor on a **thin**
-root plate with **organic airfoil roots** and a short **tip taper to a
-flat landing**; **one stator** (thin Y-frame + race **ring** + **keeper
+root plate with **organic airfoil roots** (appearance reference) and a
+short **tip taper to a flat landing**; section is **NACA 0024-4.5/3.5**;
+**one stator** (thin Y-frame + race **ring** + **keeper
 walls** + open top-load fence + short D-journal); **thin flat thrust
-under the blade roots** (radial-axis rollers, pack height = roller Ø);
+under the blade roots** (8 radial-axis rollers, pack height = roller Ø);
 fence sits on the race ring (ID looser than the plate bore); clocked
 C-clip snaps into the journal groove and does not rub the rotor.
 **Clip CAD is unchanged this pass** — recommendations are in the clip

@@ -191,7 +191,7 @@ pub fn list_prompts() -> Value {
             prompt_desc(
                 "model_print_kit",
                 "Design a printed omnidirectional VAWT",
-                "Repeatable print-kit pipeline: directionless H-Darrieus, NACA 0021, printed thrust pack, assembly, and a design report with plastic cost. 0.4 mm Bambu nozzle.",
+                "Repeatable print-kit pipeline: directionless H-Darrieus, NACA 0024-4.5/3.5, printed thrust pack, assembly, and a design report with plastic cost. 0.4 mm Bambu nozzle.",
                 &[("nozzle_mm", "Nozzle diameter used as the diametral clearance (default 0.4)", false)]
             ),
             prompt_desc(
@@ -687,7 +687,7 @@ mod tests {
             .to_string();
         for needle in [
             "airfoil",
-            "NACA 0021",
+            "NACA 0024",
             "directionless",
             "service finish",
             "design report",

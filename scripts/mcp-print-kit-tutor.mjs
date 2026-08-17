@@ -570,6 +570,10 @@ function airfoilOk() {
     /NACA/i.test(spec.airfoil) &&
     spec.airfoil_t_c >= 0.18 &&
     spec.airfoil_t_c <= 0.26 &&
+    spec.airfoil_xt_c >= 0.275 &&
+    spec.airfoil_xt_c <= 0.4 &&
+    spec.airfoil_le_index >= 4 &&
+    spec.airfoil_le_index <= 6 &&
     Math.abs(spec.wing_thick - spec.wing_chord_root * spec.airfoil_t_c) < 0.2 &&
     teMin() + 1e-9 >= spec.nozzle_mm * 2 &&
     chordRoot() > chordTip()
@@ -840,13 +844,30 @@ async function cutBedReliefSquare(z, size, bodyId, label) {
     label,
   );
 }
-function naca00Thickness(x, thicknessRatio) {
-  const t = Math.min(1, Math.max(0, x));
-  return (
-    5 *
-    thicknessRatio *
-    (0.2969 * Math.sqrt(t) - 0.126 * t - 0.3516 * t * t + 0.2843 * t ** 3 - 0.1015 * t ** 4)
-  );
+function naca4ModifiedYtOverC(x, t, xt, leIndex) {
+  const xx = Math.min(1, Math.max(0, x));
+  const p = Math.min(0.42, Math.max(0.22, xt));
+  const i = Math.min(9, Math.max(3, leIndex));
+  const a0 = 0.2969 * (i / 6);
+  const d0 = 0.002;
+  const d1 = 0.234;
+  const u = 1 - p;
+  const rhsAft = 0.1 - d0 - d1 * u;
+  const d3 = (-2 * (rhsAft + d1 * u * 0.5)) / u ** 3;
+  const d2 = (-d1 - 3 * d3 * u * u) / (2 * u);
+  const ypp = 2 * d2 + 6 * d3 * u;
+  const s = Math.sqrt(p);
+  const rhs0 = 0.1 - a0 * s;
+  const rhs1 = (-0.5 * a0) / s;
+  const rhs2 = ypp + 0.25 * a0 / p ** 1.5;
+  const a3 = (rhs0 - p * rhs1 + 0.5 * p * p * rhs2) / p ** 3;
+  const a2 = rhs2 * 0.5 - 3 * a3 * p;
+  const a1 = rhs1 - p * rhs2 + 3 * a3 * p * p;
+  const y20 =
+    xx <= p
+      ? a0 * Math.sqrt(xx) + a1 * xx + a2 * xx * xx + a3 * xx ** 3
+      : d0 + d1 * (1 - xx) + d2 * (1 - xx) ** 2 + d3 * (1 - xx) ** 3;
+  return Math.max(0, y20 * (t / 0.2));
 }
 function nacaSymmetricLoop(chord, thicknessRatio, stations, te) {
   const count = Math.max(stations, 6);
@@ -857,8 +878,10 @@ function nacaSymmetricLoop(chord, thicknessRatio, stations, te) {
   }
   const upper = [];
   const lower = [];
+  const xt = spec.airfoil_xt_c ?? 0.35;
+  const le = spec.airfoil_le_index ?? 4.5;
   for (const x of xs) {
-    let yt = naca00Thickness(x, thicknessRatio) * chord;
+    let yt = naca4ModifiedYtOverC(x, thicknessRatio, xt, le) * chord;
     if (x > 0.85) yt = Math.max(yt, te / 2);
     const xc = (x - 0.5) * chord;
     upper.push({ x: xc, y: yt });
@@ -1685,7 +1708,7 @@ ${iterations.map(([name, why]) => `| ${name} | ${why} |`).join("\n")}
 ## 2. Design process
 
 - **Architecture:** Helical H-Darrieus, directionless (no yaw). One printed stator (Y-frame + race ring + open fence + journal). Thin flat thrust under the plate (large PCD) so the tall blades rotate about Z. No tall mast. No tall drum. No cookie disk. No separate axle puck + cage disk.
-- **Airfoil:** ${spec.airfoil} (t/c ${spec.airfoil_t_c}). 2026 VAWT dynamic-stall work favors t/c 21–24%. TE blunt to ${teMin()} mm (≥ 2 nozzles). Open drafted tips.
+- **Airfoil:** ${spec.airfoil} (t/c ${spec.airfoil_t_c}, xt/c ${spec.airfoil_xt_c}, I=${spec.airfoil_le_index}). Tirandaz/Rezaeiha low-TSR section (λ ≈ 2.5). TE blunt to ${teMin()} mm (≥ 2 nozzles). Open drafted tips. Organic roots are appearance only.
 - **Rotor:** one piece — thin root plate out to the blades (Ø${hubDeckOd().toFixed(1)} × h${hubDeckH().toFixed(1)}), underside is the upper thrust race, plus ${spec.wing_count} helical NACAs lofted from that plate. Organic root blend (${rootScale().toFixed(2)}× chord over ${rootBlendH().toFixed(1)} mm) then helix, then a ${tipTaperH().toFixed(1)} mm taper to a flat landing (tip chord ${tipChord().toFixed(1)}). Through-plate stump stays the sit-plane chord. c=${chordRoot().toFixed(1)}/${chordTip().toFixed(1)} mm, R=${wingRadius().toFixed(1)} mm, span=${wingH().toFixed(1)} mm, helix ${spec.helix_deg}°, σ=${solidity().toFixed(3)}. Envelope/rotor ${(baseEnvelope() / rotorD()).toFixed(2)}.
 - **Fits:** assembled running +${spec.fit_running_mm} (rollers on races). Top-load slots are running + two nozzles so rollers drop in from above without support. Same-plate PIP +${spec.fit_pip_mm} is the class; this kit does not PIP the rollers (lying OD would be layers). Journal pass Ø is smaller than the plate bore so the rotor drops on. Clocked C-clip: D-hole + C-gap, snaps into an undercut groove 0.20 above the plate — it is not a running face. Pull the C-gap to remove. Slicer XY hole compensation stays 0. Plate **sits** 0.20 above the roller pack. Fence height is below pack height so rollers touch both races.
 - **Loads:** weight/thrust on the stator race (lower) and the plate underside (upper). Overturning is a couple across the pack **under the blade roots**. The plate bore (running) is the radial land; the fence ID is looser (spacer). Torque about Z stays in the rotor. Centrifugal blade load is taken by the one-piece plate.
@@ -1791,7 +1814,7 @@ try {
     throw new Error("model_print_kit prompt is missing the FDM curriculum");
   }
   if (
-    !/airfoil|NACA 0021|directionless|design report|service finish|helical|Y-frame|print plate/i.test(
+    !/airfoil|NACA 0024|directionless|design report|service finish|helical|Y-frame|print plate/i.test(
       recipe,
     )
   ) {
