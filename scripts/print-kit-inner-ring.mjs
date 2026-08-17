@@ -333,11 +333,6 @@ async function buildRing() {
   const lead = await annulus(od, leadOd);
   await extrude(lead, "cut", leadH, [bodyId], "OD slip funnel");
 
-  for (let i = 0; i < 6; i++) {
-    const p = polar(21.0, 30 + i * 60);
-    await cutCircle(p.x, p.y, 3.2, hoopH, bodyId, `scallop ${i}`);
-  }
-
   for (let i = 0; i < 3; i++) {
     const belly = petalStations[3];
     const p = polar(belly.r, i * 120 + belly.da);
