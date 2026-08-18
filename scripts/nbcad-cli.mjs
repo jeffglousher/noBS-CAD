@@ -141,8 +141,7 @@ async function runMcp(command, rest) {
   }
 
   try {
-    await request("initialize", { protocolVersion: "2026-07-28" });
-    await request("notifications/initialized", {});
+    await request("server/discover", {});
     let payload;
     if (command === "tools") {
       payload = toolBody(await request("tools/list", {}));
