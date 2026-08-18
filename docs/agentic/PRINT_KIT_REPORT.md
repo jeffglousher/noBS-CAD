@@ -59,7 +59,8 @@ shaft/hub/wings/plate/bushing/cap names):
 Assumptions: Bambu PLA Basic Orange + Bambu PLA Glow + Bambu PETG HF Black,
 PLA 1.24 / PETG 1.27 g/cm³, $20/kg, print-volume factor 0.42.
 
-At exam scale 0.4 the exam writes the live figures next to the project.
-Three filaments: PLA Orange stator, PLA Glow blades (keep light for a
-later generator), PETG HF hollow rollers + E-clip.
+At exam scale 0.4 the last green PETG pass was **89.8 cm³** CAD solid,
+**46.8 g**, **$0.94**. Three filaments: PLA Orange stator, PLA Glow
+blades (keep light for a later generator), PETG HF hollow rollers +
+E-clip. The exam writes the live figures next to the project.
 Electricity and machine time are not priced. No additional hardware.
