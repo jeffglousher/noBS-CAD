@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="360" viewBox="0 0 920 360" role="img" aria-label="Apex rule versus cone on flats">
+  <rect width="920" height="360" fill="#fbfaf6"/>
+  <text x="24" y="28" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#1f2933" font-size="16" font-weight="600">Fig. B3  A taper only works if the races share the roller apex  (Timken / ISO 355)</text>
+  <line x1="80" y1="80" x2="80" y2="320" stroke="#1f2933" stroke-width="2"/>
+  <line x1="80" y1="80" x2="400" y2="140" stroke="#0f6b4c" stroke-width="2"/>
+  <line x1="80" y1="80" x2="400" y2="220" stroke="#0f6b4c" stroke-width="2"/>
+  <polygon points="250,128 360,155 360,205 250,192" fill="rgba(15,107,76,0.25)" stroke="#0f6b4c"/>
+  <circle cx="80" cy="80" r="4" fill="#c05621"/>
+  <text x="90" y="74" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#1f2933" font-size="12" fill="#c05621">common apex on the bearing axis</text>
+  <text x="250" y="250" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#1f2933" font-size="13" fill="#0f6b4c">TRUE TAPER — pure rolling</text>
+  <rect x="520" y="140" width="340" height="14" fill="#d2d6dc" stroke="#6b7280"/>
+  <rect x="520" y="230" width="340" height="14" fill="#d2d6dc" stroke="#6b7280"/>
+  <polygon points="560,154 820,154 800,230 580,230" fill="rgba(155,28,28,0.2)" stroke="#9b1c1c"/>
+  <text x="560" y="280" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#1f2933" font-size="13" fill="#9b1c1c">CONE ON TWO FLATS — scrub</text>
+  <text x="24" y="340" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#1f2933" font-size="12" fill="#52606d">ωr changes along the cone; flats force one speed. That is more sliding, not less.</text>
+</svg>

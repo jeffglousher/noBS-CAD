@@ -9,6 +9,7 @@ Committed operating docs for humans and coding agents working on noBS CAD.
 | [PRINT_KIT_TUTOR.md](PRINT_KIT_TUTOR.md) | Curriculum and grader for benchmark #1 |
 | [PRINT_KIT_FILES.md](PRINT_KIT_FILES.md) | Which 3MF / .nbcad is live vs stale |
 | [PRINT_KIT_AERO.md](PRINT_KIT_AERO.md) | Research contract: math, figures, citations |
+| [PRINT_KIT_BEARING.md](PRINT_KIT_BEARING.md) | Thrust-pack + clip integration (research) |
 | [PRINT_KIT_DESIGN.md](PRINT_KIT_DESIGN.md) | 2026 airfoil / bushing / finish contract |
 | [PRINT_KIT_REPORT.md](PRINT_KIT_REPORT.md) | Worked design report (iteration + plastic cost) |
 | [PRINT_KIT_GDT.md](PRINT_KIT_GDT.md) | GD&T / printability study and corrections |

@@ -8,6 +8,8 @@ takes wind from any heading (math, figures, citations):
 [PRINT_KIT_AERO.md](PRINT_KIT_AERO.md).
 Which 3MF is live:
 [PRINT_KIT_FILES.md](PRINT_KIT_FILES.md).
+Thrust pack + clip (printed rollers slide today):
+[PRINT_KIT_BEARING.md](PRINT_KIT_BEARING.md).
 
 Start from a **blank document** (`cad_new_project`, 0 bodies). Do not
 continue a recovered or older Print Kit Tutor. Hide construction planes

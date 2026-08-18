@@ -1,0 +1,15 @@
+{
+  "generated": "2026-08-18T00:18:35.268Z",
+  "exam": {
+    "roller_d": 8,
+    "roller_len": 11.200000000000001,
+    "pack_h": 8,
+    "fence_h": 4.96,
+    "slot_cut_d": 9.200000000000001,
+    "pocket_len": 11.6,
+    "z_mid_above_race": 4,
+    "trough_into_race": 0.6,
+    "protrusion_above_fence": 3.04,
+    "hoop_strain": 0.1236
+  }
+}

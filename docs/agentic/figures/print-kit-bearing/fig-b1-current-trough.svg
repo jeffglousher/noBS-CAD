@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="420" viewBox="0 0 920 420" role="img" aria-label="Current cylindrical slot trough">
+  <rect width="920" height="420" fill="#fbfaf6"/>
+  <text x="24" y="28" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#1f2933" font-size="16" font-weight="600">Fig. B1  As-printed pack (exam 0.4) — the slot is a cylinder cut, so the bottom is a trough</text>
+  <rect x="80" y="300" width="520" height="57.6" fill="#f4d7b0" stroke="#8a5a1a"/>
+  <rect x="120" y="210.72" width="80" height="89.28" fill="#f4d7b0" stroke="#8a5a1a"/>
+  <rect x="480" y="210.72" width="80" height="89.28" fill="#f4d7b0" stroke="#8a5a1a"/>
+  <path d="M 217.2 300 A 82.80000000000001 82.80000000000001 0 0 1 382.8 300 L 382.8 300 L 217.2 300 Z" fill="#fbfaf6" stroke="#8a5a1a"/>
+  <circle cx="300" cy="228" r="72" fill="rgba(15,107,76,0.25)" stroke="#0f6b4c" stroke-width="2"/>
+  <rect x="140" y="138" width="400" height="16" fill="rgba(47,133,90,0.35)" stroke="#2f855a"/>
+  <text x="150" y="132" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#1f2933" font-size="12" fill="#9b1c1c">plate slides here (rollers locked)</text>
+  <text x="620" y="320" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#1f2933" font-size="12">race ring (flat in CAD)</text>
+  <text x="620" y="255.36" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#1f2933" font-size="12">fence h=4.96</text>
+  <text x="260" y="234" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#1f2933" font-size="12" fill="#0f6b4c">Ø8 roller</text>
+  <text x="24" y="56" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#1f2933" font-size="12" fill="#52606d">Slot cut Ø9.2 centered at pack mid. Bottom of hole is 0.60 mm into the race → conforming cradle, not a flat land.</text>
+  <text x="24" y="402" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#1f2933" font-size="12" fill="#52606d">Opening is the same cylinder through the fence. Sides wrap the OD. That is a journal around the roller.</text>
+</svg>

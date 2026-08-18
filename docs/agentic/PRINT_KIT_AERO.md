@@ -361,10 +361,12 @@ I_{xx}\propto t^3 c
 2.37
 \]
 
-PLA-on-PLA is a demo spin. A later metal 608 table is in
-[ASSEMBLY.md](ASSEMBLY.md). The **architecture** (wide flat pack under
-the roots, helix, thick section) is what you keep when the material
-upgrades.
+PLA-on-PLA is a demo spin. The printed pack as cut today is a
+**slider**, not a bearing — see
+[PRINT_KIT_BEARING.md](PRINT_KIT_BEARING.md). A later metal 608 table
+is in [ASSEMBLY.md](ASSEMBLY.md). The **architecture** (wide flat pack
+under the roots, helix, thick section) is what you keep when the
+material upgrades.
 
 Exam pack (scale \(0.4\)): \(8\times\varnothing 8.0\times L11.2\) on
 PCD \(59.1\); race \(\varnothing 76.7\) / ID \(44.7\); plate

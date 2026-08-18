@@ -8,7 +8,9 @@ a test of AI capability.
 
 Contract: [PRINT_KIT_DESIGN.md](PRINT_KIT_DESIGN.md). Aero (why this
 section, omnidirectional / skewed wind):
-[PRINT_KIT_AERO.md](PRINT_KIT_AERO.md). Fits:
+[PRINT_KIT_AERO.md](PRINT_KIT_AERO.md). Thrust pack + clip
+(printed rollers slide today):
+[PRINT_KIT_BEARING.md](PRINT_KIT_BEARING.md). Fits:
 [PRINT_KIT_GDT.md](PRINT_KIT_GDT.md). The recipe is
 `prompts/get model_print_kit`.
 

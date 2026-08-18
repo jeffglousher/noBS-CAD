@@ -14,9 +14,10 @@ walls** + open top-load fence + short D-journal); **thin flat thrust
 under the blade roots** (8 radial-axis rollers, pack height = roller Ø);
 fence sits on the race ring (ID looser than the plate bore); clocked
 C-clip snaps into the journal groove and does not rub the rotor.
-**Clip CAD is unchanged this pass** — recommendations are in the clip
-study below. The two-bearing post / tenon / cone stand in the sections
-below is **historical** — do not rebuild it.
+Clip and pack integration research (why the printed rollers slide,
+why the C-clip is awful): [PRINT_KIT_BEARING.md](PRINT_KIT_BEARING.md).
+The two-bearing post / tenon / cone stand in the sections below is
+**historical** — do not rebuild it.
 
 ## Product fault (why the turntable was wrong)
 
@@ -274,7 +275,7 @@ If those steps are not visible in the solid, the exam failed.
 | Thick plate / sharp join | Plate floor was 5 mm. A hard airfoil cut on a thinner plate is a crack starter and a print cliff. | Plate floor 3.2 mm (exam **4.0**). First loft station above the plate is a fatter airfoil (`root_scale` 1.38 over `root_blend_h` 6.0). Through-plate stump stays the sit-plane chord. |
 | Blunt tip | Square-cut open tip is a dirty aero edge. | Last loft section stays planar (flat landing). Add a short chord taper (`tip_scale` 0.72 over `tip_taper_h` 4.0) into that face. |
 
-## Clip study (research only — do not change clip CAD this pass)
+## Clip study (unlocked for the bearing-integration pass)
 
 The shipped retainer is a **printed-flat C-washer**: D-hole, rectangular
 C-gap, seats in a 2-nozzle undercut on a **constant-pass** journal.
@@ -342,4 +343,6 @@ before reprinting the whole stator. For a clip that comes off more
 than a few times, PETG or nylon is the right later material — not
 this exam's PLA orange.
 
-**This pass leaves `build_retainer` / `buildRetainer` alone.**
+Implementation target is the E-clip in
+[PRINT_KIT_BEARING.md](PRINT_KIT_BEARING.md) §6. Do not ship another
+stiff C-washer.
