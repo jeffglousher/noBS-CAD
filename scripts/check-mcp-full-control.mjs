@@ -532,6 +532,34 @@ if (!spec.lessons.some((lesson) => lesson.id === 'blank')) {
 if (!mainSrc.includes('mod print_kit_tutor')) {
   fail('mcp-server must compile the print-kit tutor exam');
 }
+if (!mainSrc.includes('"solid_check"')) {
+  fail('mcp-server must register solid_check for CAD error detection');
+}
+const cliSrc = await read('scripts/nbcad-cli.mjs');
+if (!cliSrc.includes('solid_check') || !cliSrc.includes('exam')) {
+  fail('scripts/nbcad-cli.mjs must call solid_check and forward exam --stage');
+}
+if (
+  !tutorSrc.includes('function cutUWindows') ||
+  !tutorSrc.includes('function placeCrownedRoller') ||
+  !tutorSrc.includes('function clipMouth') ||
+  !tutorSrc.includes('function witnessD') ||
+  !tutorSrc.includes('requireSolidOk')
+) {
+  fail('print-kit Node exam must cut U-windows, crown rollers, and ship an E-clip (plus solid_check)');
+}
+if (
+  !rustTutor.includes('fn cut_u_windows') ||
+  !rustTutor.includes('fn place_crowned_roller') ||
+  !rustTutor.includes('fn clip_mouth') ||
+  !rustTutor.includes('fn witness_d') ||
+  !rustTutor.includes('require_solid_ok')
+) {
+  fail('print-kit cargo exam must cut U-windows, crown rollers, and ship an E-clip (plus solid_check)');
+}
+if (!printKitPrompt.includes('E-clip') || !printKitPrompt.includes('U-window')) {
+  fail('model_print_kit prompt must describe U-windows and the E-clip');
+}
 
 if (failures.length > 0) {
   console.error('MCP full-control completeness failed:\n');

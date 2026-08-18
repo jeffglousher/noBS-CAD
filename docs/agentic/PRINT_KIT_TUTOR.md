@@ -31,20 +31,20 @@ floors (roller Ø8, roller length 8, TE 0.8, 4-nozzle walls, plate 3.2 mm, base 
 
 | Part | Role | How it mates |
 |------|------|----------------|
-| Stator | Thin Y-frame + race ring with keeper walls + open top-load fence + constant journal + snap groove, one piece | Grounded. Print flat. |
+| Stator | Thin Y-frame + race ring with keeper walls + U-window fence + flat race + constant journal + snap groove, one piece | Grounded. Print flat. |
 | Rotor | Thin root plate out to the blades (underside = upper thrust race), organic airfoil roots (appearance), 3 helical **NACA 0024-4.5/3.5** ending on that plate, **one body**, open tips with a short taper to a flat landing | Plate bore = journal + running. Print standing on the plate. PLA Glow. |
-| Rollers | 8 **radial-axis** cylinders, min Ø8, pack height = Ø, large PCD **under the blade roots**, captured by keepers | Drop into top-load slots. Print standing. |
-| Retainer | Clocked C-clip (D-hole + C-gap) | Snaps into the journal groove. Pull to remove. Does not rub the rotor. Clip CAD unchanged this pass — see the GDT clip study. |
+| Rollers | 8 **radial-axis barrel-crowned** rollers, min Ø8 mid land, pack height = mid Ø, large PCD **under the blade roots**, captured by keepers | Drop into U-windows. Print standing. |
+| Retainer | Clocked E-clip (D-hole + ~8 mm mouth + finger tabs) | Snaps radially into the journal groove. Pinch tabs to remove. Does not rub the rotor. |
 
 Fits are **per role** (running / PIP / slip) and per whether
-the parts share a plate. Assembled running +0.40. Top-load slots add two
-nozzles. Same-plate PIP +0.80 — do not PIP a lying roller. Every
+the parts share a plate. Assembled running +0.40. U-windows cut the fence only (flat race).
+Same-plate PIP +0.80 — do not PIP a lying roller. Every
 bed-printed locate gets a 0.80 mm elephant-foot lead-in. Do not
 nest the plate around the rollers on the bed. Slicer XY hole compensation
 stays 0. No metal 608s. No FDM press fits. No separate axle disk + cage
 disk. No tall drum. No standing-Z pucks.
 
-Assembly order: **stator → rollers into the top-load slots → drop rotor over the journal → snap C-clip**.
+Assembly order: **stator → crowned rollers into the U-windows → drop rotor over the journal → snap E-clip**.
 
 Then: one `assembly_create_component` per **moving** body (stator,
 rotor, each roller, retainer). That call already inserts
@@ -71,6 +71,16 @@ $env:OCCT_ROOT = "$PWD\vcpkg_installed\x64-windows"
 $env:Path = "$env:OCCT_ROOT\bin;$env:Path"
 cargo test --manifest-path mcp-server/Cargo.toml print_kit_tutor
 npm run test:mcp-print-kit
+```
+
+CAD error detection without reloading Cursor MCP (`solid_check` + staged exam):
+
+```powershell
+node scripts/nbcad-cli.mjs solid_check
+node scripts/nbcad-cli.mjs exam --stage=stator
+node scripts/nbcad-cli.mjs exam --stage=rollers
+node scripts/nbcad-cli.mjs exam --stage=clip
+node scripts/nbcad-cli.mjs exam --stage=kit
 ```
 
 Optional live desktop: `node scripts/mcp-print-kit-tutor.mjs --live`

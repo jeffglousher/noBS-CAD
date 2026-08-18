@@ -8,6 +8,7 @@
  *
  *   npm run test:mcp-print-kit
  *   node scripts/mcp-print-kit-tutor.mjs
+ *   node scripts/mcp-print-kit-tutor.mjs --stage=stator|rollers|clip|kit
  *   node scripts/mcp-print-kit-tutor.mjs --live   # optional UI session
  *
  * Requires native OCCT (OCCT_ROOT on PATH). Does not add modeling tools.
@@ -37,6 +38,12 @@ function defaultBin() {
 
 const bin = defaultBin();
 const live = process.argv.includes("--live");
+const stageArg = process.argv.find((arg) => arg.startsWith("--stage="));
+const stage = (stageArg ? stageArg.slice("--stage=".length) : "kit").toLowerCase();
+if (!["stator", "rollers", "clip", "kit"].includes(stage)) {
+  console.error(`unknown --stage=${stage} (use stator|rollers|clip|kit)`);
+  process.exit(2);
+}
 const defaultKitDir = path.join(os.homedir(), "Documents", "noBS-CAD");
 const out3mfLegacy =
   process.env.NBCAD_3MF_OUT || path.join(defaultKitDir, "Print-Kit-Tutor.3mf");
@@ -201,6 +208,13 @@ function requireClean(update, label) {
   const errors = update?.scene?.errors ?? [];
   if (errors.length) throw new Error(`${label}: ${JSON.stringify(errors)}`);
   return update;
+}
+async function requireSolidOk(label) {
+  const check = await call("solid_check");
+  if (check.ok !== true) {
+    throw new Error(`${label} solid_check failed: ${JSON.stringify(check)}`);
+  }
+  return check;
 }
 function lastSketch(doc) {
   return [...(doc.features ?? [])].reverse().find((feature) => feature.kind === "sketch")?.name;
@@ -384,8 +398,44 @@ function topLoad() {
 function topLoadPocket() {
   return rollerD() + spec.fit_running_mm + topLoad();
 }
+function windowFloor() {
+  return raceZ() + 0.05;
+}
+function windowW() {
+  return rollerD() + 4 * spec.nozzle_mm;
+}
+function mouthW() {
+  return rollerD() + 8 * spec.nozzle_mm;
+}
+function funnelH() {
+  return Math.min(2.4, Math.max(1.2, fenceH() * 0.45));
+}
+function crownDrop() {
+  return Math.min(0.4, Math.max(0.25, 0.8 * spec.nozzle_mm));
+}
+function rollerEndD() {
+  return rollerD() - 2 * crownDrop();
+}
+function landLen() {
+  return Math.max(4, rollerLen() * 0.4);
+}
+function clipArmT() {
+  return wall();
+}
+function clipMouth() {
+  return Math.max(grooveD() - 2.4, wall() * 5);
+}
+function clipTabW() {
+  return wall();
+}
+function clipTabL() {
+  return wall() * 2;
+}
+function witnessD() {
+  return spec.nozzle_mm * 6;
+}
 function fenceH() {
-  return Math.max(packH() * 0.62, wall() * 2);
+  return Math.min(Math.max(packH() * 0.62, wall() * 2), packH() - 1.2);
 }
 function shoulderH() {
   return 0;
@@ -418,7 +468,7 @@ function lockFlatX() {
   return innerRaceD() * 0.22;
 }
 function snapGap() {
-  return Math.max(innerRaceD() * 0.28, wall() * 2);
+  return clipMouth();
 }
 function journalD() {
   return innerRaceD();
@@ -455,7 +505,7 @@ function bedReliefD() {
   return spec.bed_relief_mm;
 }
 function retainerOd() {
-  return Math.max(Math.min(plateBore() + 8, axleFlangeD() - 2), plateBore() + 4);
+  return retainerDHole() + 2 * clipArmT();
 }
 function retainerId() {
   return axleSquare() + spec.fit_slip_mm;
@@ -528,6 +578,8 @@ function assembleOk() {
     retainerDHole() + 1e-9 < passD() &&
     retainerDHole() + 1e-9 >= grooveD() &&
     snapGap() + 1e-9 >= passD() - retainerDHole() &&
+    clipMouth() + 1e-9 < grooveD() &&
+    Math.abs(retainerOd() - (retainerDHole() + 2 * clipArmT())) < 1e-9 &&
     grooveZ() + 1e-9 >= plateZ() + hubDeckH() &&
     Math.abs(retainerZ() - grooveZ()) < 1e-9 &&
     grooveH() + 1e-9 >= retainerH()
@@ -621,7 +673,17 @@ function rollersOk() {
     axleFlangeD() + 1e-9 < hubDeckOd() &&
     Math.abs(cagePocket() - (rollerD() + spec.fit_running_mm)) < 1e-9 &&
     fenceH() + 1e-9 < packH() &&
+    fenceH() + 1.2 <= packH() + 1e-9 &&
     topLoadPocket() + 1e-9 > cagePocket() &&
+    windowW() + 1e-9 > cagePocket() &&
+    mouthW() + 1e-9 > windowW() &&
+    windowFloor() + 1e-9 > raceZ() &&
+    funnelH() + 1e-9 < fenceH() &&
+    landLen() + 1e-9 >= 4 &&
+    landLen() + 1e-9 < rollerLen() &&
+    rollerEndD() + 1e-9 < rollerD() &&
+    crownDrop() + 1e-9 >= 0.25 &&
+    witnessD() + 1e-9 >= spec.nozzle_mm * 6 &&
     cageId() + 1e-9 > plateBore() &&
     cageRim() + 1e-9 >= wall() * 2 &&
     assembleOk() &&
@@ -663,6 +725,7 @@ function stackOk() {
     Math.abs(retainerZ() - grooveZ()) < 1e-9 &&
     Math.abs(zMid() - (raceZ() + packH() * 0.5)) < 1e-9 &&
     fenceH() + 1e-9 < packH() &&
+    fenceH() + 1.2 <= packH() + 1e-9 &&
     bedReliefH() + 1e-9 < hubDeckH() &&
     bedReliefH() + 1e-9 < retainerH() &&
     Math.abs(hubH() - hubDeckH()) < 1e-9 &&
@@ -1035,7 +1098,8 @@ async function buildStator() {
     }),
     "stator D-flat",
   );
-  await cutTopLoadSlots(statorId, [statorId]);
+  await cutUWindows(statorId);
+  await cutWitnessHoles(statorId, [statorId]);
   return statorId;
 }
 
@@ -1123,11 +1187,55 @@ async function buildRotor(known) {
   return rotorId;
 }
 
+async function placeCrownedRoller(index, known, label) {
+  const midR = rollerD() * 0.5;
+  const endR = rollerEndD() * 0.5;
+  const halfL = rollerLen() * 0.5;
+  const halfLand = landLen() * 0.5;
+  const x0 = pcd() * 0.5;
+  const deck = await offsetXY(zMid());
+  await beginDatum(deck);
+  await addPoly(
+    [
+      { x: x0 - halfL, y: 0.02 },
+      { x: x0 - halfL, y: endR },
+      { x: x0 - halfLand, y: midR },
+      { x: x0 + halfLand, y: midR },
+      { x: x0 + halfL, y: endR },
+      { x: x0 + halfL, y: 0.02 },
+      { x: x0 - halfL, y: 0.02 },
+    ],
+    true,
+  );
+  const sketch = await finishSketch();
+  await call("cad_set_focus", { focus: "solid", explicit: true });
+  const update = requireClean(
+    await call("solid_revolve", {
+      sketch_name: sketch,
+      profile_indices: [0],
+      axis_origin: { x: 0, y: 0 },
+      axis_direction: { x: 1, y: 0 },
+      axis_line_entity_id: null,
+      angle_deg: 360,
+      flip: false,
+      operation: "new_body",
+      target_body_ids: [],
+    }),
+    label,
+  );
+  const id = newestBody(update, known);
+  const theta = rollerAngleDeg(index);
+  if (Math.abs(theta) > 1e-9) {
+    await transformBodies([id], [0, 0, 0], quatAxisAngle([0, 0, 1], theta), [0, 0, zMid()]);
+  }
+  return id;
+}
+
 async function placeRollers(known) {
   const seen = [...known];
   const rollerIds = [];
   for (let i = 0; i < spec.roller_count; i++) {
-    const id = await placeRadialCylinder(rollerD(), rollerLen(), i, seen, `roller ${i}`);
+    const id = await placeCrownedRoller(i, seen, `crowned roller ${i}`);
     seen.push(id);
     rollerIds.push(id);
   }
@@ -1168,7 +1276,7 @@ async function buildRetainer(known) {
     "retainer D-hole",
   );
   await beginDatum(deck);
-  await addOrientedRect([-retainerOd() * 0.5, 0], retainerOd(), snapGap(), 0);
+  await addOrientedRect([-retainerOd() * 0.5, 0], retainerOd(), clipMouth(), 0);
   sketch = await finishSketch();
   requireClean(
     await call("solid_extrude", {
@@ -1180,8 +1288,35 @@ async function buildRetainer(known) {
       flip: false,
       target_body_ids: [retainerIdBody],
     }),
-    "retainer C-gap",
+    "retainer E-clip mouth",
   );
+  const hole = retainerDHole();
+  const od = retainerOd();
+  const tabW = clipTabW();
+  const tabL = clipTabL();
+  const mouth = clipMouth();
+  for (const sign of [1, -1]) {
+    await beginDatum(deck);
+    await addOrientedRect(
+      [-(od + hole) * 0.25, sign * (mouth * 0.5 + tabW * 0.35)],
+      tabL,
+      tabW,
+      0,
+    );
+    sketch = await finishSketch();
+    requireClean(
+      await call("solid_extrude", {
+        sketch_name: sketch,
+        profile_indices: [0],
+        operation: "join",
+        extent: { type: "distance", distance: retainerH() },
+        taper_angle_deg: 0,
+        flip: false,
+        target_body_ids: [retainerIdBody],
+      }),
+      `retainer finger tab ${sign > 0 ? "plus" : "minus"}`,
+    );
+  }
   await cutBedReliefCircle(
     retainerZ(),
     retainerDHole() + bedReliefD(),
@@ -1465,8 +1600,8 @@ async function formAssembly(ids) {
       `roller_${index}_spin`,
       "revolute",
       need(
-        radialConnectorAt(scene, ids.statorId, [x, y], z, topLoadPocket() * 0.5, axis),
-        `no stator pocket radial axis for roller ${index}`,
+        radialConnectorAt(scene, ids.statorId, [x, y], z, witnessD() * 0.5, axis),
+        `no stator witness radial axis for roller ${index}`,
       ),
       need(
         radialConnectorAt(scene, ids.rollerIds[index], [x, y], z, rollerD() * 0.5, axis),
@@ -1485,7 +1620,7 @@ async function formAssembly(ids) {
     ),
     need(
       axisConnectorAt(scene, ids.retainerId, [0, 0], retainerZ(), retainerOd() * 0.5),
-      "no on-axis retainer washer for retainer_sit",
+      "no on-axis retainer E-clip for retainer_sit",
     ),
     ids.statorId,
   );
@@ -1535,15 +1670,64 @@ function quatAxisAngle(axis, deg) {
   const s = Math.sin(half);
   return [a[0] * s, a[1] * s, a[2] * s, Math.cos(half)];
 }
-async function cutTopLoadSlots(statorId, known) {
+async function cutOrientedSlot(statorId, z, center, length, width, angleDeg, depth, label) {
+  const deck = await offsetXY(z);
+  await beginDatum(deck);
+  await addOrientedRect(center, length, width, angleDeg);
+  const sketch = await finishSketch();
+  requireClean(
+    await call("solid_extrude", {
+      sketch_name: sketch,
+      profile_indices: [0],
+      operation: "cut",
+      extent: { type: "distance", distance: depth },
+      taper_angle_deg: 0,
+      flip: false,
+      target_body_ids: [statorId],
+    }),
+    label,
+  );
+}
+async function cutUWindows(statorId) {
+  for (let index = 0; index < spec.roller_count; index++) {
+    const [x, y] = rollerXY(index);
+    const angle = rollerAngleDeg(index);
+    await cutOrientedSlot(
+      statorId,
+      windowFloor(),
+      [x, y],
+      pocketLen(),
+      windowW(),
+      angle,
+      fenceH() + 0.4,
+      `U-window ${index}`,
+    );
+    await cutOrientedSlot(
+      statorId,
+      raceZ() + fenceH() - funnelH(),
+      [x, y],
+      pocketLen() + spec.nozzle_mm * 2,
+      mouthW(),
+      angle,
+      funnelH() + 0.4,
+      `U-window mouth ${index}`,
+    );
+  }
+}
+async function cutWitnessHoles(statorId, known) {
+  const pocketOuter = pcd() * 0.5 + pocketLen() * 0.5;
+  const outer = cageOd() * 0.5;
+  const centerR = (pocketOuter + outer) * 0.5;
+  const length = Math.max(outer - pocketOuter, keeper()) + 4;
   const seen = [...known, statorId];
   for (let index = 0; index < spec.roller_count; index++) {
-    const toolId = await placeRadialCylinder(
-      topLoadPocket(),
-      pocketLen(),
+    const toolId = await placeRadialCylinderAt(
+      witnessD(),
+      length,
+      centerR,
       index,
       seen,
-      `top-load slot ${index}`,
+      `witness hole ${index}`,
     );
     requireClean(
       await call("solid_combine", {
@@ -1552,12 +1736,15 @@ async function cutTopLoadSlots(statorId, known) {
         operation: "cut",
         keep_tools: false,
       }),
-      `top-load slot cut ${index}`,
+      `witness hole cut ${index}`,
     );
   }
 }
 async function placeRadialCylinder(diameter, length, index, known, label) {
-  const x0 = pcd() * 0.5 - length * 0.5;
+  return placeRadialCylinderAt(diameter, length, pcd() * 0.5, index, known, label);
+}
+async function placeRadialCylinderAt(diameter, length, centerR, index, known, label) {
+  const x0 = centerR - length * 0.5;
   const deck = await offsetYZ(x0);
   await beginDatum(deck);
   await addCircle(0, zMid(), diameter);
@@ -1640,11 +1827,11 @@ async function makeAssemblyDrawing() {
     ],
     [
       [18, 58],
-      "GDT  one stator (thin Y-frame + race ring + keeper walls + open fence + constant journal). Thin plate with organic airfoil roots. Plate bore > journal pass Ø so the rotor drops on. Clocked C-clip snaps into an undercut groove above the plate — it does not rub the rotor. Pull the C-gap to remove. Clip CAD unchanged this pass.",
+      "GDT  one stator (thin Y-frame + race ring + keeper walls + U-window fence + flat race + constant journal). Thin plate with organic airfoil roots. Plate bore > journal pass Ø so the rotor drops on. Clocked E-clip snaps radially into an undercut groove above the plate — it does not rub the rotor. Pinch the finger tabs to remove.",
     ],
     [
       [18, 68],
-      `BOM  stator (Y-frame + race ring + fence + grooved journal) · rotor (root plate+3×${spec.airfoil}) · ${spec.roller_count} radial rollers · clocked C-clip`,
+      `BOM  stator (Y-frame + race ring + U-window fence + grooved journal) · rotor (root plate+3×${spec.airfoil}) · ${spec.roller_count} crowned radial rollers · clocked E-clip`,
     ],
     [
       [18, 78],
@@ -1689,8 +1876,10 @@ function writeDesignReport({ bodies, rotorBox, rotorFaces, plateFiles }) {
     ["Inboard pack / cage as journal", "PCD at 58% of the plate left the blade roots cantilevered on 5 mm PLA. Cage ID tighter than the plate bore stole the radial land. Boss tracked the race OD and reprinted a solid orange cylinder. Pack belongs under the blade roots; cage is a spacer; boss only seats the axle."],
     ["Separate axle disk + cage disk", "Two flats that should be one stator. Extra plastic, extra assembly, and a rubbing washer. Merge Y-frame + race + open fence + journal. Top-load the rollers. Clocked C-snap retainer sits on the journal shoulder, not on the rotor."],
     ["Cookie race under the Y-frame", "One Ø74 disk under the rollers reprinted the plastic the merge was supposed to drop. Race is a ring where rollers contact. Fence sits on that ring. Y-frame stays open."],
-    ["Hourglass journal", "Fat shoulder + snap bead above a thinner neck. The plate bore cannot pass the fat top, so the rotor will not drop on. Journal stays a constant pass Ø. C-clip snaps into an undercut groove. Pull the C-gap to remove."],
-    ["Rollers slide out", "Race ID sat at the roller inner end, so the top-load pocket punched into the open Y-frame. Keepers: race ID inboard of the roller by ≥2 walls so inner and outer end walls survive the cut. Still top-load; no bars over the pack."],
+    ["Hourglass journal", "Fat shoulder + snap bead above a thinner neck. The plate bore cannot pass the fat top, so the rotor will not drop on. Journal stays a constant pass Ø. E-clip snaps into an undercut groove. Pinch the finger tabs to remove."],
+    ["Cylinder-slot journal", "A Ø9.2 radial cylinder through the fence gouged a 0.6 mm trough in the race. Rollers locked; the plate slid on the protruding arc. U-window through the fence only; race stays flat."],
+    ["C-washer hoop strain", "A 3.2 mm C-gap on a closed hoop needed 12% strain to snap over the journal. PLA allows 2–3%. E-clip: ~8 mm mouth + finger tabs, radial entry into the same groove."],
+    ["Rollers slide out", "Race ID sat at the roller inner end, so the top-load pocket punched into the open Y-frame. Keepers: race ID inboard of the roller by ≥2 walls so inner and outer end walls survive the U-window. Still top-load; no bars over the pack."],
     ["Thick stator / thick plate", "Base and plate floors were extra plastic at exam scale. Thin the Y-frame and the root plate; put the strength at the airfoil join, not in a cookie slab."],
     ["Sharp airfoil-plate join", "A thin plate with a hard airfoil cut is a crack starter and a print cliff. Organic root: first loft station is a fatter airfoil on the plate top, then the helix. Through-plate stump stays the sit-plane chord."],
     ["Blunt airfoil tip", "A square-cut tip is a dirty aero edge. Keep a flat landing (last loft section is planar) and add a short chord taper into that face."],
@@ -1711,12 +1900,12 @@ ${iterations.map(([name, why]) => `| ${name} | ${why} |`).join("\n")}
 - **Architecture:** Helical H-Darrieus, directionless (no yaw). One printed stator (Y-frame + race ring + open fence + journal). Thin flat thrust under the plate (large PCD) so the tall blades rotate about Z. No tall mast. No tall drum. No cookie disk. No separate axle puck + cage disk.
 - **Airfoil:** ${spec.airfoil} (t/c ${spec.airfoil_t_c}, xt/c ${spec.airfoil_xt_c}, I=${spec.airfoil_le_index}). Tirandaz/Rezaeiha low-TSR section (λ ≈ 2.5). TE blunt to ${teMin()} mm (≥ 2 nozzles). Open drafted tips. Organic roots are appearance only.
 - **Rotor:** one piece — thin root plate out to the blades (Ø${hubDeckOd().toFixed(1)} × h${hubDeckH().toFixed(1)}), underside is the upper thrust race, plus ${spec.wing_count} helical NACAs lofted from that plate. Organic root blend (${rootScale().toFixed(2)}× chord over ${rootBlendH().toFixed(1)} mm) then helix, then a ${tipTaperH().toFixed(1)} mm taper to a flat landing (tip chord ${tipChord().toFixed(1)}). Through-plate stump stays the sit-plane chord. c=${chordRoot().toFixed(1)}/${chordTip().toFixed(1)} mm, R=${wingRadius().toFixed(1)} mm, span=${wingH().toFixed(1)} mm, helix ${spec.helix_deg}°, σ=${solidity().toFixed(3)}. Envelope/rotor ${(baseEnvelope() / rotorD()).toFixed(2)}.
-- **Fits:** assembled running +${spec.fit_running_mm} (rollers on races). Top-load slots are running + two nozzles so rollers drop in from above without support. Same-plate PIP +${spec.fit_pip_mm} is the class; this kit does not PIP the rollers (lying OD would be layers). Journal pass Ø is smaller than the plate bore so the rotor drops on. Clocked C-clip: D-hole + C-gap, snaps into an undercut groove 0.20 above the plate — it is not a running face. Pull the C-gap to remove. Slicer XY hole compensation stays 0. Plate **sits** 0.20 above the roller pack. Fence height is below pack height so rollers touch both races.
+- **Fits:** assembled running +${spec.fit_running_mm} (rollers on races). U-windows cut the fence only (flat race, floor +0.05). Same-plate PIP +${spec.fit_pip_mm} is the class; this kit does not PIP the rollers (lying OD would be layers). Journal pass Ø is smaller than the plate bore so the rotor drops on. Clocked E-clip: D-hole + ${clipMouth().toFixed(1)} mm mouth + finger tabs, snaps radially into an undercut groove 0.20 above the plate — it is not a running face. Pinch the tabs to remove. Slicer XY hole compensation stays 0. Plate **sits** 0.20 above the roller pack. Fence height is below pack height so rollers touch both races.
 - **Loads:** weight/thrust on the stator race (lower) and the plate underside (upper). Overturning is a couple across the pack **under the blade roots**. The plate bore (running) is the radial land; the fence ID is looser (spacer). Torque about Z stays in the rotor. Centrifugal blade load is taken by the one-piece plate.
 - **Friction:** only rolling contacts on the turbine (rollers ↔ races). Plate bore is running, not friction. Fence does not rub the journal. Retainer never rubs the rotor. PLA-on-PLA is a demo; service dry PTFE on the races.
 - **Links:** grounded stator; revolute rotor_spin about Z; each roller revolute about its radial axis; rigid retainer_sit in the journal groove. assembly_solution must stay solved without yanking parts off-axis.
 - **Materials:** ${plaOrange} (stator, rollers, retainer) and ${plaGlow} (rotor). Hardened nozzle for glow. AMS lite is not recommended for glow.
-- **Thrust pack:** ${spec.roller_count}× Ø${rollerD().toFixed(1)}×L${rollerLen().toFixed(1)} radial-axis rollers on PCD ${pcd().toFixed(1)} (outer land r=${packOuterR().toFixed(1)}, blade R=${wingRadius().toFixed(1)}) between stator race Ø${axleFlangeD().toFixed(1)} and plate Ø${hubDeckOd().toFixed(1)}. Pack height = roller Ø. Inner/outer keeper walls ${keeper().toFixed(1)} mm so rollers cannot slide out the open Y-frame. Fence ID ${cageId().toFixed(1)} > plate bore ${plateBore().toFixed(1)}. Constant journal Ø${innerRaceD().toFixed(1)}×h${raceH().toFixed(1)} (pass Ø ${passD().toFixed(1)} < plate bore ${plateBore().toFixed(1)}). Drop rollers into the top-load slots, drop the rotor over the journal, then snap the C-clip into the groove. Clip CAD is unchanged this pass — see PRINT_KIT_GDT.md. Not a pickup cartridge. Not a tall drum. Not standing-Z pucks.
+- **Thrust pack:** ${spec.roller_count}× Ø${rollerD().toFixed(1)}×L${rollerLen().toFixed(1)} barrel-crowned radial-axis rollers (end Ø${rollerEndD().toFixed(2)}, mid land ${landLen().toFixed(1)}) on PCD ${pcd().toFixed(1)} (outer land r=${packOuterR().toFixed(1)}, blade R=${wingRadius().toFixed(1)}) between stator race Ø${axleFlangeD().toFixed(1)} and plate Ø${hubDeckOd().toFixed(1)}. Pack height = mid Ø. Inner/outer keeper walls ${keeper().toFixed(1)} mm so rollers cannot slide out the open Y-frame. Fence ID ${cageId().toFixed(1)} > plate bore ${plateBore().toFixed(1)}. Constant journal Ø${innerRaceD().toFixed(1)}×h${raceH().toFixed(1)} (pass Ø ${passD().toFixed(1)} < plate bore ${plateBore().toFixed(1)}). Drop crowned rollers into the U-windows, drop the rotor over the journal, then snap the E-clip into the groove. Not a pickup cartridge. Not a tall drum. Not standing-Z pucks.
 - **Scale:** source numbers are X2D-max (256×256×260, 8 mm margin). Exam scale ${spec.scale}. Feature floors: roller Ø${spec.roller_min_d}, TE ${spec.airfoil_te_min_mm}, 4-nozzle walls.
 - **Service finish:** rotor standing so layer lines run spanwise; sand PLA 400→1000 on skins. Do not vapor-smooth a running fit.
 - **Assembly drawing:** A3 sheet, auto-layout, notes for fits / scale / print / BOM.
@@ -1727,10 +1916,10 @@ Three printed families, assembly order: ${spec.assembly_order.join(" → ")} (ro
 
 | Part | Count | Role |
 |------|------:|------|
-| Stator | 1 | Thin Y-frame + race ring with keeper walls + open top-load fence + constant journal + snap groove. Print flat. |
+| Stator | 1 | Thin Y-frame + race ring with keeper walls + U-window fence + flat race + constant journal + snap groove. Print flat. |
 | Rotor | 1 | Thin root plate (upper thrust race) + organic airfoil roots + 3× ${spec.airfoil} with a tapered flat landing. Print standing. |
-| Rollers | ${spec.roller_count} | Radial-axis cylinders. Print standing; drop in from above; captured by keepers. |
-| Retainer | 1 | Clocked C-clip (D-hole + C-gap). Snaps into the journal groove, not onto the rotor. |
+| Rollers | ${spec.roller_count} | Barrel-crowned radial-axis rollers. Print standing; drop in from above; captured by keepers. |
+| Retainer | 1 | Clocked E-clip (D-hole + mouth + finger tabs). Snaps into the journal groove, not onto the rotor. |
 
 Rotor bbox (exam): ${rotorBox ? `${rotorBox.span.map((n) => n.toFixed(1)).join(" × ")} mm` : "n/a"}; faces=${rotorFaces}. Bodies=${bodies.length}.
 
@@ -1840,16 +2029,44 @@ try {
   await call("cad_set_document_name", { name: spec.document_name });
 
   const statorId = await buildStator();
+  const statorCheck = await requireSolidOk("stator");
+  if (stage === "stator") {
+    record(report.lessons, "cad_check", true, statorCheck);
+    record(report.lessons, "fits", fitsOk() && stackOk(), "stator stage");
+    record(report.lessons, "rollers", rollersOk(), "spec pack");
+    report.ok = report.lessons.every((lesson) => lesson.pass);
+    report.stage = "stator";
+    report.bodies = [{ id: statorId }];
+  } else if (stage === "rollers") {
+    const rollerIds = await placeRollers([statorId]);
+    const check = await requireSolidOk("rollers");
+    record(report.lessons, "cad_check", true, check);
+    record(report.lessons, "rollers", rollersOk() && rollerIds.length === spec.roller_count, `${rollerIds.length} crowned rollers`);
+    report.ok = report.lessons.every((lesson) => lesson.pass);
+    report.stage = "rollers";
+    report.bodies = [{ id: statorId }, ...rollerIds.map((id) => ({ id }))];
+  } else if (stage === "clip") {
+    const retainerId = await buildRetainer([statorId]);
+    const check = await requireSolidOk("clip");
+    record(report.lessons, "cad_check", true, check);
+    record(report.lessons, "no_press", assembleOk(), "E-clip in the same groove");
+    report.ok = report.lessons.every((lesson) => lesson.pass);
+    report.stage = "clip";
+    report.bodies = [{ id: statorId }, { id: retainerId }];
+  } else {
   const rotorId = await buildRotor([statorId]);
+  await requireSolidOk("rotor");
   const rollerIds = await placeRollers([statorId, rotorId]);
+  await requireSolidOk("rollers");
   const retainerId = await buildRetainer([statorId, rotorId, ...rollerIds]);
+  await requireSolidOk("kit");
 
   let assemblyOk = false;
   let assemblyDetail = "";
   try {
     await formAssembly({ statorId, rotorId, rollerIds, retainerId });
     assemblyOk = true;
-    assemblyDetail = `${assemblyComponentCount()} linked parts, ≥${assemblyJointCount()} joints; one stator; radial-axis pack under the blade roots; top-load fence; clocked C-clip in a groove; rollers spin about e_r`;
+    assemblyDetail = `${assemblyComponentCount()} linked parts, ≥${assemblyJointCount()} joints; one stator; radial-axis pack under the blade roots; U-window fence; clocked E-clip in a groove; crowned rollers spin about e_r`;
   } catch (error) {
     assemblyDetail = String(error?.message ?? error);
   }
@@ -1948,7 +2165,7 @@ try {
     report.lessons,
     "no_press",
     spec.fit_friction_mm > 0 && spec.fit_friction_mm < spec.nozzle_mm && assembleOk(),
-    "no press: plate drops over a constant journal; clocked C-clip snaps into a groove; pull to remove; retainer does not rub the rotor",
+    "no press: plate drops over a constant journal; clocked E-clip snaps into a groove; pinch tabs to remove; retainer does not rub the rotor",
   );
   record(
     report.lessons,
@@ -2001,7 +2218,7 @@ try {
     report.lessons,
     "print_flat",
     printFlatOk(),
-    `stator prints flat (race ring Ø${axleFlangeD().toFixed(1)}/ID ${raceId().toFixed(1)}, keepers ${keeper().toFixed(1)}, fence h${fenceH().toFixed(1)} < pack ${packH().toFixed(1)}); rotor stands on deck ${hubDeckH().toFixed(1)}; rollers print standing, top-load +${topLoad().toFixed(2)}`,
+    `stator prints flat (race ring Ø${axleFlangeD().toFixed(1)}/ID ${raceId().toFixed(1)}, keepers ${keeper().toFixed(1)}, U-window fence h${fenceH().toFixed(1)} < pack ${packH().toFixed(1)}); rotor stands on deck ${hubDeckH().toFixed(1)}; crowned rollers print standing, window +${topLoad().toFixed(2)}`,
   );
   record(
     report.lessons,
@@ -2065,6 +2282,7 @@ try {
     project_bytes: projectBytes,
   };
   report.ok = report.lessons.every((lesson) => lesson.pass);
+  }
 } catch (error) {
   report.error = String(error?.stack ?? error);
   if (live) {
@@ -2077,21 +2295,31 @@ try {
 } finally {
   mkdirSync(path.dirname(outReport), { recursive: true });
   writeFileSync(outReport, JSON.stringify(report, null, 2));
-  console.log(`\nCAD synthesis tutor — ${spec.title}`);
+  console.log(`\nCAD synthesis tutor — ${spec.title}${stage !== "kit" ? `  [${stage}]` : ""}`);
   console.log(
     `Spec ${spec.id}  nozzle ${spec.nozzle_mm} mm  scale ${spec.scale}  running +${spec.fit_running_mm} / PIP +${spec.fit_pip_mm} / slip +${spec.fit_slip_mm} / friction +${spec.fit_friction_mm}`,
   );
-  for (const lesson of spec.lessons) {
-    const result = report.lessons.find((item) => item.id === lesson.id);
-    const mark = result?.pass ? "PASS" : "FAIL";
-    console.log(`\n[${mark}] ${lesson.title}`);
-    console.log(`  ${lesson.teach}`);
-    if (result?.detail) {
-      console.log(`  ${typeof result.detail === "string" ? result.detail : JSON.stringify(result.detail)}`);
+  if (stage === "kit") {
+    for (const lesson of spec.lessons) {
+      const result = report.lessons.find((item) => item.id === lesson.id);
+      const mark = result?.pass ? "PASS" : "FAIL";
+      console.log(`\n[${mark}] ${lesson.title}`);
+      console.log(`  ${lesson.teach}`);
+      if (result?.detail) {
+        console.log(`  ${typeof result.detail === "string" ? result.detail : JSON.stringify(result.detail)}`);
+      }
+    }
+  } else {
+    for (const lesson of report.lessons) {
+      console.log(
+        `[${lesson.pass ? "PASS" : "FAIL"}] ${lesson.id}  ${typeof lesson.detail === "string" ? lesson.detail : JSON.stringify(lesson.detail)}`,
+      );
     }
   }
   if (report.error) console.log(`\nERROR ${report.error}`);
-  console.log(`\n${report.ok ? "READY TO PRINT" : "NOT READY"}  report ${outReport}`);
+  console.log(
+    `\n${report.ok ? (stage === "kit" ? "READY TO PRINT" : `STAGE ${stage} OK`) : "NOT READY"}  report ${outReport}`,
+  );
   try {
     child.stdin.end();
   } catch {

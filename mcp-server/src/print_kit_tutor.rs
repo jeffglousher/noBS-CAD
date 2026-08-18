@@ -229,8 +229,45 @@ impl Spec {
     fn top_load_pocket(&self) -> f64 {
         self.roller_d() + self.fit_running_mm + self.top_load()
     }
+    fn window_floor(&self) -> f64 {
+        self.race_z() + 0.05
+    }
+    fn window_w(&self) -> f64 {
+        self.roller_d() + 4.0 * self.nozzle_mm
+    }
+    fn mouth_w(&self) -> f64 {
+        self.roller_d() + 8.0 * self.nozzle_mm
+    }
+    fn funnel_h(&self) -> f64 {
+        (self.fence_h() * 0.45).clamp(1.2, 2.4)
+    }
+    fn crown_drop(&self) -> f64 {
+        (0.8 * self.nozzle_mm).clamp(0.25, 0.40)
+    }
+    fn roller_end_d(&self) -> f64 {
+        self.roller_d() - 2.0 * self.crown_drop()
+    }
+    fn land_len(&self) -> f64 {
+        (self.roller_len() * 0.40).max(4.0)
+    }
+    fn clip_arm_t(&self) -> f64 {
+        self.wall()
+    }
+    fn clip_mouth(&self) -> f64 {
+        (self.groove_d() - 2.4).max(self.wall() * 5.0)
+    }
+    fn clip_tab_w(&self) -> f64 {
+        self.wall()
+    }
+    fn clip_tab_l(&self) -> f64 {
+        self.wall() * 2.0
+    }
+    fn witness_d(&self) -> f64 {
+        self.nozzle_mm * 6.0
+    }
     fn fence_h(&self) -> f64 {
-        (self.pack_h() * 0.62).max(self.wall() * 2.0)
+        let raw = (self.pack_h() * 0.62).max(self.wall() * 2.0);
+        raw.min(self.pack_h() - 1.2)
     }
     fn shoulder_h(&self) -> f64 {
         0.0
@@ -265,7 +302,7 @@ impl Spec {
         self.inner_race_d() * 0.22
     }
     fn snap_gap(&self) -> f64 {
-        (self.inner_race_d() * 0.28).max(self.wall() * 2.0)
+        self.clip_mouth()
     }
     fn journal_d(&self) -> f64 {
         self.inner_race_d()
@@ -304,9 +341,7 @@ impl Spec {
         self.bed_relief_mm
     }
     fn retainer_od(&self) -> f64 {
-        (self.plate_bore() + 8.0)
-            .min(self.axle_flange_d() - 2.0)
-            .max(self.plate_bore() + 4.0)
+        self.retainer_d_hole() + 2.0 * self.clip_arm_t()
     }
     fn retainer_square(&self) -> f64 {
         self.axle_square() + self.fit_slip_mm
@@ -390,6 +425,9 @@ impl Spec {
             && self.retainer_d_hole() + 1e-9 < self.pass_d()
             && self.retainer_d_hole() + 1e-9 >= self.groove_d()
             && self.snap_gap() + 1e-9 >= self.pass_d() - self.retainer_d_hole()
+            && self.clip_mouth() + 1e-9 < self.groove_d()
+            && (self.retainer_od() - (self.retainer_d_hole() + 2.0 * self.clip_arm_t())).abs()
+                < 1e-9
             && self.groove_z() + 1e-9 >= self.plate_z() + self.hub_deck_h()
             && (self.retainer_z() - self.groove_z()).abs() < 1e-9
             && self.groove_h() + 1e-9 >= self.retainer_h()
@@ -477,7 +515,17 @@ impl Spec {
             && self.axle_flange_d() + 1e-9 < self.hub_deck_od()
             && (self.cage_pocket() - (self.roller_d() + self.fit_running_mm)).abs() < 1e-9
             && self.fence_h() + 1e-9 < self.pack_h()
+            && self.fence_h() + 1.2 <= self.pack_h() + 1e-9
             && self.top_load_pocket() + 1e-9 > self.cage_pocket()
+            && self.window_w() + 1e-9 > self.cage_pocket()
+            && self.mouth_w() + 1e-9 > self.window_w()
+            && self.window_floor() + 1e-9 > self.race_z()
+            && self.funnel_h() + 1e-9 < self.fence_h()
+            && self.land_len() + 1e-9 >= 4.0
+            && self.land_len() + 1e-9 < self.roller_len()
+            && self.roller_end_d() + 1e-9 < self.roller_d()
+            && self.crown_drop() + 1e-9 >= 0.25
+            && self.witness_d() + 1e-9 >= self.nozzle_mm * 6.0
             && self.cage_id() + 1e-9 > self.plate_bore()
             && self.cage_rim() + 1e-9 >= self.wall() * 2.0
             && self.assemble_ok()
@@ -514,6 +562,7 @@ impl Spec {
             && (self.retainer_z() - self.groove_z()).abs() < 1e-9
             && (self.z_mid() - (self.race_z() + self.pack_h() * 0.5)).abs() < 1e-9
             && self.fence_h() + 1e-9 < self.pack_h()
+            && self.fence_h() + 1.2 <= self.pack_h() + 1e-9
             && self.bed_relief_h() + 1e-9 < self.hub_deck_h()
             && self.bed_relief_h() + 1e-9 < self.retainer_h()
             && (self.hub_h() - self.hub_deck_h()).abs() < 1e-9
@@ -657,11 +706,15 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
     )?;
 
     let stator_id = build_stator(&mut call, &spec)?;
+    require_solid_ok(&mut call, "stator")?;
     let rotor_id = build_rotor(&mut call, &spec, &[stator_id])?;
+    require_solid_ok(&mut call, "rotor")?;
     let mut known = vec![stator_id, rotor_id];
     let roller_ids = place_rollers(&mut call, &spec, &known)?;
     known.extend(roller_ids.iter().copied());
+    require_solid_ok(&mut call, "rollers")?;
     let retainer_id = build_retainer(&mut call, &spec, &known)?;
+    require_solid_ok(&mut call, "kit")?;
 
     let (assembly_ok, assembly_detail) = match form_assembly(
         &mut call,
@@ -811,23 +864,96 @@ fn quat_axis_angle(axis: [f64; 3], deg: f64) -> [f64; 4] {
     [a[0] * s, a[1] * s, a[2] * s, half.cos()]
 }
 
-fn cut_top_load_slots(
+fn cut_u_windows(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    spec: &Spec,
+    stator_id: u64,
+) -> Result<(), String> {
+    for index in 0..spec.roller_count {
+        let [x, y] = spec.roller_xy(index);
+        let angle = spec.roller_angle_deg(index);
+        cut_oriented_slot(
+            call,
+            stator_id,
+            spec.window_floor(),
+            [x, y],
+            spec.pocket_len(),
+            spec.window_w(),
+            angle,
+            spec.fence_h() + 0.4,
+            &format!("U-window {index}"),
+        )?;
+        let mouth_z = spec.race_z() + spec.fence_h() - spec.funnel_h();
+        cut_oriented_slot(
+            call,
+            stator_id,
+            mouth_z,
+            [x, y],
+            spec.pocket_len() + spec.nozzle_mm * 2.0,
+            spec.mouth_w(),
+            angle,
+            spec.funnel_h() + 0.4,
+            &format!("U-window mouth {index}"),
+        )?;
+    }
+    Ok(())
+}
+
+fn cut_oriented_slot(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    stator_id: u64,
+    z: f64,
+    center: [f64; 2],
+    length: f64,
+    width: f64,
+    angle_deg: f64,
+    depth: f64,
+    label: &str,
+) -> Result<(), String> {
+    let deck = offset_xy(call, z)?;
+    begin_datum(call, deck)?;
+    add_oriented_rect(call, center, length, width, angle_deg)?;
+    let sketch = finish_sketch(call)?;
+    require_clean(
+        call(
+            "solid_extrude",
+            json!({
+                "sketch_name": sketch,
+                "profile_indices": [0],
+                "operation": "cut",
+                "extent": { "type": "distance", "distance": depth },
+                "taper_angle_deg": 0.0,
+                "flip": false,
+                "target_body_ids": [stator_id]
+            }),
+        )?,
+        label,
+    )?;
+    Ok(())
+}
+
+fn cut_witness_holes(
     call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
     spec: &Spec,
     stator_id: u64,
     known: &[u64],
 ) -> Result<(), String> {
+    let pocket_outer = spec.pcd() * 0.5 + spec.pocket_len() * 0.5;
+    let outer = spec.cage_od() * 0.5;
+    let center_r = (pocket_outer + outer) * 0.5;
+    let length = (outer - pocket_outer).max(spec.keeper()) + 4.0;
     let mut seen = known.to_vec();
     seen.push(stator_id);
     for index in 0..spec.roller_count {
-        let tool_id = place_radial_cylinder(
+        let tool_id = place_radial_cylinder_at(
             call,
             spec,
-            spec.top_load_pocket(),
-            spec.pocket_len(),
+            spec.witness_d(),
+            length,
+            center_r,
             index,
             &seen,
-            &format!("top-load slot {index}"),
+            &format!("witness hole {index}"),
         )?;
         require_clean(
             call(
@@ -839,12 +965,13 @@ fn cut_top_load_slots(
                     "keep_tools": false
                 }),
             )?,
-            &format!("top-load slot cut {index}"),
+            &format!("witness hole cut {index}"),
         )?;
     }
     Ok(())
 }
 
+#[allow(dead_code)]
 fn place_radial_cylinder(
     call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
     spec: &Spec,
@@ -854,7 +981,29 @@ fn place_radial_cylinder(
     known: &[u64],
     label: &str,
 ) -> Result<u64, String> {
-    let x0 = spec.pcd() * 0.5 - length * 0.5;
+    place_radial_cylinder_at(
+        call,
+        spec,
+        diameter,
+        length,
+        spec.pcd() * 0.5,
+        index,
+        known,
+        label,
+    )
+}
+
+fn place_radial_cylinder_at(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    spec: &Spec,
+    diameter: f64,
+    length: f64,
+    center_r: f64,
+    index: usize,
+    known: &[u64],
+    label: &str,
+) -> Result<u64, String> {
+    let x0 = center_r - length * 0.5;
     let deck = offset_yz(call, x0)?;
     begin_datum(call, deck)?;
     add_circle(call, [0.0, spec.z_mid()], diameter)?;
@@ -1119,7 +1268,8 @@ fn build_stator(
         )?,
         "stator D-flat",
     )?;
-    cut_top_load_slots(call, spec, stator_id, &[stator_id])?;
+    cut_u_windows(call, spec, stator_id)?;
+    cut_witness_holes(call, spec, stator_id, &[stator_id])?;
     Ok(stator_id)
 }
 
@@ -1247,6 +1397,69 @@ fn build_rotor(
     Ok(rotor_id)
 }
 
+fn place_crowned_roller(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    spec: &Spec,
+    index: usize,
+    known: &[u64],
+    label: &str,
+) -> Result<u64, String> {
+    let mid_r = spec.roller_d() * 0.5;
+    let end_r = spec.roller_end_d() * 0.5;
+    let half_l = spec.roller_len() * 0.5;
+    let half_land = spec.land_len() * 0.5;
+    let x0 = spec.pcd() * 0.5;
+    let deck = offset_xy(call, spec.z_mid())?;
+    begin_datum(call, deck)?;
+    add_poly(
+        call,
+        &[
+            [x0 - half_l, 0.02],
+            [x0 - half_l, end_r],
+            [x0 - half_land, mid_r],
+            [x0 + half_land, mid_r],
+            [x0 + half_l, end_r],
+            [x0 + half_l, 0.02],
+            [x0 - half_l, 0.02],
+        ],
+        true,
+    )?;
+    let sketch = finish_sketch(call)?;
+    call(
+        "cad_set_focus",
+        json!({ "focus": "solid", "explicit": true }),
+    )?;
+    let update = require_clean(
+        call(
+            "solid_revolve",
+            json!({
+                "sketch_name": sketch,
+                "profile_indices": [0],
+                "axis_origin": {"x": 0.0, "y": 0.0},
+                "axis_direction": {"x": 1.0, "y": 0.0},
+                "axis_line_entity_id": null,
+                "angle_deg": 360.0,
+                "flip": false,
+                "operation": "new_body",
+                "target_body_ids": []
+            }),
+        )?,
+        label,
+    )?;
+    let id = newest_body_id(&update, known)?;
+    let theta = spec.roller_angle_deg(index);
+    if theta.abs() > 1e-9 {
+        transform_bodies(
+            call,
+            &[id],
+            [0.0, 0.0, 0.0],
+            quat_axis_angle([0.0, 0.0, 1.0], theta),
+            [0.0, 0.0, spec.z_mid()],
+        )?;
+    }
+    Ok(id)
+}
+
 fn place_rollers(
     call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
     spec: &Spec,
@@ -1255,14 +1468,12 @@ fn place_rollers(
     let mut seen = known.to_vec();
     let mut roller_ids = Vec::new();
     for index in 0..spec.roller_count {
-        let id = place_radial_cylinder(
+        let id = place_crowned_roller(
             call,
             spec,
-            spec.roller_d(),
-            spec.roller_len(),
             index,
             &seen,
-            &format!("roller {index}"),
+            &format!("crowned roller {index}"),
         )?;
         seen.push(id);
         roller_ids.push(id);
@@ -1313,12 +1524,12 @@ fn build_retainer(
         )?,
         "retainer D-hole",
     )?;
-    begin_datum(call, deck)?;
+    begin_datum(call, deck.clone())?;
     add_oriented_rect(
         call,
         [-spec.retainer_od() * 0.5, 0.0],
         spec.retainer_od(),
-        spec.snap_gap(),
+        spec.clip_mouth(),
         0.0,
     )?;
     let gap = finish_sketch(call)?;
@@ -1335,8 +1546,42 @@ fn build_retainer(
                 "target_body_ids": [retainer_id]
             }),
         )?,
-        "retainer C-gap",
+        "retainer E-clip mouth",
     )?;
+    let hole = spec.retainer_d_hole();
+    let od = spec.retainer_od();
+    let tab_w = spec.clip_tab_w();
+    let tab_l = spec.clip_tab_l();
+    let mouth = spec.clip_mouth();
+    for sign in [1.0, -1.0] {
+        begin_datum(call, deck.clone())?;
+        add_oriented_rect(
+            call,
+            [
+                -(od + hole) * 0.25,
+                sign * (mouth * 0.5 + tab_w * 0.35),
+            ],
+            tab_l,
+            tab_w,
+            0.0,
+        )?;
+        let tab = finish_sketch(call)?;
+        require_clean(
+            call(
+                "solid_extrude",
+                json!({
+                    "sketch_name": tab,
+                    "profile_indices": [0],
+                    "operation": "join",
+                    "extent": { "type": "distance", "distance": spec.retainer_h() },
+                    "taper_angle_deg": 0.0,
+                    "flip": false,
+                    "target_body_ids": [retainer_id]
+                }),
+            )?,
+            &format!("retainer finger tab {}", if sign > 0.0 { "plus" } else { "minus" }),
+        )?;
+    }
     cut_bed_relief_circle(
         call,
         spec,
@@ -1479,10 +1724,10 @@ fn form_assembly(
                 stator_id,
                 [x, y],
                 z,
-                spec.top_load_pocket() * 0.5,
+                spec.witness_d() * 0.5,
                 axis,
             )
-            .ok_or_else(|| format!("no stator pocket radial axis for roller {index}"))?,
+            .ok_or_else(|| format!("no stator witness radial axis for roller {index}"))?,
             radial_connector_at(&scene, *roller_id, [x, y], z, spec.roller_d() * 0.5, axis)
                 .ok_or_else(|| format!("no roller radial axis for roller {index}"))?,
             stator_id,
@@ -1516,7 +1761,7 @@ fn form_assembly(
             spec.retainer_z(),
             spec.retainer_od() * 0.5,
         )
-        .ok_or_else(|| "no on-axis retainer washer for retainer_sit".to_string())?,
+        .ok_or_else(|| "no on-axis retainer E-clip for retainer_sit".to_string())?,
         stator_id,
     )?;
     if let Some(occurrence_id) = stator_occurrence_id {
@@ -1552,7 +1797,7 @@ fn form_assembly(
     }
     require_linked_solution(call)?;
     Ok(format!(
-        "{defs} linked parts, {joints} joints; one stator; radial-axis pack under the blade roots; top-load fence; clocked C-clip in a groove; rollers spin about e_r"
+        "{defs} linked parts, {joints} joints; one stator; radial-axis pack under the blade roots; U-window fence; clocked E-clip in a groove; crowned rollers spin about e_r"
     ))
 }
 
@@ -1690,21 +1935,23 @@ fn make_assembly_drawing(
         ),
         (
             [18.0, 58.0],
-            "GDT  one stator (thin Y-frame + race ring + keeper walls + open fence + constant journal). Thin plate with organic airfoil roots. Plate bore > journal pass Ø so the rotor drops on. Clocked C-clip snaps into an undercut groove above the plate — it does not rub the rotor. Pull the C-gap to remove. Clip CAD unchanged this pass.".to_string(),
+            "GDT  one stator (thin Y-frame + race ring + keeper walls + U-window fence + flat race + constant journal). Thin plate with organic airfoil roots. Plate bore > journal pass Ø so the rotor drops on. Clocked E-clip snaps radially into an undercut groove above the plate — it does not rub the rotor. Pinch the finger tabs to remove.".to_string(),
         ),
         (
             [18.0, 68.0],
             format!(
-                "BOM  stator (Y-frame + race ring + fence + grooved journal) · rotor (root plate+3×{}) · {} radial rollers · clocked C-clip",
+                "BOM  stator (Y-frame + race ring + U-window fence + grooved journal) · rotor (root plate+3×{}) · {} crowned radial rollers · clocked E-clip",
                 spec.airfoil, spec.roller_count
             ),
         ),
         (
             [18.0, 78.0],
             format!(
-                "ROLLERS  Ø{:.1} × L{:.1}  axis radial  PCD {:.1}  pack h={:.1}. No metal 608.",
+                "ROLLERS  Ø{:.1} × L{:.1}  crown drop {:.2}  mid land {:.1}  axis radial  PCD {:.1}  pack h={:.1}. No metal 608.",
                 spec.roller_d(),
                 spec.roller_len(),
+                spec.crown_drop(),
+                spec.land_len(),
                 spec.pcd(),
                 spec.pack_h()
             ),
@@ -2039,7 +2286,7 @@ fn grade(
         &mut lessons,
         "no_press",
         spec.fit_friction_mm > 0.0 && spec.fit_friction_mm < spec.nozzle_mm && spec.assemble_ok(),
-        "no press: plate drops over a constant journal; clocked C-clip snaps into a groove; pull to remove; retainer does not rub the rotor".to_string(),
+        "no press: plate drops over a constant journal; clocked E-clip snaps into a groove; pinch tabs to remove; retainer does not rub the rotor".to_string(),
     );
     push_lesson(
         &mut lessons,
@@ -2138,7 +2385,7 @@ fn grade(
         "print_flat",
         spec.print_flat_ok(),
         format!(
-            "stator prints flat (race ring Ø{:.1}/ID {:.1}, keepers {:.1}, fence h{:.1} < pack {:.1}); rotor stands on deck {:.1}; rollers print standing, top-load +{:.2}",
+            "stator prints flat (race ring Ø{:.1}/ID {:.1}, keepers {:.1}, U-window fence h{:.1} < pack {:.1}); rotor stands on deck {:.1}; crowned rollers print standing, window +{:.2}",
             spec.axle_flange_d(),
             spec.race_id(),
             spec.keeper(),
@@ -2460,6 +2707,17 @@ fn add_poly(
     Ok(())
 }
 
+fn require_solid_ok(
+    call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
+    label: &str,
+) -> Result<Value, String> {
+    let check = call("solid_check", json!({}))?;
+    if check.get("ok") != Some(&Value::Bool(true)) {
+        return Err(format!("{label} solid_check failed: {check}"));
+    }
+    Ok(check)
+}
+
 fn require_blank_document(
     call: &mut impl FnMut(&str, Value) -> Result<Value, String>,
 ) -> Result<String, String> {
@@ -2775,6 +3033,18 @@ mod spec_tests {
         assert!(spec.cage_rim() + 1e-9 >= spec.wall() * 2.0);
         assert!(spec.fence_h() + 1e-9 < spec.pack_h());
         assert!(spec.top_load_pocket() + 1e-9 > spec.cage_pocket());
+        assert!(spec.window_w() + 1e-9 > spec.cage_pocket());
+        assert!(spec.mouth_w() + 1e-9 > spec.window_w());
+        assert!(spec.window_floor() > spec.race_z());
+        assert!(spec.land_len() + 1e-9 >= 4.0);
+        assert!(spec.land_len() < spec.roller_len());
+        assert!(spec.roller_end_d() < spec.roller_d());
+        assert!((spec.crown_drop() - 0.32).abs() < 1e-9);
+        assert!((spec.clip_mouth() - 8.0).abs() < 1e-9);
+        assert!(spec.clip_mouth() < spec.groove_d());
+        assert!((spec.retainer_od() - (spec.retainer_d_hole() + 2.0 * spec.clip_arm_t())).abs() < 1e-9);
+        assert!((spec.witness_d() - 2.4).abs() < 1e-9);
+        assert!(spec.fence_h() + 1.2 <= spec.pack_h() + 1e-9);
         assert!(spec.fit_pip_mm > spec.fit_running_mm);
         let yt_max = naca4_modified_yt_over_c(0.35, 0.24, 0.35, 4.5);
         assert!((yt_max - 0.12).abs() < 0.004);

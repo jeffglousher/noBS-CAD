@@ -15,7 +15,7 @@ under the blade roots** (8 radial-axis rollers, pack height = roller Ø);
 fence sits on the race ring (ID looser than the plate bore); clocked
 C-clip snaps into the journal groove and does not rub the rotor.
 Clip and pack integration research (why the printed rollers slide,
-why the C-clip is awful): [PRINT_KIT_BEARING.md](PRINT_KIT_BEARING.md).
+why the C-clip was awful; this pass ships the E-clip): [PRINT_KIT_BEARING.md](PRINT_KIT_BEARING.md).
 The two-bearing post / tenon / cone stand in the sections below is
 **historical** — do not rebuild it.
 

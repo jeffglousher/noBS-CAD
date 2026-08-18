@@ -20,9 +20,9 @@ nozzle fits by building a printed VAWT **assembly** and grading it.
 - Assembly: [ASSEMBLY.md](../../docs/agentic/ASSEMBLY.md) (named `assembly_*` tools; this exam uses them)
 - Domain matrix: [MCP_GAP.md](../../docs/agentic/MCP_GAP.md)
 
-One stator (thin Y-frame + race ring + keeper walls + open top-load
-fence + constant journal), one-piece helical rotor, six radial-axis
-rollers, clocked C-clip. The CAD assembly grounds the stator, revolutes
+One stator (thin Y-frame + race ring + keeper walls + U-window
+fence + constant journal), one-piece helical rotor, eight barrel-crowned
+radial-axis rollers, clocked E-clip. The CAD assembly grounds the stator, revolutes
 the plate bore (`rotor_spin`) and each roller about its **radial**
 axis, and sits the clip in the journal groove. There is no loose
 bushing sandwich, no tall drum, and no standing-Z puck pack. Assembled
@@ -38,9 +38,9 @@ large PCD; race ring = lower land) takes rotation about Z. Overturning
 is a couple under those roots — not a tall journal, not an inboard pack
 that leaves the plate as a cantilever, not moment webs climbing a wall.
 The fence is a spacer (ID looser than the plate bore). Assemble:
-rollers into the slots, drop the rotor over the journal, snap the
-C-clip. Clip CAD is unchanged this pass; better families are in
-[PRINT_KIT_GDT.md](../../docs/agentic/PRINT_KIT_GDT.md). Matching 8 mm
+crowned rollers into the U-windows, drop the rotor over the journal, snap the
+E-clip. Clip and pack CAD are this pass; the research contract is
+[PRINT_KIT_BEARING.md](../../docs/agentic/PRINT_KIT_BEARING.md). Matching 8 mm
 flats is still a pancake stack. Standing-Z pucks slide on their end
 faces. Look at the solid (`npm run render:print-kit`) as a check, not
 as the design method. Blade lofts start on that plate (flat sit-plane

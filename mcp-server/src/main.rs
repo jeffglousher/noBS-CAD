@@ -42,7 +42,7 @@ const META_SERVER_INFO: &str = "io.modelcontextprotocol/serverInfo";
 const UNSUPPORTED_PROTOCOL_VERSION: i64 = -32022;
 const MODELING_TOOL_COUNT: usize = 206;
 const CONTROL_TOOL_COUNT: usize = 12;
-const PRINT_HELPER_COUNT: usize = 8;
+const PRINT_HELPER_COUNT: usize = 9;
 
 #[derive(Clone, Copy)]
 enum Payload {
@@ -323,6 +323,8 @@ impl CadServer {
                 self.export_mesh(name, arguments)?
             } else if name == "solid_tessellate" {
                 self.tessellate_tool(arguments)?
+            } else if name == "solid_check" {
+                self.solid_check_tool(arguments)?
             } else if name == "solid_export_preflight" {
                 self.export_preflight_tool()?
             } else if name == "demo_export_pip_3mf" {
@@ -1175,6 +1177,76 @@ impl CadServer {
         }))
     }
 
+    fn solid_check_tool(&mut self, arguments: Value) -> Result<Value, String> {
+        let scene = self.manager.solid_scene();
+        let timeline_errors: Vec<String> = scene
+            .errors
+            .iter()
+            .map(|error| format!("feature {}: {}", error.feature_id.0, error.message))
+            .collect();
+        let request: MeshExportRequest = if arguments.is_null() {
+            MeshExportRequest {
+                linear_deflection: 0.20,
+                angular_deflection: 0.40,
+                ..MeshExportRequest::default()
+            }
+        } else {
+            serde_json::from_value(arguments)
+                .map_err(|error| format!("bad solid_check arguments: {error}"))?
+        };
+        let mut bodies = Vec::new();
+        let mut tessellate_error = None;
+        if timeline_errors.is_empty() && !scene.bodies.is_empty() {
+            match self.kernel.tessellate_bodies(&request) {
+                Ok(meshes) => {
+                    for mesh in meshes {
+                        let name = scene
+                            .bodies
+                            .iter()
+                            .find(|body| body.id == mesh.body_id)
+                            .map(|body| body.name.clone())
+                            .unwrap_or_default();
+                        let welded = nbcad_export::weld_triangle_mesh(
+                            &mesh,
+                            nbcad_export::DEFAULT_WELD_EPSILON,
+                        )
+                        .unwrap_or_else(|_| mesh.clone());
+                        let invalid_edges = nbcad_export::invalid_model_edge_count(&welded);
+                        let boundary_edges = nbcad_export::boundary_edge_count(&welded);
+                        bodies.push(json!({
+                            "body_id": mesh.body_id.0,
+                            "name": name,
+                            "triangle_count": mesh.triangle_count(),
+                            "invalid_edges": invalid_edges,
+                            "boundary_edges": boundary_edges,
+                            "ok": invalid_edges == 0,
+                        }));
+                    }
+                }
+                Err(error) => tessellate_error = Some(error.to_string()),
+            }
+        }
+        let bodies_ok = !bodies.is_empty() && bodies.iter().all(|body| body["ok"] == true);
+        let ok = timeline_errors.is_empty() && tessellate_error.is_none() && bodies_ok;
+        Ok(json!({
+            "ok": ok,
+            "body_count": scene.bodies.len(),
+            "checked": bodies.len(),
+            "timeline_errors": timeline_errors,
+            "tessellate_error": tessellate_error,
+            "bodies": bodies,
+            "hints": if ok {
+                json!(["Solids tessellated as closed 2-manifolds. Safe to export."])
+            } else {
+                json!([
+                    "Fix timeline_errors first.",
+                    "invalid_edges > 0 means a non-manifold or open mesh (the 0024 TE fault).",
+                    "Call from CLI: node scripts/nbcad-cli.mjs solid_check"
+                ])
+            },
+        }))
+    }
+
     fn export_preflight_tool(&mut self) -> Result<Value, String> {
         let scene = self.manager.solid_scene();
         let errors: Vec<String> = scene
@@ -1345,6 +1417,7 @@ fn is_outside_modeling_registry(name: &str) -> bool {
             | "solid_export_stl"
             | "solid_export_3mf"
             | "solid_export_preflight"
+            | "solid_check"
             | "material_catalog"
             | "body_appearances"
             | "set_body_appearance"
@@ -1381,6 +1454,7 @@ fn is_session_read_only_tool(name: &str) -> bool {
             | "solid_export_stl"
             | "solid_export_3mf"
             | "solid_tessellate"
+            | "solid_check"
             | "solid_export_preflight"
             | "material_catalog"
             | "body_appearances"
@@ -2873,6 +2947,24 @@ fn tool_specs() -> Vec<ToolSpec> {
                     },
                     "linear_deflection": {"type": "number", "exclusiveMinimum": 0, "default": 0.15},
                     "angular_deflection": {"type": "number", "exclusiveMinimum": 0, "default": 0.35}
+                }),
+                &[],
+            ),
+        ),
+        ToolSpec::direct(
+            "solid_check",
+            "Check solids for CAD errors",
+            "Timeline errors plus per-body tessellation manifold check (invalid/boundary edges after weld). Use from CLI (`node scripts/nbcad-cli.mjs solid_check`) so agents can validate without reloading Cursor MCP.",
+            "solid_check",
+            Payload::Object,
+            object_schema(
+                json!({
+                    "body_ids": {
+                        "type": "array",
+                        "items": {"type": "integer", "minimum": 1}
+                    },
+                    "linear_deflection": {"type": "number", "exclusiveMinimum": 0, "default": 0.20},
+                    "angular_deflection": {"type": "number", "exclusiveMinimum": 0, "default": 0.40}
                 }),
                 &[],
             ),
@@ -4390,7 +4482,7 @@ mod tests {
         assert_eq!(
             all_tools.len(),
             MODELING_TOOL_COUNT + PRINT_HELPER_COUNT + CONTROL_TOOL_COUNT,
-            "206 modeling tools plus 8 print helpers and 12 control tools"
+            "206 modeling tools plus 9 print helpers and 12 control tools"
         );
         let modeling_count = all_tools
             .iter()
@@ -6057,6 +6149,24 @@ mod tests {
             0,
             "every exported edge should have two oppositely oriented triangle uses"
         );
+    }
+
+    #[test]
+    fn solid_check_empty_document_is_not_ok() {
+        let mut server = CadServer::new().unwrap();
+        let check = server.call_tool("solid_check", json!({})).unwrap();
+        assert_eq!(check["ok"], false);
+        assert_eq!(check["body_count"], 0);
+        assert!(check["checked"] == 0 || check["checked"] == json!(0));
+    }
+
+    #[test]
+    fn solid_check_occt_box_is_manifold() {
+        let (mut server, _) = mcp_box();
+        let check = server.call_tool("solid_check", json!({})).unwrap();
+        assert_eq!(check["ok"], true, "{check}");
+        assert_eq!(check["bodies"][0]["invalid_edges"], 0);
+        assert_eq!(check["bodies"][0]["ok"], true);
     }
 
     #[test]

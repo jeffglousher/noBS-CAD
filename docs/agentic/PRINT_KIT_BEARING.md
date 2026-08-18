@@ -256,21 +256,35 @@ changes it.**
 
 ---
 
-## 7. Integration order (next CAD, this branch)
+## 7. Integration order (this branch — implemented)
 
 Blades / helix / 0024-4.5/3.5 / 8-roller count / PCD under the roots
-**stay**. Change only the pack interface and the clip.
+**stay**. Changed: pack interface and clip.
 
-1. Stop cutting the slot as a radial cylinder.
-2. Flat race + chamfer. U-window + funnel through the fence only.
-3. Barrel-crown the rollers (revolve a 3-point generator, or loft
-   two circles). Mid Ø still sets pack height.
-4. Replace the C-washer with a printed E-clip / finger-tab circlip
+1. Stopped cutting the slot as a radial cylinder.
+2. Flat race. U-window + funnel through the fence only. Witness Ø2.4
+   through the outer keeper so the roller revolute still has a stator
+   cylinder after the pocket is gone.
+3. Barrel-crowned rollers (`solid_revolve` of a 3-point generator).
+   Mid Ø still sets pack height.
+4. Replaced the C-washer with a printed E-clip / finger-tab circlip
    in the same groove.
-5. Reprint rollers standing; sand ODs; dry PTFE on the two flats.
+5. Reprint rollers standing; sand ODs; dry PTFE on the two flats
+   (print-side, not CAD).
 6. Then, and only if the crowned flats still skate under overturning,
    a matched-apex TRB (tapered race + tapered plate + tapered
    rollers). Not before.
+
+Validate without reloading Cursor MCP:
+
+```
+node scripts/nbcad-cli.mjs exam --stage=stator
+node scripts/nbcad-cli.mjs exam --stage=rollers
+node scripts/nbcad-cli.mjs exam --stage=clip
+node scripts/nbcad-cli.mjs exam --stage=kit
+```
+
+`solid_check` is the CAD error detector (timeline + welded manifold).
 
 ---
 

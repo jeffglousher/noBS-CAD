@@ -28,8 +28,8 @@ Four printed families, then a linked assembly:
 |------|------|-------|
 | Stator | Thin Y-frame + race ring + keeper walls + open top-load fence + constant-pass journal + snap groove. One body | Flat |
 | Rotor | Thin root plate (underside = upper thrust race) + 3 helical NACA 0024-4.5/3.5. One body. Plate bore larger than journal pass Ø | Standing on the plate |
-| Rollers | 8 radial-axis cylinders, min Ø8, pack height = Ø, PCD under the blade roots. Drop into top-load slots | Standing (axis Z) |
-| Retainer | Clocked C-clip (D-hole + C-gap) in the journal groove, 0.20 above the plate | Flat |
+| Rollers | 8 radial-axis **barrel-crowned** rollers, min Ø8 mid land, pack height = mid Ø, PCD under the blade roots. Drop into U-windows | Standing (axis Z) |
+| Retainer | Clocked **E-clip** (D-hole + ~8 mm mouth + finger tabs) in the journal groove, 0.20 above the plate | Flat |
 
 Plastics: **PLA Basic Orange** (stator, rollers, retainer) and **PLA Glow Green** (rotor).
 
@@ -41,14 +41,14 @@ Scale 1.0 fits the X2D usable bed (240×240×244).
 Role-based. Slicer XY hole compensation stays 0.
 
 - running (rollers on races, separate bodies): +{nozzle} mm diametral
-- top-load slots: roller Ø + running + 2 nozzles
+- U-window: flat race + window through the fence only (floor = race + 0.05). Circumferential clearance ≥ 0.8 mm/side. Funnel mouth 20–30° at the top. Witness Ø2.4 through the outer keeper for the roller revolute.
 - slip (clip D-hole in the groove): +0.28 mm
 - 0.20 mm axial float at every running land
 - 2-nozzle elephant-foot lead-in on every bed-printed functional hole
 
-Fence height is below pack height. Fence ID is looser than the plate bore
-(spacer). Keepers survive the top-load cut. Journal is a constant pass Ø
-smaller than the plate bore so the rotor drops on.
+Fence height is below pack height (≤ pack − 1.2). Fence ID is looser than
+the plate bore (spacer). Keepers stay at the **ends only**. Journal is a
+constant pass Ø smaller than the plate bore so the rotor drops on.
 
 ## Pipeline
 
@@ -58,11 +58,14 @@ polylines with **ctrl held**.
 1. `cad_new_project` on a **blank document** (`solid_scene` shows 0 bodies).
    `cad_set_document_name` Print Kit Tutor.
 2. Stator: Y-frame + race ring + keepers + fence + constant journal + groove.
-   Print-flat. `solid_extrude` / cuts for slots, groove, and D-flat.
+   Print-flat. U-window + funnel through the fence only (do **not** cut a
+   radial cylinder into the race). Witness holes through the outer keeper.
+   Groove and D-flat on the tip.
 3. Rotor: root plate, airfoil through the plate, `solid_loft` three helical
    NACA 0024-4.5/3.5 from the organic root to a tapered flat landing.
-4. Eight radial-axis rollers. Top-load slots on the stator.
-5. C-clip: D-hole + C-gap, print-flat.
+4. Eight barrel-crowned radial-axis rollers (`solid_revolve` of a 3-point
+   generator). Mid Ø still sets pack height.
+5. E-clip: thin ring + D-hole + ~8 mm mouth + finger tabs, print-flat.
 6. `cad_set_workspace` assembly. One `assembly_create_component` per moving
    body (that call inserts the root occurrence). Ground the stator.
    - `revolute` rotor_spin — plate bore on the journal, about Z
@@ -71,7 +74,9 @@ polylines with **ctrl held**.
    Pick circular edges or cylinders. `assembly_solution` stays solved.
 7. Drawing: `cad_drawing_create_sheet` + `cad_drawing_auto_layout` + notes
    (fits, scale, print orientation, BOM).
-8. Print: `set_body_appearance` (orange / glow). `solid_export_preflight`.
+8. Inspect: `solid_check` after each family (CLI: `node scripts/nbcad-cli.mjs
+   solid_check` — no Cursor MCP reload). Then `set_body_appearance`
+   (orange / glow). `solid_export_preflight`.
    Save the assembled `.nbcad`. `solid_move_copy` onto one print plate
    (rotor and rollers standing, others flat). `solid_export_3mf` once as
    `01-kit`.
@@ -80,8 +85,9 @@ polylines with **ctrl held**.
 10. Write the design report next to the project: architecture, airfoil,
     fit table, stack, BOM, print orientation, service finish, plastic cost.
 
-Assembly order of the physical kit: stator → rollers into the slots →
-drop rotor over the journal → snap C-clip.
+Assembly order of the physical kit: stator → crowned rollers into the
+U-windows → drop rotor over the journal → snap E-clip radially into the
+groove. Pinch the finger tabs to remove.
 
 ## Service finish
 

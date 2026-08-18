@@ -27,7 +27,7 @@ Contract: [PRINT_KIT_DESIGN.md](PRINT_KIT_DESIGN.md).
 | Tall skinny shaft + two-land sleeve | Cannot take blade-tip moment and needs a support tower. Short post + large-PCD thin thrust. |
 | Separate axle disk + cage disk | Two flats that should be one stator. Extra plastic and a rubbing washer. Merge Y-frame + race + open fence + journal. Top-load rollers. Clocked C-snap on the journal shoulder. |
 | Cookie race under the Y-frame | One Ø74 disk under the rollers reprinted the plastic the merge was supposed to drop. | Race is a ring where rollers contact. Fence sits on that ring. Y-frame stays open. |
-| Hourglass journal | Fat shoulder + bead above a thinner neck. The rotor plate cannot drop on. | Constant pass Ø journal. C-clip snaps into an undercut groove and pulls off. |
+| Hourglass journal | Fat shoulder + bead above a thinner neck. The rotor plate cannot drop on. | Constant pass Ø journal. E-clip snaps into an undercut groove and pinches off. |
 | Rollers slide out | Race ID sat at the roller inner end, so the top-load pocket opened into the Y-frame. | Keeper walls inboard and outboard of each roller survive the cut. Still top-load. |
 | Thick stator / thick plate | Extra plastic at exam scale. A thin plate with a hard airfoil cut is a crack starter. | Thin Y-frame and plate. Organic root blend. Short tip taper to a flat landing. Clip CAD unchanged. |
 
@@ -44,7 +44,7 @@ Contract: [PRINT_KIT_DESIGN.md](PRINT_KIT_DESIGN.md).
 
 ## 3. Final product
 
-Three printed families: stator → rollers into top-load slots → rotor → snap retainer.
+Three printed families: stator → crowned rollers into U-windows → rotor → snap E-clip.
 
 Open in CAD: `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor.nbcad`
 

@@ -22,7 +22,7 @@ before save.
 | Section | NACA 0024-4.5/3.5, TE ≥ 0.8 mm, root chord > tip | Low-TSR Tirandaz/Rezaeiha section; drafted standing print |
 | Rotor | One body: root plate out to the blades (underside = upper thrust race), 3 helical blades ending on that plate. X2D-max R=85, span=236, scale 0.4 in the exam | Always some blade working; no tenons; no mid-air roots; no skinny-arm hangers |
 | Stand | One stator: Y-frame + race **ring** + open top-load fence + short journal | Envelope/rotor ≤ 1.55; no cookie disk; no tall mast; no separate axle disk |
-| Bearing | **Thin flat thrust** under the **blade roots**: 8× printed **radial-axis** rollers, min Ø8, pack height = Ø, large PCD. Top-load slots. **Keeper walls**. Fence ID looser than the plate bore. Thin plate (≥3.2 mm) with **organic airfoil roots**. Constant journal the plate can drop over. Clocked C-clip in a groove | Rotation about Z plus overturning as a couple under the roots |
+| Bearing | **Thin flat thrust** under the **blade roots**: 8× printed **radial-axis barrel-crowned** rollers, min Ø8 mid land, pack height = mid Ø, large PCD. U-windows through the fence (flat race). **Keeper walls at the ends**. Fence ID looser than the plate bore. Thin plate (≥3.2 mm) with **organic airfoil roots**. Constant journal the plate can drop over. Clocked E-clip in a groove | Rotation about Z plus overturning as a couple under the roots |
 | Fits | running +0.40 / PIP +0.80 / slip +0.28 / friction +0.16 | Role-based **and** same-plate vs assembled. 0.80 mm bed lead-in. Slicer XY hole comp = 0 |
 | Envelope | scale 1.0 fits Bambu Lab X2D 256×256×260 with 8 mm margin | `spec.scale` is the source parameter |
 
@@ -39,7 +39,7 @@ retainer print flat. Rollers print **standing** and drop into top-load
 slots (axis radial). The rotor stands on that plate. Blade roots are XY
 airfoils through the plate, with an organic blend on the top face and a
 short taper to a flat tip landing. Keepers capture the rollers radially.
-The retainer is a clocked C-clip in a journal groove — the plate drops
+The retainer is a clocked E-clip in a journal groove — the plate drops
 over a constant journal, then the clip snaps on. Clip families:
 [PRINT_KIT_GDT.md](PRINT_KIT_GDT.md).
 
@@ -93,7 +93,7 @@ cannot take the moment at the blade tips.
 | Thrust | Stator race (lower) ↔ thin rollers ↔ plate underside (upper), 0.20 float each land | Flat land, not a lifted cone, not a tall drum |
 | Overturning | Same pack, large PCD **under the blade roots** | Couple across the disk. Width, not height. An inboard PCD leaves the plate as a cracker |
 | Stator | One body: Y-frame + race ring + open fence + journal | Print-flat; plate freewheels on the short journal |
-| Retain | Clocked C-clip in a journal groove | Plate drops on; clip snaps on and pulls off; does not rub the rotor |
+| Retain | Clocked E-clip in a journal groove | Plate drops on; clip snaps on radially and pinches off; does not rub the rotor |
 
 PLA-on-PLA is a demo spin. Say so. No glue-as-fit.
 

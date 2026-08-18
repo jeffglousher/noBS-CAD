@@ -89,7 +89,9 @@ impl FocusPack {
             FocusPack::History => {
                 "Rollback, delete, and reorder in feature history. Application undo/redo stay on the spine."
             }
-            FocusPack::Inspect => "Read-only scene, recompute, and tessellation.",
+            FocusPack::Inspect => {
+                "Read-only scene, recompute, tessellation, and solid_check (timeline + manifold)."
+            }
             FocusPack::Print => {
                 "Manufacturing export: 3MF/STL/STEP, materials, appearance, and print demos."
             }
@@ -628,7 +630,7 @@ pub fn tags_for_tool(name: &str) -> (FocusPack, bool) {
         "solid_set_rollback" | "solid_delete_feature" | "solid_reorder_feature" => {
             FocusPack::History
         }
-        "solid_tessellate" => FocusPack::Inspect,
+        "solid_tessellate" | "solid_check" => FocusPack::Inspect,
         "solid_export_step"
         | "solid_export_stl"
         | "solid_export_3mf"
@@ -981,11 +983,12 @@ mod tests {
             "solid_hole_definitions",
             "solid_body_feature_definitions",
             "solid_tessellate",
+            "solid_check",
             "cad_document",
             "solid_scene",
             "solid_recompute",
         ];
-        assert_eq!(modeling.len(), 115);
+            assert_eq!(modeling.len(), 116);
         for name in modeling {
             let (pack, spine) = tags_for_tool(name);
             assert!(
@@ -1010,6 +1013,7 @@ mod tests {
             FocusPack::BodyOps
         );
         assert_eq!(tags_for_tool("solid_tessellate").0, FocusPack::Inspect);
+        assert_eq!(tags_for_tool("solid_check").0, FocusPack::Inspect);
         assert_eq!(tags_for_tool("solid_move_copy").0, FocusPack::BodyOps);
         for name in [
             "solid_export_3mf",
