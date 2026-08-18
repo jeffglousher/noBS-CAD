@@ -17,6 +17,7 @@ Snapshot of the kit that established this look (NACA 0021, c 56/42,
 `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Organic-Reference\`
 
 Live aero numbers are in `scripts/fixtures/print-kit-tutor.spec.json`.
-The section is **NACA 0024-4.5/3.5**. Do not put whale tubercles or
+The section is **NACA 0024-4.5/3.5**. File map:
+[PRINT_KIT_FILES.md](PRINT_KIT_FILES.md). Do not put whale tubercles or
 metaball blobs on the blades — those are not the appearance reference
 and they are not the 2026 low-TSR section.

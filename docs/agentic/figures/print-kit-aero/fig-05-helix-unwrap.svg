@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="420" viewBox="0 0 920 420" role="img" aria-label="Helix unwrap of three blades">
+  <rect width="920" height="420" fill="#fbfaf6"/>
+  <text x="28" y="30" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#1f2933" font-size="16" font-weight="600">Fig. 5  Helix unwrap — three blades, 60° from a 30° root  (even-machine golden)</text>
+  <line x1="80" y1="370" x2="880" y2="370" stroke="#9aa3ad"/>
+  <line x1="80" y1="56" x2="80" y2="370" stroke="#9aa3ad"/>
+  <polyline points="146.67,370.00 280.00,56.00" fill="none" stroke="#0f6b4c" stroke-width="4"/>
+  <text x="152.66666666666666" y="362" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#1f2933" font-size="12" fill="#0f6b4c">blade 1  θroot=30°</text>
+  <polyline points="413.33,370.00 546.67,56.00" fill="none" stroke="#2b6cb0" stroke-width="4"/>
+  <text x="419.33333333333337" y="362" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#1f2933" font-size="12" fill="#2b6cb0">blade 2  θroot=150°</text>
+  <polyline points="680.00,370.00 813.33,56.00" fill="none" stroke="#c05621" stroke-width="4"/>
+  <text x="686" y="362" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#1f2933" font-size="12" fill="#c05621">blade 3  θroot=270°</text>
+  <line x1="213.33333333333331" y1="56" x2="213.33333333333331" y2="370" stroke="#0f6b4c" stroke-dasharray="4 4"/>
+  <text x="219.33333333333331" y="72" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#1f2933" font-size="12" fill="#0f6b4c">mid-span of blade 1 at 60°</text>
+  <text x="16" y="64" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#1f2933" font-size="12">span η</text>
+  <text x="410" y="406" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#1f2933" font-size="12">azimuth θ [°]     θ_mid = θ_root + ψ/2 = 30 + 30 = 60</text>
+</svg>

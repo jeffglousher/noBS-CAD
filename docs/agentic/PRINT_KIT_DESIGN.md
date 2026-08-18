@@ -4,8 +4,10 @@ Build contract for pipeline #1. The recipe is `prompts/get model_print_kit`
 (`mcp-server/src/prompts/model_print_kit.md`). Numbers live in
 `scripts/fixtures/print-kit-tutor.spec.json`. Fits and closed faults:
 [PRINT_KIT_GDT.md](PRINT_KIT_GDT.md). Why this section and why it
-takes wind from any heading:
+takes wind from any heading (math, figures, citations):
 [PRINT_KIT_AERO.md](PRINT_KIT_AERO.md).
+Which 3MF is live:
+[PRINT_KIT_FILES.md](PRINT_KIT_FILES.md).
 
 Start from a **blank document** (`cad_new_project`, 0 bodies). Do not
 continue a recovered or older Print Kit Tutor. Hide construction planes

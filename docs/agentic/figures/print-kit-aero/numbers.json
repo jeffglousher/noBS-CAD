@@ -1,0 +1,31 @@
+{
+  "generated": "2026-08-18T00:12:42.997Z",
+  "spec_id": "fdm-print-vawt",
+  "airfoil": "NACA 0024-4.5/3.5",
+  "t_c": 0.24,
+  "xt_c": 0.35,
+  "le_index": 4.5,
+  "yt_over_c_at_xt": 0.12,
+  "t_over_c_from_2yt": 0.24,
+  "r_le_over_c": 0.035702,
+  "scale_1": {
+    "R_mm": 85,
+    "H_mm": 236,
+    "c_root_mm": 74,
+    "c_tip_mm": 54,
+    "blade_tip_r_mm": 93.1,
+    "rotor_d_mm": 186.2,
+    "sigma_kit": 0.37951,
+    "sigma_cylinder": 0.415675,
+    "helix_deg": 60,
+    "wing_offset_deg": 30,
+    "mid_azimuth_deg": 60
+  },
+  "scale_exam": {
+    "scale": 0.4,
+    "R_mm": 34,
+    "H_mm": 94.4,
+    "c_root_mm": 29.6,
+    "c_tip_mm": 21.6
+  }
+}
