@@ -2,6 +2,14 @@
 
 ## 2026-08-17
 
+- **Update**: MCP spine always advertises `cad_agent_guidance`,
+  `solid_check`, assembly document/solution **and** create/joint/motion/
+  interference, plus `cad_drawing_create_sheet`. A new process starts
+  in sketch with solid soft so the first `tools/list` can model.
+  `tools/list` is `resultType=complete`. `subscriptions/listen` acks
+  then completes (stdio cannot hold the stream). Prompts: `tutor_exam`.
+  Resource: `nbcad://guidance`. Do not wait on
+  `notifications/initialized`.
 - **Update**: Print-kit pack is PETG-on-PLA. Hollow barrel-crowned
   PETG HF rollers (short mid land, 0.40 mm crown, Ø2.4 bore) and a
   PETG E-clip. Stator stays PLA Orange (both race flats). Rotor /

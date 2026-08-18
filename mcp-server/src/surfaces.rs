@@ -1,8 +1,9 @@
 //! MCP 2026-07-28 product surfaces: resources and prompts.
 //!
 //! Tools remain the mutation path. Resources are the read path for the same
-//! product state. Prompts are the user-selectable recipes. `subscriptions/listen`
-//! is out of this slice.
+//! product state. Prompts are the user-selectable recipes.
+//! `subscriptions/listen` accepts `toolsListChanged`; stdio still pushes
+//! `notifications/tools/list_changed`.
 //!
 //! # Main surface (shipped)
 //!
@@ -23,14 +24,15 @@
 //! - `nbcad://features` — persisted solid / datum / body-op definitions
 //! - `nbcad://assembly` — components, occurrences, joints, positions, studies
 //! - `nbcad://assembly_solution` — forward-kinematics poses
+//! - `nbcad://guidance` — static focus packs, spine tools, and tutor recipes
 //!
 //! Template: `nbcad://session/{session_id}` peeks a session `model.json`.
 //!
 //! Recipes (`prompts/get`): `model_box`, `model_hole`, `model_solid`,
 //! `attach_ui`, `print_3mf`, `model_print_tool`, `model_print_kit`,
-//! `import_step`, `export_step`, `drawing_read`, `drawing_sheet`,
-//! `drawing_export`, `assemble_joint`, `check_interference`,
-//! `undo_history`, `invoke`.
+//! `tutor_exam`, `import_step`, `export_step`, `drawing_read`,
+//! `drawing_sheet`, `drawing_export`, `assemble_joint`,
+//! `check_interference`, `undo_history`, `invoke`.
 //!
 //! # Remaining (not this slice)
 //!
@@ -39,7 +41,6 @@
 //! - `nbcad://session/{id}/focus` and `…/window` — `cad_attach` already loads `focus.json`
 //! - Dedicated construction-plane / body-ops / fillet prompts — tools exist;
 //!   `model_solid` + `assemble_joint` + `invoke` cover the loop
-//! - `subscriptions/listen` — out of scope
 //! - Collaboration comments — not a shipped Drawing / Solid product surface
 //! - Jack's annotation-rich UI DXF writer — MCP has its own DXF / SVG export
 
@@ -67,6 +68,7 @@ pub const MAIN_RESOURCE_URIS: &[&str] = &[
     "nbcad://features",
     "nbcad://assembly",
     "nbcad://assembly_solution",
+    "nbcad://guidance",
 ];
 
 /// Every `prompts/list` recipe on the main product surface.
@@ -78,6 +80,7 @@ pub const MAIN_PROMPT_NAMES: &[&str] = &[
     "print_3mf",
     "model_print_tool",
     "model_print_kit",
+    "tutor_exam",
     "import_step",
     "export_step",
     "drawing_read",
@@ -107,6 +110,7 @@ pub enum ResourceKind {
     Features,
     Assembly,
     AssemblySolution,
+    Guidance,
     Session(String),
 }
 
@@ -130,6 +134,7 @@ pub fn list_resources() -> Value {
             resource("nbcad://features", "features", "Feature definitions", "Persisted extrude, revolve, sweep, loft, rib, fillet, chamfer, hole, datum, and body-op definitions."),
             resource("nbcad://assembly", "assembly", "Assembly document", "Components, occurrences, joints, positions, motion studies, and contact sets."),
             resource("nbcad://assembly_solution", "assembly_solution", "Assembly solution", "Forward-kinematics occurrence and instance body poses."),
+            resource("nbcad://guidance", "guidance", "Agent guidance", "Static focus packs, always-on spine tools, and tutor recipes. Live next-steps: cad_agent_guidance."),
         ],
         "ttlMs": 5_000,
         "cacheScope": "private"
@@ -193,6 +198,12 @@ pub fn list_prompts() -> Value {
                 "Design a printed omnidirectional VAWT",
                 "Repeatable print-kit pipeline: directionless H-Darrieus, NACA 0024-4.5/3.5, printed thrust pack, assembly, and a design report with plastic cost. 0.4 mm Bambu nozzle.",
                 &[("nozzle_mm", "Nozzle diameter used as the diametral clearance (default 0.4)", false)]
+            ),
+            prompt_desc(
+                "tutor_exam",
+                "Write a repeatable MCP tutor",
+                "How to author a gold-path exam: server/discover, cad_agent_guidance, dual compilers, solid_check, and prompts/resources.",
+                &[]
             ),
             prompt_desc(
                 "import_step",
@@ -273,6 +284,7 @@ pub fn parse_resource_uri(uri: &str) -> Result<ResourceKind, String> {
         "nbcad://features" => Ok(ResourceKind::Features),
         "nbcad://assembly" => Ok(ResourceKind::Assembly),
         "nbcad://assembly_solution" => Ok(ResourceKind::AssemblySolution),
+        "nbcad://guidance" => Ok(ResourceKind::Guidance),
         other => {
             const PREFIX: &str = "nbcad://session/";
             if let Some(session_id) = other.strip_prefix(PREFIX) {
@@ -380,7 +392,7 @@ pub fn get_prompt(name: &str, arguments: &Value) -> Result<Value, String> {
         }
         "model_print_tool" => {
             "Walk through a useful small 3D-printed tool (desk cable clip).\n\
-             1. cad_list_all_tools (or resources/list). cad_agent_guidance is not on this server.\n\
+             1. cad_agent_guidance (or cad_list_all_tools / resources/read nbcad://guidance).\n\
              2. Optional UI: read nbcad://sessions then cad_attach mode=live. cad_set_workspace solid.\n\
              3. cad_new_project only for a fresh document. cad_set_document_name.\n\
              4. cad_set_focus sketch. sketch_begin on origin_plane xy. sketch_set_grid_snap enabled=false.\n\
@@ -399,6 +411,20 @@ pub fn get_prompt(name: &str, arguments: &Value) -> Result<Value, String> {
                 .and_then(Value::as_f64)
                 .unwrap_or(0.4);
             MODEL_PRINT_KIT_PROMPT.replace("{nozzle}", &format!("{nozzle}"))
+        }
+        "tutor_exam" => {
+            "Author a repeatable MCP tutor (gold path, not an AI-capability exam).\n\
+             1. Protocol: server/discover, then tools/call. Do not wait for notifications/initialized.\n\
+             2. Call cad_agent_guidance first and after every cad_set_focus / cad_set_workspace.\n\
+             3. Put the recipe in prompts/ (like model_print_kit). Put live state in nbcad:// resources.\n\
+             4. Keep two compilers in lockstep: mcp-server/src/print_kit_tutor.rs and scripts/mcp-print-kit-tutor.mjs.\n\
+             5. Numbers live in scripts/fixtures/*.spec.json (include_str into Rust).\n\
+             6. After each family: solid_check (CLI: node scripts/nbcad-cli.mjs exam --stage=…).\n\
+             7. assembly_create_component already inserts the root occurrence — do not create a second copy.\n\
+             8. Joints: pick circular edges or cylinders. After a U-window, add a witness hole if the pocket cylinder is gone.\n\
+             9. Export one laid-out plate (solid_move_copy then solid_export_3mf). Do not export the assembled nest.\n\
+             10. Grade lessons in the exam harness. Reload Cursor MCP is not required when the CLI talks to nbcad-mcp.exe."
+                .to_string()
         }
         "import_step" => {
             let file_name = arguments
@@ -464,11 +490,10 @@ pub fn get_prompt(name: &str, arguments: &Value) -> Result<Value, String> {
                 "Assemble existing solid bodies with a {kind} joint.\n\
                  1. cad_set_focus focus=assembly (or cad_set_workspace assembly).\n\
                  2. Read nbcad://scene for body ids, then nbcad://assembly.\n\
-                 3. assembly_create_component for each part (name + body_ids).\n\
-                 4. assembly_create_occurrence for each component.\n\
-                 5. assembly_create_joint kind={kind} with connector_a / connector_b (stable faces/edges + frames).\n\
-                 6. Optional assembly_set_joint_motion / assembly_set_occurrence_grounded.\n\
-                 7. Confirm nbcad://assembly and nbcad://assembly_solution. Print-kit tutors stay multi-body nests — do not add joints there."
+                 3. assembly_create_component for each part (name + body_ids). That call already inserts the root occurrence — do not create a second copy.\n\
+                 4. Ground the stator / base. assembly_create_joint kind={kind} on circular edges or cylinders (connector_a / connector_b).\n\
+                 5. Optional assembly_set_joint_motion / assembly_evaluate_motion_study.\n\
+                 6. Confirm nbcad://assembly and nbcad://assembly_solution. Print-kit tutors DO form joints (rotor_spin + roller revolutes + retainer_sit)."
             )
         }
         "check_interference" => {
@@ -477,7 +502,7 @@ pub fn get_prompt(name: &str, arguments: &Value) -> Result<Value, String> {
              2. Read nbcad://assembly and nbcad://assembly_solution.\n\
              3. assembly_interference_check (optional occurrence_ids and clearance_threshold_mm).\n\
              4. For motion: assembly_evaluate_motion_study or assembly_swept_collision_check.\n\
-             5. This is an approximate report — not a manufacturing fit. Print-kit fits stay numeric (+0.40), not joints."
+             5. This is an approximate report — not a manufacturing fit. Print-kit running fits stay numeric (+0.40) AND use joints for motion."
                 .to_string()
         }
         "undo_history" => {
@@ -512,6 +537,59 @@ pub fn get_prompt(name: &str, arguments: &Value) -> Result<Value, String> {
             "content": { "type": "text", "text": text }
         }]
     }))
+}
+
+pub fn guidance_catalog() -> Value {
+    json!({
+        "protocol": {
+            "recommended": "2026-07-28",
+            "discover": "server/discover",
+            "listen": "subscriptions/listen",
+            "spec": "https://modelcontextprotocol.io/specification/2026-07-28/"
+        },
+        "disclosure": {
+            "mode_default": "dynamic",
+            "soft_not_jail": true,
+            "spine": [
+                "cad_agent_guidance",
+                "cad_set_focus",
+                "cad_set_workspace",
+                "cad_list_all_tools",
+                "solid_scene",
+                "solid_check",
+                "assembly_document",
+                "assembly_solution",
+                "assembly_create_component",
+                "assembly_create_joint",
+                "assembly_set_joint_motion",
+                "assembly_evaluate_motion_study",
+                "assembly_interference_check",
+                "cad_drawing_document",
+                "cad_drawing_create_sheet",
+                "cad_undo",
+                "cad_redo"
+            ],
+            "packs": [
+                "document", "sketch", "solid", "modify", "body_ops",
+                "datums", "history", "inspect", "print", "drawing", "assembly"
+            ]
+        },
+        "contexts": {
+            "sketch": ["sketch_begin", "sketch_add_*_locked", "sketch_finish", "nbcad://profiles"],
+            "solid": ["solid_extrude", "solid_revolve", "solid_loft", "solid_check", "nbcad://scene"],
+            "assembly": ["assembly_create_component", "assembly_create_joint", "assembly_set_joint_motion", "nbcad://assembly"],
+            "drawing": ["cad_drawing_create_sheet", "cad_drawing_auto_layout", "cad_drawing_project_sheet"],
+            "print": ["material_catalog", "set_body_appearance", "solid_export_preflight", "solid_export_3mf"]
+        },
+        "prompts": [
+            "model_print_kit",
+            "tutor_exam",
+            "assemble_joint",
+            "check_interference",
+            "drawing_sheet",
+            "print_3mf"
+        ]
+    })
 }
 
 fn resource(uri: &str, name: &str, title: &str, description: &str) -> Value {
@@ -557,6 +635,7 @@ fn prompt_title(name: &str) -> String {
         "print_3mf" => "Export 3MF".to_string(),
         "model_print_tool" => "Walk through a printable tool".to_string(),
         "model_print_kit" => "Design a printed omnidirectional VAWT".to_string(),
+        "tutor_exam" => "Write a repeatable MCP tutor".to_string(),
         "import_step" => "Import STEP".to_string(),
         "export_step" => "Export STEP".to_string(),
         "drawing_read" => "Inspect drawings".to_string(),
@@ -621,6 +700,10 @@ mod tests {
         assert_eq!(
             parse_resource_uri("nbcad://assembly_solution").unwrap(),
             ResourceKind::AssemblySolution
+        );
+        assert_eq!(
+            parse_resource_uri("nbcad://guidance").unwrap(),
+            ResourceKind::Guidance
         );
         match parse_resource_uri("nbcad://session/01732db8-694c-886c-87d8-c2c64537d673").unwrap() {
             ResourceKind::Session(id) => assert_eq!(id, "01732db8-694c-886c-87d8-c2c64537d673"),

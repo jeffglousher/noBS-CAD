@@ -31,11 +31,14 @@ Needs native OCCT (`OCCT_ROOT` when not in a default install). Logs stay on
 ## Session habits
 
 1. Keep **one** MCP process for a headless golden or experiment.
-2. Read `cad_document` / `solid_scene` before editing.
-3. Use stable IDs from scene/status for later ops.
-4. Default **`dynamic`** disclosure; call `cad_set_focus` as you model.
-5. Subagents: `full_static` or `cad_list_all_tools`.
-6. Optional headless session attach: `cad_list_sessions` → `cad_attach`
+2. Call `cad_agent_guidance` first (and after every `cad_set_focus`).
+3. Read `cad_document` / `solid_scene` / `nbcad://guidance` before editing.
+4. Use stable IDs from scene/status for later ops.
+5. Default **`dynamic`** disclosure starts in **sketch** with **solid**
+   soft. Check, assembly entry/motion, and drawing-create stay on the spine.
+   `cad_set_focus` / `cad_set_workspace` still swap the rest of the ribbon.
+6. Subagents: `full_static` or `cad_list_all_tools`.
+7. Optional headless session attach: `cad_list_sessions` → `cad_attach`
    (read-only load from `NBCAD_SESSION_DIR`); goldens do not require attach.
 
 Soft disclosure: out-of-focus tools stay **callable**; results may include

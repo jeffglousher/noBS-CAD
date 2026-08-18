@@ -232,6 +232,7 @@ const REQUIRED_RESOURCES = [
   'nbcad://features',
   'nbcad://assembly',
   'nbcad://assembly_solution',
+  'nbcad://guidance',
 ];
 const REQUIRED_PROMPTS = [
   'model_box',
@@ -241,6 +242,7 @@ const REQUIRED_PROMPTS = [
   'print_3mf',
   'model_print_tool',
   'model_print_kit',
+  'tutor_exam',
   'import_step',
   'export_step',
   'drawing_read',
@@ -570,6 +572,12 @@ if (
 }
 if (!printKitPrompt.includes('E-clip') || !printKitPrompt.includes('U-window')) {
   fail('model_print_kit prompt must describe U-windows and the E-clip');
+}
+if (!mainSrc.includes('cad_agent_guidance') || !mainSrc.includes('subscriptions/listen')) {
+  fail('mcp-server must advertise cad_agent_guidance and accept subscriptions/listen');
+}
+if (!surfacesSrc.includes('tutor_exam') || !surfacesSrc.includes('nbcad://guidance')) {
+  fail('MCP surfaces must include tutor_exam and nbcad://guidance');
 }
 
 if (failures.length > 0) {

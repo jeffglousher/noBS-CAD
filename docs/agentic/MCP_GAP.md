@@ -5,16 +5,16 @@ packs are guidance, not a jail: out-of-focus tools stay callable.
 `cad_invoke` is the last-resort escape hatch, not the assembly API.
 
 Print helpers stay outside `MODELING_TOOL_COUNT`. The print-kit tutor
-remains a **multi-body nest** — do not add joints there.
+**does** form joints (`rotor_spin`, roller revolutes, `retainer_sit`).
 
 ## Registry (as-built)
 
 | Bucket | Count | Notes |
 |--------|------:|-------|
 | Modeling | **206** | 166 prior + 38 `assembly_*` + 2 move/copy |
-| Print helpers | 8 | Outside modeling |
-| Control | 12 | Focus, workspace, sessions, disclosure |
-| **Total** | **226** | |
+| Print helpers | 9 | Outside modeling (includes `solid_check`) |
+| Control | **13** | Focus, workspace, sessions, disclosure, `cad_agent_guidance` |
+| **Total** | **228** | |
 
 ## Pack matrix (modeling; print excluded)
 
@@ -27,11 +27,17 @@ remains a **multi-body nest** — do not add joints there.
 | body_ops | 16 | Shell, **move/copy**, mirror, patterns, combine, split, STEP import, body-feature catalog |
 | datums | ≥6 | Construction planes |
 | history | ≥5 | Timeline edits; `cad_undo` / `cad_redo` stay History pack **and** spine |
-| inspect | 3 | `solid_scene`, `solid_recompute` (spine), `solid_tessellate` |
+| inspect | 4 | `solid_scene` / `solid_recompute` / `solid_check` (spine), `solid_tessellate` |
 | drawing | 55 | Commands, HLR, DXF/SVG/profile |
 | assembly | 38 | Every `assembly_*` host method |
 
-Soft LRU is **3**. Spine still includes `cad_invoke`, `solid_scene`,
+Soft LRU is **3**. A new process starts in **sketch** with **solid**
+soft. Spine always includes `cad_agent_guidance`, `cad_set_focus`,
+`solid_check`, assembly document/solution **plus**
+`assembly_create_component` / `assembly_create_joint` /
+`assembly_set_joint_motion` / `assembly_evaluate_motion_study` /
+`assembly_interference_check`, `cad_drawing_document` /
+`cad_drawing_create_sheet`, `cad_invoke`, `solid_scene`,
 `solid_recompute`, and application undo/redo.
 
 `cad_set_workspace assembly` sets `FocusPack::Assembly`.
@@ -59,8 +65,10 @@ cylindrical, planar, ball, pin_slot, screw, universal.
 |--------------|------|
 | `nbcad://assembly` | Components, occurrences, joints, positions, studies, contacts |
 | `nbcad://assembly_solution` | Forward-kinematics poses (underscore so `resourceKindName` stays `AssemblySolution`) |
-| `assemble_joint` | Recipe: component → occurrence → named joint |
+| `nbcad://guidance` | Static packs + spine + tutor recipes (live next-steps: `cad_agent_guidance`) |
+| `assemble_joint` | Recipe: component (inserts root occurrence) → named joint |
 | `check_interference` | Recipe: approximate pairwise / motion collision |
+| `tutor_exam` | How to author a gold-path MCP exam |
 
 ## Intentionally not MCP
 

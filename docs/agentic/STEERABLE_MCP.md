@@ -26,6 +26,13 @@
 | `dynamic` (default) | Main agent / human | Spine ∪ active ∪ soft packs |
 | `full_static` | Subagents / broken clients | Advertise all tools |
 
+Spine always includes `cad_agent_guidance`, `solid_check`,
+assembly entry/motion/interference, and `cad_drawing_create_sheet`.
+A new process starts in **sketch** with **solid** soft.
+Call `cad_agent_guidance` first and after `cad_set_focus`.
+`subscriptions/listen` is the 2026-07-28 opt-in for list_changed;
+stdio acks then still pushes the notification.
+
 Prefer `cad_list_all_tools` for planners over leaving the main session in `full_static`.
 
 ## Focus packs

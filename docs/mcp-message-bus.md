@@ -49,7 +49,7 @@ Default transport remains `stdio` when `NBCAD_MCP_TRANSPORT` is unset.
 
 - **Transport, not a scale-out kernel.** `nbcad-mcp` still owns **one in-process document**. The bus lets you *address* that worker with `document_id` / `window_id` and run it behind Kafka/MQTT/NATS. Horizontal scale means **one worker process per document**, not one shared stateless replica. MCP `2026-07-28` on the JSON-RPC payload (`server/discover` + per-request `_meta`) does **not** make this process a stateless replica.
 - **Recommended MCP protocol is `2026-07-28`.** `server/discover` + `_meta.io.modelcontextprotocol/protocolVersion`. `initialize` (`2025-06-18`) is a compatibility pathway only — first reply includes the runtime-upgrade manual. The bus envelope (`nbcad.mcp-bus.v1`) is request/reply around that JSON-RPC; it is not a substitute for MCP discovery.
-- **Not implemented in this slice:** `subscriptions/listen`, multi-round-trip requests, HTTP `Mcp-Method` / `MCP-Protocol-Version` headers. Stdio still pushes `notifications/tools/list_changed` (Jack §2).
+- **`subscriptions/listen`** accepts `toolsListChanged` and returns immediately on stdio; list_changed is still pushed on stdout (Jack §2) and tagged with `subscriptionId` when you listened. Not implemented: multi-round-trip requests, HTTP `Mcp-Method` / `MCP-Protocol-Version` headers.
 - **Broker registry** (`broker/list|register|unregister`) is the control-plane contract for #12. The desktop UI does not register windows yet.
 
 ## Local proof without a broker

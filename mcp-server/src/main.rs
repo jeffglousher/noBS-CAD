@@ -41,7 +41,7 @@ const META_CLIENT_CAPABILITIES: &str = "io.modelcontextprotocol/clientCapabiliti
 const META_SERVER_INFO: &str = "io.modelcontextprotocol/serverInfo";
 const UNSUPPORTED_PROTOCOL_VERSION: i64 = -32022;
 const MODELING_TOOL_COUNT: usize = 206;
-const CONTROL_TOOL_COUNT: usize = 12;
+const CONTROL_TOOL_COUNT: usize = 13;
 const PRINT_HELPER_COUNT: usize = 9;
 
 #[derive(Clone, Copy)]
@@ -194,6 +194,8 @@ struct CadServer {
     pending_recompute_transaction: Option<u64>,
     /// First legacy-era reply already carried the 2026-07-28 success manual.
     legacy_protocol_nudge_sent: bool,
+    /// JSON-RPC id of an open `subscriptions/listen` that asked for toolsListChanged.
+    tools_list_subscription_id: Option<Value>,
     /// Solid Redo snapshots taken by `cad_undo` when it deletes the latest feature.
     solid_redo_models: Vec<String>,
 }
@@ -210,6 +212,7 @@ impl CadServer {
             workspace: WorkspaceKind::Solid,
             pending_recompute_transaction: None,
             legacy_protocol_nudge_sent: false,
+            tools_list_subscription_id: None,
             solid_redo_models: Vec::new(),
         })
     }
@@ -573,6 +576,7 @@ impl CadServer {
                 json!({ "mode": mode.as_str() })
             }
             "cad_list_all_tools" => full_tool_catalog(),
+            "cad_agent_guidance" => self.agent_guidance(),
             "cad_cancel_recompute" => {
                 if let Some(transaction_id) = self.pending_recompute_transaction.take() {
                     self.manager.cancel_solid_recompute(transaction_id);
@@ -588,6 +592,141 @@ impl CadServer {
             other => return Err(format!("unknown control tool: {other}")),
         };
         Ok(value)
+    }
+
+    fn agent_guidance(&mut self) -> Value {
+        let scene = self.call_tool("solid_scene", json!({})).unwrap_or(json!({}));
+        let body_count = scene
+            .get("bodies")
+            .and_then(Value::as_array)
+            .map(Vec::len)
+            .unwrap_or(0);
+        let sketch_active = self.manager.active_snapshot().is_some();
+        let assembly = self
+            .call_tool("assembly_document", json!({}))
+            .unwrap_or(json!({}));
+        let joint_count = assembly
+            .get("joints")
+            .and_then(Value::as_array)
+            .map(Vec::len)
+            .or_else(|| {
+                assembly
+                    .pointer("/assembly/joints")
+                    .and_then(Value::as_array)
+                    .map(Vec::len)
+            })
+            .unwrap_or(0);
+        let drawing = self
+            .call_tool("cad_drawing_document", json!({}))
+            .unwrap_or(json!({}));
+        let sheet_count = drawing
+            .get("sheets")
+            .and_then(Value::as_array)
+            .map(Vec::len)
+            .unwrap_or(0);
+
+        let stage = if sketch_active {
+            "sketch"
+        } else if body_count == 0 {
+            "blank"
+        } else if self.workspace == WorkspaceKind::Drawing || sheet_count > 0 {
+            "drawing"
+        } else if self.workspace == WorkspaceKind::Assembly || joint_count > 0 {
+            "assembly"
+        } else {
+            "solid"
+        };
+
+        let next = match stage {
+            "blank" => vec![
+                "sketch_begin is already advertised — origin_plane xy; sketch_set_grid_snap enabled=false",
+                "prompts/get model_box | model_print_tool | model_print_kit | tutor_exam",
+                "After a body exists: solid_check, then assembly_create_component / cad_drawing_create_sheet / print as needed",
+                "cad_new_project only if this document is not empty",
+            ],
+            "sketch" => vec![
+                "Add locked geometry (sketch_add_rectangle_locked / sketch_add_circle_locked)",
+                "Constraints / dimensions, then sketch_finish",
+                "Read nbcad://profiles or sketch_profiles",
+                "solid_extrude / revolve / loft are soft-advertised — no extra cad_set_focus required",
+            ],
+            "solid" => vec![
+                "solid_check after each family (timeline + manifold)",
+                "cad_set_focus modify for fillet/chamfer/hole on Body/Face/Edge ids from nbcad://scene",
+                "assembly_create_component / assembly_create_joint / motion / interference stay on the spine",
+                "cad_drawing_create_sheet for a sheet; cad_set_focus print for 3MF",
+                "prompts/get assemble_joint | drawing_sheet | print_3mf | model_print_kit",
+            ],
+            "assembly" => vec![
+                "Read nbcad://assembly and nbcad://assembly_solution",
+                "assembly_create_component already inserts the root occurrence — do not create a second copy",
+                "assembly_create_joint on circular edges or cylinders; assembly_solution must stay solved",
+                "assembly_set_joint_motion / assembly_evaluate_motion_study / assembly_interference_check",
+                "prompts/get assemble_joint | check_interference",
+            ],
+            "drawing" => vec![
+                "cad_set_workspace drawing so the live UI follows",
+                "cad_drawing_create_sheet → cad_drawing_auto_layout → cad_drawing_add_note",
+                "cad_drawing_project_sheet then cad_drawing_export_dxf / svg",
+                "prompts/get drawing_sheet | drawing_export",
+            ],
+            _ => vec!["cad_list_all_tools if this client ignores tools/list_changed"],
+        };
+
+        json!({
+            "call_again_after": "cad_set_focus / cad_set_workspace",
+            "stage": stage,
+            "workspace": self.workspace.as_str(),
+            "focus": self.disclosure.status_json(),
+            "counts": {
+                "bodies": body_count,
+                "joints": joint_count,
+                "sheets": sheet_count,
+                "sketch_active": sketch_active
+            },
+            "next": next,
+            "always_on_spine": [
+                "cad_agent_guidance",
+                "cad_set_focus",
+                "cad_set_workspace",
+                "cad_list_all_tools",
+                "solid_scene",
+                "solid_check",
+                "assembly_document",
+                "assembly_solution",
+                "assembly_create_component",
+                "assembly_create_joint",
+                "assembly_set_joint_motion",
+                "assembly_evaluate_motion_study",
+                "assembly_interference_check",
+                "cad_drawing_document",
+                "cad_drawing_create_sheet",
+                "cad_undo",
+                "cad_redo"
+            ],
+            "resources": [
+                "nbcad://guidance",
+                "nbcad://scene",
+                "nbcad://focus",
+                "nbcad://workspace",
+                "nbcad://assembly",
+                "nbcad://drawing"
+            ],
+            "prompts": [
+                "model_print_kit",
+                "tutor_exam",
+                "assemble_joint",
+                "check_interference",
+                "drawing_sheet",
+                "print_3mf"
+            ],
+            "protocol": {
+                "recommended": LATEST_PROTOCOL,
+                "discover": "server/discover — do not wait on notifications/initialized",
+                "listen": "subscriptions/listen {notifications:{toolsListChanged:true}} then tools/list",
+                "spec": "https://modelcontextprotocol.io/specification/2026-07-28/"
+            }
+        })
     }
 
     /// Load `model.json` (+ optional `focus.json`) into this process.
@@ -1429,6 +1568,7 @@ fn is_outside_modeling_registry(name: &str) -> bool {
             | "cad_get_tool_disclosure_mode"
             | "cad_set_tool_disclosure_mode"
             | "cad_list_all_tools"
+            | "cad_agent_guidance"
             | "cad_cancel_recompute"
             | "cad_list_sessions"
             | "cad_attach"
@@ -1455,6 +1595,9 @@ fn is_session_read_only_tool(name: &str) -> bool {
             | "solid_export_3mf"
             | "solid_tessellate"
             | "solid_check"
+            | "assembly_document"
+            | "assembly_solution"
+            | "cad_agent_guidance"
             | "solid_export_preflight"
             | "material_catalog"
             | "body_appearances"
@@ -3631,6 +3774,12 @@ fn tool_specs() -> Vec<ToolSpec> {
             empty_schema(),
         ),
         ToolSpec::control(
+            "cad_agent_guidance",
+            "Stage-aware next steps",
+            "Call first and after every cad_set_focus. Returns the current modeling stage, always-on spine tools (check, assembly, drawing, focus), and the next prompts/resources. Out-of-focus tools stay callable.",
+            empty_schema(),
+        ),
+        ToolSpec::control(
             "cad_cancel_recompute",
             "Cancel solid recompute",
             "Abort an in-flight solid replay if one is pending in this MCP process.",
@@ -3701,16 +3850,16 @@ fn tool_specs() -> Vec<ToolSpec> {
 
 fn tool_list_result(disclosure: &mut DisclosureState) -> Value {
     disclosure.tick_soft_expiry();
-    Value::Object(Map::from_iter([(
-        "tools".to_string(),
-        Value::Array(
-            tool_specs()
-                .iter()
-                .filter(|tool| disclosure.is_advertised(tool.name, tool.pack, tool.spine))
-                .map(tool_entry)
-                .collect(),
-        ),
-    )]))
+    json!({
+        "resultType": "complete",
+        "tools": tool_specs()
+            .iter()
+            .filter(|tool| disclosure.is_advertised(tool.name, tool.pack, tool.spine))
+            .map(tool_entry)
+            .collect::<Vec<_>>(),
+        "ttlMs": 5_000,
+        "cacheScope": "private"
+    })
 }
 
 fn success_result(value: Value) -> Value {
@@ -3720,6 +3869,7 @@ fn success_result(value: Value) -> Value {
         json!({ "value": value.clone() })
     };
     json!({
+        "resultType": "complete",
         "content": [{
             "type": "text",
             "text": serde_json::to_string_pretty(&value).unwrap_or_else(|_| value.to_string())
@@ -3765,7 +3915,7 @@ fn server_info() -> Value {
 }
 
 fn modeling_manual() -> &'static str {
-    "Modeling: one persistent headless CAD document. Begin and finish sketches before solid features. Use returned entity/body/face/edge ids. Soft disclosure is on; out-of-focus tools stay callable. Typical loop: sketch_begin → sketch_add_* / constraints → sketch_finish → sketch_profiles → solid_extrude (or revolve/sweep/loft/rib) → solid_scene / cad_document. Read state via nbcad://document|scene|sketch|profiles|features|drawing|assembly|assembly_solution|workspace. Recipes: prompts/list (model_box, model_solid, model_print_tool, model_print_kit, import_step, export_step, drawing_export, assemble_joint, check_interference, undo_history, invoke). Named assembly_* tools cover components, occurrences, joints, motion, and interference. Mechanical escape hatch: cad_invoke (any host method) and cad_drawing_command (any drawing op). Application history: cad_undo / cad_redo. Optional UI co-link: cad_list_sessions → cad_attach. Live UI workspace: cad_set_workspace solid|drawing|assembly. Drawings: cad_drawing_create_sheet → cad_drawing_auto_layout / cad_drawing_add_* → cad_drawing_project_sheet / cad_drawing_export_dxf / cad_drawing_export_svg. File import: solid_import_step. Print: solid_export_3mf."
+    "Modeling: one persistent headless CAD document. Call cad_agent_guidance first and after cad_set_focus. Begin and finish sketches before solid features. Use returned entity/body/face/edge ids. Soft disclosure is on; out-of-focus tools stay callable. Spine always includes solid_check, assembly_document, assembly_solution, cad_drawing_document, and focus controls. Typical loop: sketch_begin → sketch_add_* / constraints → sketch_finish → sketch_profiles → solid_extrude (or revolve/sweep/loft/rib) → solid_check / solid_scene. Read state via nbcad://guidance|document|scene|sketch|profiles|features|drawing|assembly|assembly_solution|workspace. Recipes: prompts/list (model_box, model_solid, model_print_tool, model_print_kit, tutor_exam, import_step, export_step, drawing_export, assemble_joint, check_interference, undo_history, invoke). Named assembly_* tools cover components, occurrences, joints, motion, and interference. Mechanical escape hatch: cad_invoke (any host method) and cad_drawing_command (any drawing op). Application history: cad_undo / cad_redo. Optional UI co-link: cad_list_sessions → cad_attach. Live UI workspace: cad_set_workspace solid|drawing|assembly. Drawings: cad_drawing_create_sheet → cad_drawing_auto_layout / cad_drawing_add_* → cad_drawing_project_sheet / cad_drawing_export_dxf / cad_drawing_export_svg. File import: solid_import_step. Print: solid_export_3mf."
 }
 
 fn modern_protocol_manual() -> &'static str {
@@ -3820,9 +3970,21 @@ fn apply_protocol_nudge(value: &mut Value, nudge: Option<Value>) {
 fn server_capabilities() -> Value {
     json!({
         "tools": { "listChanged": true },
-        "resources": {},
-        "prompts": {}
+        "resources": { "listChanged": true },
+        "prompts": { "listChanged": true }
     })
+}
+
+fn annotate_list_changed(server: &CadServer, mut notification: Value) -> Value {
+    if let Some(id) = &server.tools_list_subscription_id {
+        if let Some(object) = notification.as_object_mut() {
+            object.insert(
+                "_meta".to_string(),
+                json!({ "io.modelcontextprotocol/subscriptionId": id }),
+            );
+        }
+    }
+    notification
 }
 
 fn request_meta(message: &Value) -> Option<&Value> {
@@ -3882,16 +4044,14 @@ fn require_modern_meta(message: &Value, id: &Value) -> Result<(), Value> {
                 ));
             }
         }
-        if meta
-            .get(META_CLIENT_CAPABILITIES)
-            .and_then(Value::as_object)
-            .is_none()
-        {
-            return Err(error_response(
-                id.clone(),
-                -32602,
-                format!("params._meta.{META_CLIENT_CAPABILITIES} is required"),
-            ));
+        if let Some(capabilities) = meta.get(META_CLIENT_CAPABILITIES) {
+            if !capabilities.is_object() {
+                return Err(error_response(
+                    id.clone(),
+                    -32602,
+                    format!("params._meta.{META_CLIENT_CAPABILITIES} must be an object"),
+                ));
+            }
         }
     }
     Ok(())
@@ -4090,6 +4250,51 @@ fn handle_message(server: &mut CadServer, message: Value) -> Vec<Value> {
                 Err(error) => vec![error_response(id, -32602, error)],
             }
         }
+        "subscriptions/listen" => {
+            let id = id.unwrap_or(Value::Null);
+            if requested_modern_protocol(&message).is_some() {
+                if let Err(error) = require_modern_meta(&message, &id) {
+                    return vec![error];
+                }
+            }
+            let notifications = message
+                .pointer("/params/notifications")
+                .cloned()
+                .unwrap_or_else(|| json!({}));
+            let tools_list_changed = notifications
+                .get("toolsListChanged")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            // Spec listen is a long-lived HTTP stream. Holding that JSON-RPC
+            // request open on stdio hangs Cursor, so we ack + complete now and
+            // keep pushing notifications/tools/list_changed on stdout.
+            let mut listen_messages = Vec::new();
+            if tools_list_changed {
+                server.tools_list_subscription_id = Some(id.clone());
+                listen_messages.push(json!({
+                    "jsonrpc": "2.0",
+                    "method": "notifications/subscriptions/acknowledged",
+                    "params": {
+                        "_meta": {
+                            "io.modelcontextprotocol/subscriptionId": id.clone()
+                        },
+                        "notifications": { "toolsListChanged": true }
+                    }
+                }));
+            }
+            listen_messages.push(response(
+                id,
+                json!({
+                    "resultType": "complete",
+                    "notifications": {
+                        "toolsListChanged": tools_list_changed
+                    },
+                    "transport": "stdio-notify",
+                    "note": "Stdio cannot hold subscriptions/listen open. This reply completes the request; list_changed still arrives as notifications/tools/list_changed on stdout. Call tools/list when it arrives. Do not wait for notifications/initialized."
+                }),
+            ));
+            listen_messages
+        }
         _ if id.is_none() => Vec::new(),
         _ => vec![error_response(
             id.unwrap_or(Value::Null),
@@ -4098,7 +4303,7 @@ fn handle_message(server: &mut CadServer, message: Value) -> Vec<Value> {
         )],
     };
     if let Some(notification) = server.disclosure.take_notify_if_due() {
-        responses.push(notification);
+        responses.push(annotate_list_changed(server, notification));
     }
     responses
 }
@@ -4109,7 +4314,7 @@ fn idle_due_messages(server: &mut CadServer) -> Vec<Value> {
     server.disclosure.tick_soft_expiry();
     let mut outgoing = Vec::new();
     if let Some(notification) = server.disclosure.take_notify_if_due() {
-        outgoing.push(notification);
+        outgoing.push(annotate_list_changed(server, notification));
     }
     outgoing
 }
@@ -4124,6 +4329,7 @@ fn read_product_resource(server: &mut CadServer, uri: &str) -> Result<Value, Str
         surfaces::ResourceKind::AssemblySolution => {
             server.call_tool("assembly_solution", json!({}))?
         }
+        surfaces::ResourceKind::Guidance => surfaces::guidance_catalog(),
         surfaces::ResourceKind::Focus => {
             let mut status = server.disclosure.status_json();
             server.annotate_workspace(&mut status);
@@ -4482,7 +4688,7 @@ mod tests {
         assert_eq!(
             all_tools.len(),
             MODELING_TOOL_COUNT + PRINT_HELPER_COUNT + CONTROL_TOOL_COUNT,
-            "206 modeling tools plus 9 print helpers and 12 control tools"
+            "206 modeling tools plus 9 print helpers and 13 control tools"
         );
         let modeling_count = all_tools
             .iter()
@@ -4498,8 +4704,20 @@ mod tests {
         let listed = tool_list_result(&mut server.disclosure);
         let tools = listed["tools"].as_array().unwrap();
         assert!(tools.len() < all_tools.len());
+        assert_eq!(listed["resultType"], "complete");
+        assert_eq!(listed["cacheScope"], "private");
         assert!(tools.iter().any(|tool| tool["name"] == "cad_document"));
         assert!(tools.iter().any(|tool| tool["name"] == "cad_get_focus"));
+        assert!(tools.iter().any(|tool| tool["name"] == "cad_agent_guidance"));
+        assert!(tools.iter().any(|tool| tool["name"] == "solid_check"));
+        assert!(tools.iter().any(|tool| tool["name"] == "sketch_begin"));
+        assert!(tools.iter().any(|tool| tool["name"] == "solid_extrude"));
+        assert!(tools.iter().any(|tool| tool["name"] == "assembly_document"));
+        assert!(tools.iter().any(|tool| tool["name"] == "assembly_create_joint"));
+        assert!(tools.iter().any(|tool| tool["name"] == "assembly_set_joint_motion"));
+        assert!(tools.iter().any(|tool| tool["name"] == "assembly_interference_check"));
+        assert!(tools.iter().any(|tool| tool["name"] == "cad_drawing_document"));
+        assert!(tools.iter().any(|tool| tool["name"] == "cad_drawing_create_sheet"));
 
         let initialized = handle_message(
             &mut server,
@@ -4519,9 +4737,12 @@ mod tests {
         );
         assert_eq!(
             initialized["result"]["capabilities"]["resources"],
-            json!({})
+            json!({ "listChanged": true })
         );
-        assert_eq!(initialized["result"]["capabilities"]["prompts"], json!({}));
+        assert_eq!(
+            initialized["result"]["capabilities"]["prompts"],
+            json!({ "listChanged": true })
+        );
         let instructions = initialized["result"]["instructions"].as_str().unwrap();
         assert!(instructions.contains("2026-07-28"));
         assert!(instructions.contains("server/discover"));
@@ -4593,8 +4814,14 @@ mod tests {
             discovered["result"]["capabilities"]["tools"]["listChanged"],
             true
         );
-        assert_eq!(discovered["result"]["capabilities"]["resources"], json!({}));
-        assert_eq!(discovered["result"]["capabilities"]["prompts"], json!({}));
+        assert_eq!(
+            discovered["result"]["capabilities"]["resources"],
+            json!({ "listChanged": true })
+        );
+        assert_eq!(
+            discovered["result"]["capabilities"]["prompts"],
+            json!({ "listChanged": true })
+        );
         assert_eq!(
             discovered["result"]["_meta"][META_SERVER_INFO]["name"],
             "nbcad"
@@ -4977,7 +5204,7 @@ mod tests {
     }
 
     #[test]
-    fn tools_call_requires_client_capabilities_on_2026_07_28() {
+    fn tools_call_accepts_2026_07_28_without_client_capabilities() {
         let mut server = CadServer::new().unwrap();
         let resp = handle_message(
             &mut server,
@@ -4989,6 +5216,32 @@ mod tests {
                     "_meta": {
                         "io.modelcontextprotocol/protocolVersion": LATEST_PROTOCOL,
                         "io.modelcontextprotocol/clientInfo": { "name": "test", "version": "0" }
+                    },
+                    "name": "cad_document",
+                    "arguments": {}
+                }
+            }),
+        )
+        .pop()
+        .unwrap();
+        assert!(resp.get("error").is_none(), "{resp}");
+        assert_eq!(resp["result"]["resultType"], "complete");
+        assert_eq!(resp["result"]["isError"], false);
+    }
+
+    #[test]
+    fn tools_call_rejects_non_object_client_capabilities() {
+        let mut server = CadServer::new().unwrap();
+        let resp = handle_message(
+            &mut server,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/protocolVersion": LATEST_PROTOCOL,
+                        "io.modelcontextprotocol/clientCapabilities": "nope"
                     },
                     "name": "cad_document",
                     "arguments": {}
@@ -5283,7 +5536,8 @@ mod tests {
             .filter_map(|tool| tool["name"].as_str())
             .collect();
         assert!(names.iter().any(|name| name.starts_with("sketch_")));
-        assert!(!names.iter().any(|name| *name == "solid_extrude"));
+        // Startup seeds Solid as soft so sketch_finish → extrude skips list_changed.
+        assert!(names.iter().any(|name| *name == "solid_extrude"));
 
         server
             .call_tool("cad_set_focus", json!({"focus": "solid", "explicit": true}))
@@ -5351,6 +5605,54 @@ mod tests {
             listed["tools"].as_array().unwrap().len(),
             catalog.as_array().unwrap().len()
         );
+    }
+
+    #[test]
+    fn cad_agent_guidance_and_listen_are_on_the_spine() {
+        let mut server = CadServer::new().unwrap();
+        let guide = server.call_tool("cad_agent_guidance", json!({})).unwrap();
+        assert_eq!(guide["stage"], "blank");
+        assert!(guide["always_on_spine"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|name| name == "solid_check"));
+        assert!(guide["always_on_spine"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|name| name == "assembly_set_joint_motion"));
+        assert!(guide["next"].as_array().unwrap().iter().any(|step| {
+            step.as_str()
+                .is_some_and(|text| text.contains("sketch_begin"))
+        }));
+
+        let listen_messages = handle_message(
+            &mut server,
+            json!({
+                "jsonrpc": "2.0",
+                "id": "listen-1",
+                "method": "subscriptions/listen",
+                "params": {
+                    "notifications": { "toolsListChanged": true }
+                }
+            }),
+        );
+        assert!(
+            listen_messages.iter().any(|message| {
+                message.get("method").and_then(Value::as_str)
+                    == Some("notifications/subscriptions/acknowledged")
+            }),
+            "listen must ack before completing: {listen_messages:?}"
+        );
+        let listen = listen_messages
+            .into_iter()
+            .find(|message| message.get("id") == Some(&json!("listen-1")))
+            .expect("listen reply");
+        assert!(listen.get("error").is_none(), "{listen}");
+        assert_eq!(listen["result"]["resultType"], "complete");
+        assert_eq!(listen["result"]["notifications"]["toolsListChanged"], true);
+        assert_eq!(server.tools_list_subscription_id, Some(json!("listen-1")));
     }
 
     #[test]

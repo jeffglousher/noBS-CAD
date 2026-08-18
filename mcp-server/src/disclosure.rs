@@ -170,15 +170,21 @@ impl Default for DisclosureState {
 
 impl DisclosureState {
     pub fn new() -> Self {
-        Self {
+        let mut state = Self {
             mode: DisclosureMode::Dynamic,
-            active: FocusPack::Document,
+            active: FocusPack::Sketch,
             soft: HashMap::new(),
             soft_order: Vec::new(),
             explicit_focus: None,
             pending_notify_at_ms: None,
-            now_ms: Self::wall_clock_ms(),
-        }
+            now_ms: 0,
+        };
+        state.refresh_clock();
+        // New part = sketch ribbon. Keep solid creators soft so
+        // sketch_finish → extrude does not wait on list_changed.
+        state.mark_soft(FocusPack::Solid);
+        state.pending_notify_at_ms = None;
+        state
     }
 
     fn wall_clock_ms() -> u64 {
@@ -495,8 +501,10 @@ pub fn tags_for_tool(name: &str) -> (FocusPack, bool) {
     let spine = matches!(
         name,
         "cad_document"
+            | "cad_agent_guidance"
             | "solid_scene"
             | "solid_recompute"
+            | "solid_check"
             | "cad_get_focus"
             | "cad_set_focus"
             | "cad_set_workspace"
@@ -512,12 +520,29 @@ pub fn tags_for_tool(name: &str) -> (FocusPack, bool) {
             | "cad_detach"
             | "cad_undo"
             | "cad_redo"
+            | "assembly_document"
+            | "assembly_solution"
+            | "assembly_create_component"
+            | "assembly_create_joint"
+            | "assembly_set_joint_motion"
+            | "assembly_evaluate_motion_study"
+            | "assembly_interference_check"
+            | "cad_drawing_document"
+            | "cad_drawing_create_sheet"
     );
     if spine {
         let pack = match name {
-            "cad_document" => FocusPack::Document,
-            "solid_scene" | "solid_recompute" => FocusPack::Inspect,
+            "cad_document" | "cad_agent_guidance" => FocusPack::Document,
+            "solid_scene" | "solid_recompute" | "solid_check" => FocusPack::Inspect,
             "cad_undo" | "cad_redo" => FocusPack::History,
+            "assembly_document"
+            | "assembly_solution"
+            | "assembly_create_component"
+            | "assembly_create_joint"
+            | "assembly_set_joint_motion"
+            | "assembly_evaluate_motion_study"
+            | "assembly_interference_check" => FocusPack::Assembly,
+            "cad_drawing_document" | "cad_drawing_create_sheet" => FocusPack::Drawing,
             _ => FocusPack::Document,
         };
         return (pack, true);
@@ -858,6 +883,19 @@ mod tests {
     }
 
     #[test]
+    fn new_part_starts_in_sketch_with_solid_soft() {
+        DisclosureState::set_clock_for_test(0);
+        let state = DisclosureState::new();
+        assert_eq!(state.active(), FocusPack::Sketch);
+        assert!(state.is_advertised("sketch_begin", FocusPack::Sketch, false));
+        assert!(state.is_advertised("solid_extrude", FocusPack::Solid, false));
+        assert_eq!(
+            state.advertisement_state(FocusPack::Solid, false),
+            AdvertisementState::Soft
+        );
+    }
+
+    #[test]
     fn full_static_advertises_everything() {
         let mut state = DisclosureState::new();
         state.set_mode(DisclosureMode::FullStatic);
@@ -1014,6 +1052,17 @@ mod tests {
         );
         assert_eq!(tags_for_tool("solid_tessellate").0, FocusPack::Inspect);
         assert_eq!(tags_for_tool("solid_check").0, FocusPack::Inspect);
+        assert!(tags_for_tool("solid_check").1);
+        assert!(tags_for_tool("cad_agent_guidance").1);
+        assert!(tags_for_tool("assembly_document").1);
+        assert!(tags_for_tool("assembly_solution").1);
+        assert!(tags_for_tool("assembly_create_component").1);
+        assert!(tags_for_tool("assembly_create_joint").1);
+        assert!(tags_for_tool("assembly_set_joint_motion").1);
+        assert!(tags_for_tool("assembly_evaluate_motion_study").1);
+        assert!(tags_for_tool("assembly_interference_check").1);
+        assert!(tags_for_tool("cad_drawing_document").1);
+        assert!(tags_for_tool("cad_drawing_create_sheet").1);
         assert_eq!(tags_for_tool("solid_move_copy").0, FocusPack::BodyOps);
         for name in [
             "solid_export_3mf",
