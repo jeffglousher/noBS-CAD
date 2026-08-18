@@ -1,28 +1,28 @@
 # Print-kit files — which copy is live
 
-Inventoried 2026-08-17 (local Documents + this branch).
+Inventoried 2026-08-17 evening (bearing CAD + this branch).
 Hashes are SHA-256 prefixes (16 hex). Replay the live kit with
-`npm run test:mcp-print-kit` — that **overwrites**
-`Documents\noBS-CAD\Print-Kit-Tutor\` and the sibling
+`npm run test:mcp-print-kit` or `node scripts/nbcad-cli.mjs exam --stage=kit`
+— that **overwrites** `Documents\noBS-CAD\Print-Kit-Tutor\` and the sibling
 `Print-Kit-Tutor.nbcad` / `-design.md` / `-report.json`.
 
-## Live aero kit (print this)
+## Live bearing kit (print this)
 
-**NACA 0024-4.5/3.5 · 8 rollers · 90.5 cm³ · 47.2 g · $0.94**
-SHA-256 of the 3MF starts `BA828E74708C3801`. Size **437399** bytes.
-Written **2026-08-17 18:42:34**.
+**NACA 0024-4.5/3.5 · 8 barrel-crowned rollers · U-window fence · E-clip · 90.2 cm³ · 47 g · $0.94**
+SHA-256 of the 3MF starts `465883997473A724`. Size **472474** bytes.
+Written **2026-08-17 19:56:20**.
 
 | Path | What it is |
 |------|------------|
 | `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor\01-kit.3mf` | Exam export (same bytes as Latest) |
 | `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Latest\01-kit.3mf` | Working alias of the same 3MF |
 | `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor-01-kit-stator.3mf` | Loose root copy, **same hash** |
-| `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor.nbcad` | Assembled project (`DEC1977D965E6D21`) |
-| `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Latest\Print-Kit-Latest.nbcad` | Same `.nbcad` bytes |
-| `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor-design.md` | Design report (`40B4F1ED87363F82`) |
-| `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor-report.json` | Grader JSON (`D260A2B1F7F60A09`) |
+| `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor.nbcad` | Assembled project (`97CD3DFAA84FE50D`) |
+| `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor-design.md` | Design report (`ADD696C8E4D783CA`) |
+| `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor-report.json` | Grader JSON (`84516A2FB25F142E`) |
 | `scripts/fixtures/print-kit-tutor.spec.json` | Source numbers (git) |
-| `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Aero-Live-2026-08-17\` | **Dated backup** of the live set |
+| `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Bearing-Live-2026-08-17\` | **Dated backup** of this live set |
+| `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Aero-Live-2026-08-17\` | Previous live aero (cylinder slots / C-washer), SHA `BA828E74708C3801` / 437399 |
 
 Close Bambu **without saving** over `Print-Kit-Tutor\01-kit.3mf` if an older plate is still open.
 
@@ -40,3 +40,5 @@ Organic look (root blend, tip landing) is frozen in
 [PRINT_KIT_ORGANIC_REFERENCE.md](PRINT_KIT_ORGANIC_REFERENCE.md).
 Aero contract and mathematics:
 [PRINT_KIT_AERO.md](PRINT_KIT_AERO.md).
+Bearing CAD (U-window, crown, E-clip):
+[PRINT_KIT_BEARING.md](PRINT_KIT_BEARING.md).
