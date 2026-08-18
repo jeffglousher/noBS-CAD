@@ -322,7 +322,10 @@ if (
   fail('print-kit tutor spec must list retired plates so the exam can wipe them');
 }
 if (spec.materials?.orange !== 'bambu.pla.basic.orange' || spec.materials?.glow !== 'bambu.pla.glow.green') {
-  fail('print-kit tutor spec must print only PLA orange and PLA glow');
+  fail('print-kit tutor spec must keep PLA orange stator and PLA glow blades');
+}
+if (spec.materials?.petg !== 'bambu.petg.hf.black' || String(spec.materials?.glow).includes('petg')) {
+  fail('print-kit tutor spec must assign PETG HF to the pack, not to the glow blades');
 }
 const tutorSrc = await read('scripts/mcp-print-kit-tutor.mjs');
 if (!tutorSrc.includes('cleanKitOutputs') || !tutorSrc.includes('retired_print_plates')) {
@@ -412,7 +415,10 @@ if (!tutorSrc.includes('solid_move_copy') || !tutorSrc.includes('layoutPrintPlat
   fail('print-kit Node exam must lay the kit out on one plate before export');
 }
 if (!tutorSrc.includes('bambu.pla.glow') || !tutorSrc.includes('bambu.pla.basic.orange')) {
-  fail('print-kit Node exam must assign PLA orange and PLA glow only');
+  fail('print-kit Node exam must assign PLA orange and PLA glow');
+}
+if (!tutorSrc.includes('bambu.petg.hf') || !tutorSrc.includes('petgBlack') || !tutorSrc.includes('function rollerBoreD')) {
+  fail('print-kit Node exam must assign PETG HF to hollow rollers and the E-clip');
 }
 const rustTutor = await read('mcp-server/src/print_kit_tutor.rs');
 if (!rustTutor.includes('require_blank_document') || !rustTutor.includes('hide_construction')) {
@@ -518,7 +524,10 @@ if (!/constant pass/i.test(printKitPrompt)) {
   fail('model_print_kit prompt must keep a constant-pass journal');
 }
 if (!/PLA Basic Orange/i.test(printKitPrompt) || !/PLA Glow Green/i.test(printKitPrompt)) {
-  fail('model_print_kit prompt must name only PLA Basic Orange and PLA Glow Green');
+  fail('model_print_kit prompt must name PLA Basic Orange and PLA Glow Green');
+}
+if (!/PETG HF/i.test(printKitPrompt) || !/keep light|Do not PETG the spinning blades/i.test(printKitPrompt)) {
+  fail('model_print_kit prompt must assign PETG HF to the pack and keep the blades PLA Glow');
 }
 if (spec.roller_h > 12) {
   fail('print-kit tutor spec roller_h must not be reused as a 70 mm drum height');
@@ -553,9 +562,11 @@ if (
   !rustTutor.includes('fn place_crowned_roller') ||
   !rustTutor.includes('fn clip_mouth') ||
   !rustTutor.includes('fn witness_d') ||
-  !rustTutor.includes('require_solid_ok')
+  !rustTutor.includes('require_solid_ok') ||
+  !rustTutor.includes('fn roller_bore_d') ||
+  !rustTutor.includes('bambu.petg.hf.black')
 ) {
-  fail('print-kit cargo exam must cut U-windows, crown rollers, and ship an E-clip (plus solid_check)');
+  fail('print-kit cargo exam must cut U-windows, crown hollow PETG rollers, and ship an E-clip (plus solid_check)');
 }
 if (!printKitPrompt.includes('E-clip') || !printKitPrompt.includes('U-window')) {
   fail('model_print_kit prompt must describe U-windows and the E-clip');

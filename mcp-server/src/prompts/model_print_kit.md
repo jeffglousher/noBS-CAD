@@ -28,10 +28,10 @@ Four printed families, then a linked assembly:
 |------|------|-------|
 | Stator | Thin Y-frame + race ring + keeper walls + open top-load fence + constant-pass journal + snap groove. One body | Flat |
 | Rotor | Thin root plate (underside = upper thrust race) + 3 helical NACA 0024-4.5/3.5. One body. Plate bore larger than journal pass Ø | Standing on the plate |
-| Rollers | 8 radial-axis **barrel-crowned** rollers, min Ø8 mid land, pack height = mid Ø, PCD under the blade roots. Drop into U-windows | Standing (axis Z) |
-| Retainer | Clocked **E-clip** (D-hole + ~8 mm mouth + finger tabs) in the journal groove, 0.20 above the plate | Flat |
+| Rollers | 8 radial-axis **hollow barrel-crowned PETG** rollers, min Ø8 mid land, pack height = mid Ø, PCD under the blade roots. Drop into U-windows | Standing (axis Z) |
+| Retainer | Clocked **PETG E-clip** (D-hole + ~8 mm mouth + finger tabs) in the journal groove, 0.20 above the plate | Flat |
 
-Plastics: **PLA Basic Orange** (stator, rollers, retainer) and **PLA Glow Green** (rotor).
+Plastics: **PLA Basic Orange** (stator — both race flats), **PLA Glow Green** (rotor / blades — keep light for a later generator), **PETG HF Black** (hollow rollers + E-clip). Do not PETG the spinning blades.
 
 Girth: envelope/rotor D ≤ 1.55; span/chord ≥ 2.5; solidity 0.24–0.45.
 Scale 1.0 fits the X2D usable bed (240×240×244).
@@ -63,8 +63,9 @@ polylines with **ctrl held**.
    Groove and D-flat on the tip.
 3. Rotor: root plate, airfoil through the plate, `solid_loft` three helical
    NACA 0024-4.5/3.5 from the organic root to a tapered flat landing.
-4. Eight barrel-crowned radial-axis rollers (`solid_revolve` of a 3-point
-   generator). Mid Ø still sets pack height.
+4. Eight hollow barrel-crowned radial-axis PETG rollers (`solid_revolve`
+   of a closed ring: bore → end → mid land → end → bore). Mid Ø still
+   sets pack height. Short mid land, 0.40 mm crown. Do not PETG the rotor.
 5. E-clip: thin ring + D-hole + ~8 mm mouth + finger tabs, print-flat.
 6. `cad_set_workspace` assembly. One `assembly_create_component` per moving
    body (that call inserts the root occurrence). Ground the stator.
@@ -76,7 +77,7 @@ polylines with **ctrl held**.
    (fits, scale, print orientation, BOM).
 8. Inspect: `solid_check` after each family (CLI: `node scripts/nbcad-cli.mjs
    solid_check` — no Cursor MCP reload). Then `set_body_appearance`
-   (orange / glow). `solid_export_preflight`.
+   (orange stator, glow rotor, PETG rollers + clip). `solid_export_preflight`.
    Save the assembled `.nbcad`. `solid_move_copy` onto one print plate
    (rotor and rollers standing, others flat). `solid_export_3mf` once as
    `01-kit`.
@@ -93,7 +94,8 @@ groove. Pinch the finger tabs to remove.
 
 Rotor standing so layer lines run spanwise. Stator and clip flat (bores
 are XY circles). Rollers standing. Sand PLA skins 400→1000. Trailing edge
-blunt ≥ 2 nozzles. PLA-on-PLA is a demo spin.
+blunt ≥ 2 nozzles. Kit pair is PETG-on-PLA on both races. Dry PETG HF.
+Hardened nozzle for glow and PETG. Keep the blades PLA Glow.
 
 ## Report
 
@@ -101,4 +103,4 @@ blunt ≥ 2 nozzles. PLA-on-PLA is a demo spin.
 
 Include: architecture, NACA 0024-4.5/3.5 citation, solidity, fit table, thrust-pack
 stack, scale vs X2D, print orientation, BOM, CAD volume, print mass, filament
-cost (PLA 1.24 g/cm³ × print-volume factor 0.42 × spec $/kg).
+cost (PLA 1.24 g/cm³ + PETG 1.27 g/cm³ × print-volume factor 0.42 × spec $/kg).

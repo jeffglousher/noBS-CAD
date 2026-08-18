@@ -18,14 +18,15 @@
   "fit_pip_mm": 0.8,
   "bed_relief_mm": 0.8,
   "filament": {
-    "name": "Bambu PLA Basic Orange + Bambu PLA Glow Green",
+    "name": "Bambu PLA Basic Orange + Bambu PLA Glow Green + Bambu PETG HF Black",
     "density_g_cm3": 1.24,
     "price_usd_per_kg": 20.0,
     "print_volume_factor": 0.42
   },
   "materials": {
     "orange": "bambu.pla.basic.orange",
-    "glow": "bambu.pla.glow.green"
+    "glow": "bambu.pla.glow.green",
+    "petg": "bambu.petg.hf.black"
   },
   "wing_count": 3,
   "wing_h": 236.0,
@@ -87,7 +88,7 @@
       "C": "Three Y-frame pads at 120° (tertiary)."
     },
     "fits_mm": {
-      "running_rollers": "+0.40 diametral PLA-on-PLA for parts printed separately and assembled (rollers on both races). Slicer XY hole compensation stays 0.",
+      "running_rollers": "+0.40 diametral PETG-on-PLA for parts printed separately and assembled (hollow PETG rollers on both PLA races). Slicer XY hole compensation stays 0.",
       "top_load_slots": "U-window through the fence only. Floor = race + 0.05 mm (flat race, no cylinder trough). Window width = roller Ø + 4 nozzles. Funnel mouth = roller Ø + 8 nozzles. Drop in from above. No support. This kit does not PIP the rollers — a lying OD prints as layers.",
       "slip_retainer": "+0.28 diametral D-hole in the snap groove. Clocked to one orientation. ~8 mm E-clip mouth + finger tabs so the clip enters the groove from the side without 12% hoop strain.",
       "no_rotor_rub": "E-clip sits in the journal groove, 0.20 above the plate. It is not a running face on the turbine.",
@@ -109,7 +110,7 @@
     {
       "id": "no_press",
       "title": "Snug is not a press",
-      "teach": "FDM press fits fail from elephant foot. The plate bore is running, not friction. A fat shoulder or snap bead above the plate blocks assembly — the rotor cannot drop on. Keep the journal a constant pass Ø. Retain with a clocked E-clip that snaps radially into an undercut groove and pinches off at the finger tabs. Functional lands start above a 2-nozzle lead-in on every bed-printed bore. No metal 608s. No inward top lip over the rollers. Plastics are PLA Basic Orange and PLA Glow Green only."
+      "teach": "FDM press fits fail from elephant foot. The plate bore is running, not friction. A fat shoulder or snap bead above the plate blocks assembly — the rotor cannot drop on. Keep the journal a constant pass Ø. Retain with a clocked E-clip that snaps radially into an undercut groove and pinches off at the finger tabs. Functional lands start above a 2-nozzle lead-in on every bed-printed bore. No metal 608s. No inward top lip over the rollers. Plastics: PLA Basic Orange stator, PLA Glow Green rotor/blades (keep light for a later generator), PETG HF Black hollow rollers + E-clip. Do not PETG the spinning blades."
     },
     {
       "id": "assemble",
@@ -119,7 +120,7 @@
     {
       "id": "rollers",
       "title": "Print a thin flat thrust that takes rotation about Z",
-      "teach": "A tall skinny sleeve cannot hold aero loads at the blade tips. A tall drum with webs climbing the wall is the same mistake in orange. Matching 8 mm flats is still a pancake stack. Two separate flats (axle disk + cage disk) are extra plastic. Standing-Z pucks slide on their end faces — that is not rolling under −Z. An inboard pack at ~58% of the plate leaves the blade roots cantilevered on a thin plate — the couple never reaches the race. Use a **thin flat thrust** on **one stator**: ≥6 barrel-crowned rollers, axis **radial** (e_r), mid diameter = pack height (min Ø8), on a large PCD **under the blade roots**. Relative motion at the race is circumferential; a tangent axis would roll inward/outward. The stator race is the lower land; the plate underside is the upper land; a short journal only centers. The plate bore is the radial land; the fence ID must be looser. Overturning is a couple across that disk, not a tall land. Print rollers standing (circular layers); drop them into U-windows. Do not PIP a lying roller. Radial capture is inner/outer keeper walls at the ends — no bars over the pack. Axial capture is the race + clocked E-clip."
+      "teach": "A tall skinny sleeve cannot hold aero loads at the blade tips. A tall drum with webs climbing the wall is the same mistake in orange. Matching 8 mm flats is still a pancake stack. Two separate flats (axle disk + cage disk) are extra plastic. Standing-Z pucks slide on their end faces — that is not rolling under −Z. An inboard pack at ~58% of the plate leaves the blade roots cantilevered on a thin plate — the couple never reaches the race. Use a **thin flat thrust** on **one stator**: ≥6 hollow barrel-crowned PETG rollers, axis **radial** (e_r), mid diameter = pack height (min Ø8), on a large PCD **under the blade roots**. Relative motion at the race is circumferential; a tangent axis would roll inward/outward. The stator race is the lower land; the plate underside is the upper land; a short journal only centers. The plate bore is the radial land; the fence ID must be looser. Overturning is a couple across that disk, not a tall land. Print rollers standing (circular layers); drop them into U-windows. Do not PIP a lying roller. Radial capture is inner/outer keeper walls at the ends — no bars over the pack. Axial capture is the race + clocked E-clip. Blades stay PLA Glow — do not PETG the spinning mass."
     },
     {
       "id": "even",
@@ -164,7 +165,7 @@
     {
       "id": "export",
       "title": "Export one laid-out plate",
-      "teach": "Wipe Print-Kit-Tutor/ first so leftover five-plate and shaft/hub/wings names are gone. Save the assembled .nbcad, then solid_move_copy parts onto the bed (rotor standing on the deck, others flat) and solid_export_3mf once as 01-kit. Two materials only: PLA Orange and PLA Glow (rotor). Do not export the assembled nest as the print job."
+      "teach": "Wipe Print-Kit-Tutor/ first so leftover five-plate and shaft/hub/wings names are gone. Save the assembled .nbcad, then solid_move_copy parts onto the bed (rotor standing on the deck, others flat) and solid_export_3mf once as 01-kit. Three materials: PLA Orange stator, PLA Glow rotor/blades, PETG HF rollers + E-clip. Do not PETG the blades. Do not export the assembled nest as the print job."
     }
   ]
 }

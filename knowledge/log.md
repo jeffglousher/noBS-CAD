@@ -2,6 +2,11 @@
 
 ## 2026-08-17
 
+- **Update**: Print-kit pack is PETG-on-PLA. Hollow barrel-crowned
+  PETG HF rollers (short mid land, 0.40 mm crown, Ø2.4 bore) and a
+  PETG E-clip. Stator stays PLA Orange (both race flats). Rotor /
+  blades stay PLA Glow — spinning mass at R for a later generator.
+  Do not PETG the blades or add a PETG race washer.
 - **Update**: Print-kit stator merge: Y-frame + lower race + open
   top-load fence + short D-journal are **one body**. Do not print a
   separate axle disk and cage disk. Rollers print standing and drop

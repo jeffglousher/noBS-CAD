@@ -9,7 +9,7 @@ a test of AI capability.
 Contract: [PRINT_KIT_DESIGN.md](PRINT_KIT_DESIGN.md). Aero (why this
 section, omnidirectional / skewed wind):
 [PRINT_KIT_AERO.md](PRINT_KIT_AERO.md). Thrust pack + clip
-(printed rollers slide today):
+(U-window, hollow PETG rollers, E-clip):
 [PRINT_KIT_BEARING.md](PRINT_KIT_BEARING.md). Fits:
 [PRINT_KIT_GDT.md](PRINT_KIT_GDT.md). The recipe is
 `prompts/get model_print_kit`.
@@ -33,8 +33,8 @@ floors (roller Ø8, roller length 8, TE 0.8, 4-nozzle walls, plate 3.2 mm, base 
 |------|------|----------------|
 | Stator | Thin Y-frame + race ring with keeper walls + U-window fence + flat race + constant journal + snap groove, one piece | Grounded. Print flat. |
 | Rotor | Thin root plate out to the blades (underside = upper thrust race), organic airfoil roots (appearance), 3 helical **NACA 0024-4.5/3.5** ending on that plate, **one body**, open tips with a short taper to a flat landing | Plate bore = journal + running. Print standing on the plate. PLA Glow. |
-| Rollers | 8 **radial-axis barrel-crowned** rollers, min Ø8 mid land, pack height = mid Ø, large PCD **under the blade roots**, captured by keepers | Drop into U-windows. Print standing. |
-| Retainer | Clocked E-clip (D-hole + ~8 mm mouth + finger tabs) | Snaps radially into the journal groove. Pinch tabs to remove. Does not rub the rotor. |
+| Rollers | 8 **radial-axis hollow barrel-crowned PETG** rollers, min Ø8 mid land, pack height = mid Ø, large PCD **under the blade roots**, captured by keepers | Drop into U-windows. Print standing. PETG HF. |
+| Retainer | Clocked PETG E-clip (D-hole + ~8 mm mouth + finger tabs) | Snaps radially into the journal groove. Pinch tabs to remove. Does not rub the rotor. |
 
 Fits are **per role** (running / PIP / slip) and per whether
 the parts share a plate. Assembled running +0.40. U-windows cut the fence only (flat race).
@@ -60,7 +60,7 @@ Rollers print standing (axis Z). The exam **wipes**
 five-plate names plus `02-shaft` / `03-hub` / `04-wings` / `05-plate` /
 `06-bushing` / `07-cap` and any assembled `Print-Kit-Tutor.3mf`), saves
 the assembled `.nbcad`, lays the parts out, then writes `01-kit.3mf`
-(PLA Orange + PLA Glow) and a design report next to the project.
+(PLA Orange stator + PLA Glow blades + PETG HF rollers/clip) and a design report next to the project.
 
 ## How to rerun
 
@@ -117,7 +117,7 @@ Agents start with `prompts/get model_print_kit`.
 11. Helical blades, not a straight fence
 12. Ship an assembly drawing
 13. Publish the design report (iteration + plastic cost)
-14. Export one laid-out plate (`01-kit`) in PLA Orange + PLA Glow (cartridge is PIP)
+14. Export one laid-out plate (`01-kit`) in PLA Orange + PLA Glow + PETG HF (cartridge is PIP). Do not PETG the blades.
 
 Later (not this exam): catalog metal bearings from a standard table at
 larger sizes.

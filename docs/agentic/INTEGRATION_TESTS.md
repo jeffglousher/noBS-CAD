@@ -16,7 +16,7 @@ Spec: `scripts/fixtures/print-kit-tutor.spec.json`. Recipe: `model_print_kit`.
 
 | # | Golden | How to run | What it proves |
 |---|--------|------------|----------------|
-| **1** | **Print-kit pipeline** (printed VAWT assembly) | `cargo test --manifest-path mcp-server/Cargo.toml print_kit_tutor` then `npm run test:mcp-print-kit` | MCP tools replay a kit: one-piece helical NACA, role-based fits, printed roller pack, assembly drawing, design report + plastic cost, one laid-out plate (PLA Orange + PLA Glow) |
+| **1** | **Print-kit pipeline** (printed VAWT assembly) | `cargo test --manifest-path mcp-server/Cargo.toml print_kit_tutor` then `npm run test:mcp-print-kit` | MCP tools replay a kit: one-piece helical NACA, role-based fits, hollow PETG roller pack, assembly drawing, design report + plastic cost, one laid-out plate (PLA Orange + PLA Glow + PETG HF) |
 | 2 | Completeness gate | `npm run check:mcp-control` | Modeling / print / control tools and main prompts stay wired (`model_print_kit` included) |
 | 3 | CadServer goldens | `cargo test --manifest-path mcp-server/Cargo.toml` | Headless OCCT replay and MCP RPC (includes the #1 engine exam) |
 | 4 | Session bridge | `npm run test:session-bridge` | Live attach, writer lock, UI heartbeat must not clobber MCP revisions |

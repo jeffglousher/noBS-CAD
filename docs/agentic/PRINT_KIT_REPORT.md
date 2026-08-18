@@ -52,14 +52,14 @@ Print plate under `%USERPROFILE%\Documents\noBS-CAD\Print-Kit-Tutor\`
 (the exam wipes this folder first — no leftover five-plate or
 shaft/hub/wings/plate/bushing/cap names):
 
-- `01-kit.3mf` — one plate, laid out. PLA Orange + PLA Glow.
+- `01-kit.3mf` — one plate, laid out. PLA Orange stator + PLA Glow blades + PETG HF rollers/clip.
 
 ## 4. Printing cost (plastic / material)
 
-Assumptions: Bambu PLA Basic Orange + Bambu PLA Glow, 1.24 g/cm³, $20/kg, print-volume factor 0.42.
+Assumptions: Bambu PLA Basic Orange + Bambu PLA Glow + Bambu PETG HF Black,
+PLA 1.24 / PETG 1.27 g/cm³, $20/kg, print-volume factor 0.42.
 
-At exam scale 0.4 the last green run was ~67.4 cm³ CAD solid, **35.1 g**,
-**$0.70** PLA (keepers + thinner stack + organic roots; clip unchanged).
-The exam writes the live figures next to the project. Two filaments
-only: PLA Basic Orange and PLA Glow Green.
+At exam scale 0.4 the exam writes the live figures next to the project.
+Three filaments: PLA Orange stator, PLA Glow blades (keep light for a
+later generator), PETG HF hollow rollers + E-clip.
 Electricity and machine time are not priced. No additional hardware.

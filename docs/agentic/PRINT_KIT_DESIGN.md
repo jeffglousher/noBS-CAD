@@ -8,7 +8,7 @@ takes wind from any heading (math, figures, citations):
 [PRINT_KIT_AERO.md](PRINT_KIT_AERO.md).
 Which 3MF is live:
 [PRINT_KIT_FILES.md](PRINT_KIT_FILES.md).
-Thrust pack + clip (printed rollers slide today):
+Thrust pack + clip (hollow PETG rollers on PLA races):
 [PRINT_KIT_BEARING.md](PRINT_KIT_BEARING.md).
 
 Start from a **blank document** (`cad_new_project`, 0 bodies). Do not
@@ -22,7 +22,7 @@ before save.
 | Section | NACA 0024-4.5/3.5, TE ≥ 0.8 mm, root chord > tip | Low-TSR Tirandaz/Rezaeiha section; drafted standing print |
 | Rotor | One body: root plate out to the blades (underside = upper thrust race), 3 helical blades ending on that plate. X2D-max R=85, span=236, scale 0.4 in the exam | Always some blade working; no tenons; no mid-air roots; no skinny-arm hangers |
 | Stand | One stator: Y-frame + race **ring** + open top-load fence + short journal | Envelope/rotor ≤ 1.55; no cookie disk; no tall mast; no separate axle disk |
-| Bearing | **Thin flat thrust** under the **blade roots**: 8× printed **radial-axis barrel-crowned** rollers, min Ø8 mid land, pack height = mid Ø, large PCD. U-windows through the fence (flat race). **Keeper walls at the ends**. Fence ID looser than the plate bore. Thin plate (≥3.2 mm) with **organic airfoil roots**. Constant journal the plate can drop over. Clocked E-clip in a groove | Rotation about Z plus overturning as a couple under the roots |
+| Bearing | **Thin flat thrust** under the **blade roots**: 8× printed **radial-axis hollow barrel-crowned PETG** rollers, min Ø8 mid land, pack height = mid Ø, large PCD. U-windows through the fence (flat race). **Keeper walls at the ends**. Fence ID looser than the plate bore. Thin plate (≥3.2 mm) with **organic airfoil roots**. Constant journal the plate can drop over. Clocked PETG E-clip in a groove | Rotation about Z plus overturning as a couple under the roots |
 | Fits | running +0.40 / PIP +0.80 / slip +0.28 / friction +0.16 | Role-based **and** same-plate vs assembled. 0.80 mm bed lead-in. Slicer XY hole comp = 0 |
 | Envelope | scale 1.0 fits Bambu Lab X2D 256×256×260 with 8 mm margin | `spec.scale` is the source parameter |
 
@@ -95,13 +95,15 @@ cannot take the moment at the blade tips.
 | Stator | One body: Y-frame + race ring + open fence + journal | Print-flat; plate freewheels on the short journal |
 | Retain | Clocked E-clip in a journal groove | Plate drops on; clip snaps on radially and pinches off; does not rub the rotor |
 
-PLA-on-PLA is a demo spin. Say so. No glue-as-fit.
+Kit pair is PETG-on-PLA on both races. Blades stay PLA Glow (light
+for a later generator). Say so. No glue-as-fit.
 
 ## Report
 
 The exam writes `Print-Kit-Tutor-design.md` next to the project and
 one laid-out `01-kit.3mf` (rollers print standing; not the assembled nest).
-Materials are **PLA Orange** and **PLA Glow** only. It deletes retired
+Materials are **PLA Orange** (stator), **PLA Glow** (rotor / blades),
+and **PETG HF Black** (rollers + E-clip). Do not PETG the blades. It deletes retired
 plates from earlier kits before writing. Required sections: iteration
 log, design process, final product, plastic/material cost. Sample:
 [PRINT_KIT_REPORT.md](PRINT_KIT_REPORT.md).

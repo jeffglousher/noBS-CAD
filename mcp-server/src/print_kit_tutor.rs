@@ -97,6 +97,12 @@ pub struct Filament {
 pub struct PrintMaterials {
     pub orange: String,
     pub glow: String,
+    #[serde(default = "default_petg")]
+    pub petg: String,
+}
+
+fn default_petg() -> String {
+    "bambu.petg.hf.black".to_string()
 }
 
 impl Spec {
@@ -242,13 +248,18 @@ impl Spec {
         (self.fence_h() * 0.45).clamp(1.2, 2.4)
     }
     fn crown_drop(&self) -> f64 {
-        (0.8 * self.nozzle_mm).clamp(0.25, 0.40)
+        self.nozzle_mm.clamp(0.30, 0.40)
     }
     fn roller_end_d(&self) -> f64 {
         self.roller_d() - 2.0 * self.crown_drop()
     }
     fn land_len(&self) -> f64 {
-        (self.roller_len() * 0.40).max(4.0)
+        (self.roller_len() * 0.22).max(self.nozzle_mm * 6.0)
+    }
+    fn roller_bore_d(&self) -> f64 {
+        // Stay >2.5 mm away from mid Ø/2 so the revolute matcher
+        // cannot pick the bore instead of the land (radiusErr = 2.5).
+        self.nozzle_mm * 6.0
     }
     fn clip_arm_t(&self) -> f64 {
         self.wall()
@@ -521,10 +532,12 @@ impl Spec {
             && self.mouth_w() + 1e-9 > self.window_w()
             && self.window_floor() + 1e-9 > self.race_z()
             && self.funnel_h() + 1e-9 < self.fence_h()
-            && self.land_len() + 1e-9 >= 4.0
-            && self.land_len() + 1e-9 < self.roller_len()
+            && self.land_len() + 1e-9 >= self.nozzle_mm * 6.0
+            && self.land_len() + 1e-9 < self.roller_len() * 0.35
             && self.roller_end_d() + 1e-9 < self.roller_d()
-            && self.crown_drop() + 1e-9 >= 0.25
+            && self.crown_drop() + 1e-9 >= 0.30
+            && self.roller_bore_d() + 1e-9 >= self.nozzle_mm * 6.0
+            && (self.roller_d() * 0.5 - self.roller_bore_d() * 0.5) > 2.5
             && self.witness_d() + 1e-9 >= self.nozzle_mm * 6.0
             && self.cage_id() + 1e-9 > self.plate_bore()
             && self.cage_rim() + 1e-9 >= self.wall() * 2.0
@@ -616,15 +629,31 @@ impl Spec {
             + std::f64::consts::PI * (self.inner_race_d() * 0.5).powi(2) * self.journal_h();
         let rollers = (self.roller_count as f64)
             * std::f64::consts::PI
-            * (self.roller_d() * 0.5).powi(2)
+            * ((self.roller_d() * 0.5).powi(2) - (self.roller_bore_d() * 0.5).powi(2))
             * self.roller_len();
         let retainer = (std::f64::consts::PI * (self.retainer_od() * 0.5).powi(2)
             - (self.inner_race_d() * 0.5).powi(2))
             * self.retainer_h();
         (plate + wings + stator + rollers + retainer) / 1000.0
     }
+    fn estimated_pla_cm3(&self) -> f64 {
+        let all = self.estimated_solid_cm3();
+        let petg = self.estimated_petg_cm3();
+        (all - petg).max(0.0)
+    }
+    fn estimated_petg_cm3(&self) -> f64 {
+        let rollers = (self.roller_count as f64)
+            * std::f64::consts::PI
+            * ((self.roller_d() * 0.5).powi(2) - (self.roller_bore_d() * 0.5).powi(2))
+            * self.roller_len();
+        let retainer = (std::f64::consts::PI * (self.retainer_od() * 0.5).powi(2)
+            - (self.inner_race_d() * 0.5).powi(2))
+            * self.retainer_h();
+        (rollers + retainer) / 1000.0
+    }
     fn estimated_print_mass_g(&self) -> f64 {
-        self.estimated_solid_cm3() * self.filament.density_g_cm3 * self.filament.print_volume_factor
+        let factor = self.filament.print_volume_factor;
+        self.estimated_pla_cm3() * 1.24 * factor + self.estimated_petg_cm3() * 1.27 * factor
     }
     fn estimated_filament_usd(&self) -> f64 {
         self.estimated_print_mass_g() / 1000.0 * self.filament.price_usd_per_kg
@@ -739,7 +768,7 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
     for (id, preset) in [
         (stator_id, spec.materials.orange.as_str()),
         (rotor_id, spec.materials.glow.as_str()),
-        (retainer_id, spec.materials.orange.as_str()),
+        (retainer_id, spec.materials.petg.as_str()),
     ] {
         call(
             "set_body_appearance",
@@ -749,7 +778,7 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
     for id in &roller_ids {
         call(
             "set_body_appearance",
-            json!({ "body_id": id, "preset_id": spec.materials.orange }),
+            json!({ "body_id": id, "preset_id": spec.materials.petg }),
         )?;
     }
     let hide_detail = hide_construction(&mut call)?;
@@ -1406,6 +1435,7 @@ fn place_crowned_roller(
 ) -> Result<u64, String> {
     let mid_r = spec.roller_d() * 0.5;
     let end_r = spec.roller_end_d() * 0.5;
+    let bore_r = spec.roller_bore_d() * 0.5;
     let half_l = spec.roller_len() * 0.5;
     let half_land = spec.land_len() * 0.5;
     let x0 = spec.pcd() * 0.5;
@@ -1414,13 +1444,13 @@ fn place_crowned_roller(
     add_poly(
         call,
         &[
-            [x0 - half_l, 0.02],
+            [x0 - half_l, bore_r],
             [x0 - half_l, end_r],
             [x0 - half_land, mid_r],
             [x0 + half_land, mid_r],
             [x0 + half_l, end_r],
-            [x0 + half_l, 0.02],
-            [x0 - half_l, 0.02],
+            [x0 + half_l, bore_r],
+            [x0 - half_l, bore_r],
         ],
         true,
     )?;
@@ -1918,7 +1948,7 @@ fn make_assembly_drawing(
         (
             [18.0, 28.0],
             format!(
-                "ASSEMBLY  scale={:.2} (1.0 = {} max)  PLA  nozzle {:.1} mm",
+                "ASSEMBLY  scale={:.2} (1.0 = {} max)  PLA+PETG  nozzle {:.1} mm",
                 spec.scale, spec.printer.name, spec.nozzle_mm
             ),
         ),
@@ -1931,7 +1961,7 @@ fn make_assembly_drawing(
         ),
         (
             [18.0, 48.0],
-            "PRINT  one plate, laid out. Rotor STANDING on the root plate. Rollers STANDING (axis Z), assemble lying (axis radial). Others FLAT. PLA Basic Orange + PLA Glow Green only.".to_string(),
+            "PRINT  one plate, laid out. Rotor STANDING on the root plate. Rollers STANDING (axis Z), assemble lying (axis radial). Others FLAT. PLA Orange stator + PLA Glow blades + PETG HF rollers/clip.".to_string(),
         ),
         (
             [18.0, 58.0],
@@ -1947,9 +1977,10 @@ fn make_assembly_drawing(
         (
             [18.0, 78.0],
             format!(
-                "ROLLERS  Ø{:.1} × L{:.1}  crown drop {:.2}  mid land {:.1}  axis radial  PCD {:.1}  pack h={:.1}. No metal 608.",
+                "ROLLERS  PETG hollow Ø{:.1} × L{:.1}  bore {:.1}  crown drop {:.2}  mid land {:.1}  axis radial  PCD {:.1}  pack h={:.1}. Blades stay PLA Glow. No metal 608.",
                 spec.roller_d(),
                 spec.roller_len(),
+                spec.roller_bore_d(),
                 spec.crown_drop(),
                 spec.land_len(),
                 spec.pcd(),
@@ -2311,7 +2342,7 @@ fn grade(
         "rollers",
         spec.rollers_ok() && built.roller_ids.len() == spec.roller_count,
         format!(
-            "{}× Ø{:.1}×L{:.1} radial rollers on PCD {:.1}; plate bore {:.1}; journal Ø{:.1}×h{:.1}",
+            "{}× hollow PETG Ø{:.1}×L{:.1} radial rollers on PCD {:.1}; plate bore {:.1}; journal Ø{:.1}×h{:.1}",
             spec.roller_count,
             spec.roller_d(),
             spec.roller_len(),
@@ -3010,6 +3041,8 @@ mod spec_tests {
         assert!(spec.retired_print_plates.iter().any(|name| name == "06-bushing"));
         assert_eq!(spec.materials.orange, "bambu.pla.basic.orange");
         assert_eq!(spec.materials.glow, "bambu.pla.glow.green");
+        assert_eq!(spec.materials.petg, "bambu.petg.hf.black");
+        assert!(!spec.materials.glow.contains("petg"));
         assert!(spec.stack_ok());
         assert!(spec.retainer_od() < spec.hub_od());
         assert_eq!(spec.assembly_component_count(), 3 + spec.roller_count);
@@ -3036,10 +3069,12 @@ mod spec_tests {
         assert!(spec.window_w() + 1e-9 > spec.cage_pocket());
         assert!(spec.mouth_w() + 1e-9 > spec.window_w());
         assert!(spec.window_floor() > spec.race_z());
-        assert!(spec.land_len() + 1e-9 >= 4.0);
-        assert!(spec.land_len() < spec.roller_len());
+        assert!(spec.land_len() + 1e-9 >= 2.4);
+        assert!(spec.land_len() < spec.roller_len() * 0.35);
         assert!(spec.roller_end_d() < spec.roller_d());
-        assert!((spec.crown_drop() - 0.32).abs() < 1e-9);
+        assert!((spec.crown_drop() - 0.40).abs() < 1e-9);
+        assert!((spec.roller_bore_d() - 2.4).abs() < 1e-9);
+        assert!((spec.roller_d() * 0.5 - spec.roller_bore_d() * 0.5) > 2.5);
         assert!((spec.clip_mouth() - 8.0).abs() < 1e-9);
         assert!(spec.clip_mouth() < spec.groove_d());
         assert!((spec.retainer_od() - (spec.retainer_d_hole() + 2.0 * spec.clip_arm_t())).abs() < 1e-9);

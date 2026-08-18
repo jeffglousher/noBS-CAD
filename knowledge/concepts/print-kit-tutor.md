@@ -49,7 +49,7 @@ Blades stay one printed body with the plate. The exam starts from a
 blank document (`cad_new_project`, 0 bodies) and hides construction
 planes before writing the `.nbcad`. Reruns wipe retired plates so
 `Print-Kit-Tutor/` holds only `01-kit.3mf` (parts laid out; PLA Orange
-+ PLA Glow). Fits are per role (running +0.40, slip +0.28, friction
+stator, PLA Glow blades, PETG HF rollers + clip). Fits are per role (running +0.40, slip +0.28, friction
 +0.16) with 0.20 axial float at every running land. Scale 1.0 is Bambu
 Lab X2D-max; the exam runs at 0.4. No FDM press fits. No metal 608s.
 The recipe is adversarial

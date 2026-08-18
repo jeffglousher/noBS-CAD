@@ -71,6 +71,7 @@ const retiredPlates = spec.retired_print_plates ?? [
 ];
 const plaOrange = spec.materials?.orange ?? "bambu.pla.basic.orange";
 const plaGlow = spec.materials?.glow ?? "bambu.pla.glow.green";
+const petgBlack = spec.materials?.petg ?? "bambu.petg.hf.black";
 
 function removeFile(file) {
   if (!existsSync(file)) return false;
@@ -411,13 +412,16 @@ function funnelH() {
   return Math.min(2.4, Math.max(1.2, fenceH() * 0.45));
 }
 function crownDrop() {
-  return Math.min(0.4, Math.max(0.25, 0.8 * spec.nozzle_mm));
+  return Math.min(0.4, Math.max(0.3, spec.nozzle_mm));
 }
 function rollerEndD() {
   return rollerD() - 2 * crownDrop();
 }
 function landLen() {
-  return Math.max(4, rollerLen() * 0.4);
+  return Math.max(spec.nozzle_mm * 6, rollerLen() * 0.22);
+}
+function rollerBoreD() {
+  return spec.nozzle_mm * 6;
 }
 function clipArmT() {
   return wall();
@@ -679,10 +683,12 @@ function rollersOk() {
     mouthW() + 1e-9 > windowW() &&
     windowFloor() + 1e-9 > raceZ() &&
     funnelH() + 1e-9 < fenceH() &&
-    landLen() + 1e-9 >= 4 &&
-    landLen() + 1e-9 < rollerLen() &&
+    landLen() + 1e-9 >= spec.nozzle_mm * 6 &&
+    landLen() + 1e-9 < rollerLen() * 0.35 &&
     rollerEndD() + 1e-9 < rollerD() &&
-    crownDrop() + 1e-9 >= 0.25 &&
+    crownDrop() + 1e-9 >= 0.3 &&
+    rollerBoreD() + 1e-9 >= spec.nozzle_mm * 6 &&
+    rollerD() * 0.5 - rollerBoreD() * 0.5 > 2.5 &&
     witnessD() + 1e-9 >= spec.nozzle_mm * 6 &&
     cageId() + 1e-9 > plateBore() &&
     cageRim() + 1e-9 >= wall() * 2 &&
@@ -773,13 +779,30 @@ function estimatedSolidCm3() {
     Math.PI * ((axleFlangeD() * 0.5) ** 2 - (raceId() * 0.5) ** 2) * baseH() +
     Math.PI * ((cageOd() * 0.5) ** 2 - (cageId() * 0.5) ** 2) * fenceH() +
     Math.PI * (innerRaceD() * 0.5) ** 2 * journalH();
-  const rollers = spec.roller_count * Math.PI * (rollerD() * 0.5) ** 2 * rollerLen();
+  const rollers =
+    spec.roller_count *
+    Math.PI *
+    ((rollerD() * 0.5) ** 2 - (rollerBoreD() * 0.5) ** 2) *
+    rollerLen();
   const retainer =
     (Math.PI * (retainerOd() * 0.5) ** 2 - (innerRaceD() * 0.5) ** 2) * retainerH();
   return (plate + wings + stator + rollers + retainer) / 1000;
 }
+function estimatedPetgCm3() {
+  const rollers =
+    spec.roller_count *
+    Math.PI *
+    ((rollerD() * 0.5) ** 2 - (rollerBoreD() * 0.5) ** 2) *
+    rollerLen();
+  const retainer =
+    (Math.PI * (retainerOd() * 0.5) ** 2 - (innerRaceD() * 0.5) ** 2) * retainerH();
+  return (rollers + retainer) / 1000;
+}
 function estimatedPrintMassG() {
-  return estimatedSolidCm3() * spec.filament.density_g_cm3 * spec.filament.print_volume_factor;
+  const factor = spec.filament.print_volume_factor;
+  const petg = estimatedPetgCm3();
+  const pla = Math.max(0, estimatedSolidCm3() - petg);
+  return pla * 1.24 * factor + petg * 1.27 * factor;
 }
 function estimatedFilamentUsd() {
   return (estimatedPrintMassG() / 1000) * spec.filament.price_usd_per_kg;
@@ -1190,6 +1213,7 @@ async function buildRotor(known) {
 async function placeCrownedRoller(index, known, label) {
   const midR = rollerD() * 0.5;
   const endR = rollerEndD() * 0.5;
+  const boreR = rollerBoreD() * 0.5;
   const halfL = rollerLen() * 0.5;
   const halfLand = landLen() * 0.5;
   const x0 = pcd() * 0.5;
@@ -1197,13 +1221,13 @@ async function placeCrownedRoller(index, known, label) {
   await beginDatum(deck);
   await addPoly(
     [
-      { x: x0 - halfL, y: 0.02 },
+      { x: x0 - halfL, y: boreR },
       { x: x0 - halfL, y: endR },
       { x: x0 - halfLand, y: midR },
       { x: x0 + halfLand, y: midR },
       { x: x0 + halfL, y: endR },
-      { x: x0 + halfL, y: 0.02 },
-      { x: x0 - halfL, y: 0.02 },
+      { x: x0 + halfL, y: boreR },
+      { x: x0 - halfL, y: boreR },
     ],
     true,
   );
@@ -1815,7 +1839,7 @@ async function makeAssemblyDrawing() {
   const notes = [
     [
       [18, 28],
-      `ASSEMBLY  scale=${spec.scale.toFixed(2)} (1.0 = ${spec.printer.name} max)  PLA  nozzle ${spec.nozzle_mm} mm`,
+      `ASSEMBLY  scale=${spec.scale.toFixed(2)} (1.0 = ${spec.printer.name} max)  PLA+PETG  nozzle ${spec.nozzle_mm} mm`,
     ],
     [
       [18, 38],
@@ -1823,7 +1847,7 @@ async function makeAssemblyDrawing() {
     ],
     [
       [18, 48],
-      "PRINT  one plate, laid out. Rotor STANDING on the root plate. Rollers STANDING (axis Z), assemble lying (axis radial). Others FLAT. PLA Basic Orange + PLA Glow Green only.",
+      "PRINT  one plate, laid out. Rotor STANDING on the root plate. Rollers STANDING (axis Z), assemble lying (axis radial). Others FLAT. PLA Orange stator + PLA Glow blades + PETG HF rollers/clip.",
     ],
     [
       [18, 58],
@@ -1835,7 +1859,7 @@ async function makeAssemblyDrawing() {
     ],
     [
       [18, 78],
-      `ROLLERS  Ø${rollerD().toFixed(1)} × L${rollerLen().toFixed(1)}  axis radial  PCD ${pcd().toFixed(1)}  pack h=${packH().toFixed(1)}. No metal 608.`,
+      `ROLLERS  PETG hollow Ø${rollerD().toFixed(1)} × L${rollerLen().toFixed(1)}  bore ${rollerBoreD().toFixed(1)}  crown drop ${crownDrop().toFixed(2)}  mid land ${landLen().toFixed(1)}  axis radial  PCD ${pcd().toFixed(1)}  pack h=${packH().toFixed(1)}. Blades stay PLA Glow. No metal 608.`,
     ],
   ];
   for (const [position, text] of notes) {
@@ -1860,7 +1884,8 @@ function writeDesignReport({ bodies, rotorBox, rotorFaces, plateFiles }) {
     ["Recovered old nest in the desktop", "Crash recovery reopened the tan/red nine-body kit with orange helix planes. cad_new_project first (0 bodies). Hide datums before save."],
     ["Coincident running faces", "Hub sat on the flange and the retainer sat on the hub. Modeled 0.20 float at every running land."],
     ["Retainer cap through the hub", "Retainer OD covered the hub so the washer looked fused. Washer OD is now between hub bore and hub OD."],
-    ["Five colors / five plates", "One laid-out plate. PLA Orange + PLA Glow only."],
+    ["Five colors / five plates", "One laid-out plate. PLA Orange stator + PLA Glow blades + PETG HF rollers/clip."],
+    ["PLA-on-PLA solid rollers", "Same-material dry wear and a conforming land. Hollow PETG rollers (short mid land, 0.40 mm crown, Ø2.4 bore) on PLA races. Blades stay PLA Glow — spinning mass at R for a later generator."],
     ["Hub as the outer race", "Cage stuffed inside a thin hub wall looked like a colander. The plate is the upper thrust race — not a sleeve the blades hang off."],
     ["Loose bushing sandwich", "A separate orange ring, a postage-stamp flange, and unmatched roller/cage heights. No attach path for an overhung load."],
     ["Washer cup / pancake stack", "Matching an 8 mm land to 8 mm rollers still reads as flat cylinders stacked on the plate. Height-matching flats is not a bearing."],
@@ -1902,9 +1927,9 @@ ${iterations.map(([name, why]) => `| ${name} | ${why} |`).join("\n")}
 - **Rotor:** one piece — thin root plate out to the blades (Ø${hubDeckOd().toFixed(1)} × h${hubDeckH().toFixed(1)}), underside is the upper thrust race, plus ${spec.wing_count} helical NACAs lofted from that plate. Organic root blend (${rootScale().toFixed(2)}× chord over ${rootBlendH().toFixed(1)} mm) then helix, then a ${tipTaperH().toFixed(1)} mm taper to a flat landing (tip chord ${tipChord().toFixed(1)}). Through-plate stump stays the sit-plane chord. c=${chordRoot().toFixed(1)}/${chordTip().toFixed(1)} mm, R=${wingRadius().toFixed(1)} mm, span=${wingH().toFixed(1)} mm, helix ${spec.helix_deg}°, σ=${solidity().toFixed(3)}. Envelope/rotor ${(baseEnvelope() / rotorD()).toFixed(2)}.
 - **Fits:** assembled running +${spec.fit_running_mm} (rollers on races). U-windows cut the fence only (flat race, floor +0.05). Same-plate PIP +${spec.fit_pip_mm} is the class; this kit does not PIP the rollers (lying OD would be layers). Journal pass Ø is smaller than the plate bore so the rotor drops on. Clocked E-clip: D-hole + ${clipMouth().toFixed(1)} mm mouth + finger tabs, snaps radially into an undercut groove 0.20 above the plate — it is not a running face. Pinch the tabs to remove. Slicer XY hole compensation stays 0. Plate **sits** 0.20 above the roller pack. Fence height is below pack height so rollers touch both races.
 - **Loads:** weight/thrust on the stator race (lower) and the plate underside (upper). Overturning is a couple across the pack **under the blade roots**. The plate bore (running) is the radial land; the fence ID is looser (spacer). Torque about Z stays in the rotor. Centrifugal blade load is taken by the one-piece plate.
-- **Friction:** only rolling contacts on the turbine (rollers ↔ races). Plate bore is running, not friction. Fence does not rub the journal. Retainer never rubs the rotor. PLA-on-PLA is a demo; service dry PTFE on the races.
+- **Friction:** only rolling contacts on the turbine (rollers ↔ races). Plate bore is running, not friction. Fence does not rub the journal. Retainer never rubs the rotor. Kit pair is PETG-on-PLA (both races). Service dry PTFE on the races is optional.
 - **Links:** grounded stator; revolute rotor_spin about Z; each roller revolute about its radial axis; rigid retainer_sit in the journal groove. assembly_solution must stay solved without yanking parts off-axis.
-- **Materials:** ${plaOrange} (stator, rollers, retainer) and ${plaGlow} (rotor). Hardened nozzle for glow. AMS lite is not recommended for glow.
+- **Materials:** ${plaOrange} stator (PLA races). ${plaGlow} rotor / blades (keep light for a later generator). ${petgBlack} hollow rollers + E-clip (dissimilar pair on both races; PETG snap strain). Hardened nozzle for glow and PETG. Dry PETG HF before print.
 - **Thrust pack:** ${spec.roller_count}× Ø${rollerD().toFixed(1)}×L${rollerLen().toFixed(1)} barrel-crowned radial-axis rollers (end Ø${rollerEndD().toFixed(2)}, mid land ${landLen().toFixed(1)}) on PCD ${pcd().toFixed(1)} (outer land r=${packOuterR().toFixed(1)}, blade R=${wingRadius().toFixed(1)}) between stator race Ø${axleFlangeD().toFixed(1)} and plate Ø${hubDeckOd().toFixed(1)}. Pack height = mid Ø. Inner/outer keeper walls ${keeper().toFixed(1)} mm so rollers cannot slide out the open Y-frame. Fence ID ${cageId().toFixed(1)} > plate bore ${plateBore().toFixed(1)}. Constant journal Ø${innerRaceD().toFixed(1)}×h${raceH().toFixed(1)} (pass Ø ${passD().toFixed(1)} < plate bore ${plateBore().toFixed(1)}). Drop crowned rollers into the U-windows, drop the rotor over the journal, then snap the E-clip into the groove. Not a pickup cartridge. Not a tall drum. Not standing-Z pucks.
 - **Scale:** source numbers are X2D-max (256×256×260, 8 mm margin). Exam scale ${spec.scale}. Feature floors: roller Ø${spec.roller_min_d}, TE ${spec.airfoil_te_min_mm}, 4-nozzle walls.
 - **Service finish:** rotor standing so layer lines run spanwise; sand PLA 400→1000 on skins. Do not vapor-smooth a running fit.
@@ -1918,14 +1943,14 @@ Three printed families, assembly order: ${spec.assembly_order.join(" → ")} (ro
 |------|------:|------|
 | Stator | 1 | Thin Y-frame + race ring with keeper walls + U-window fence + flat race + constant journal + snap groove. Print flat. |
 | Rotor | 1 | Thin root plate (upper thrust race) + organic airfoil roots + 3× ${spec.airfoil} with a tapered flat landing. Print standing. |
-| Rollers | ${spec.roller_count} | Barrel-crowned radial-axis rollers. Print standing; drop in from above; captured by keepers. |
-| Retainer | 1 | Clocked E-clip (D-hole + mouth + finger tabs). Snaps into the journal groove, not onto the rotor. |
+| Rollers | ${spec.roller_count} | Hollow barrel-crowned PETG rollers. Print standing; drop in from above; captured by keepers. |
+| Retainer | 1 | PETG E-clip (D-hole + mouth + finger tabs). Snaps into the journal groove, not onto the rotor. |
 
 Rotor bbox (exam): ${rotorBox ? `${rotorBox.span.map((n) => n.toFixed(1)).join(" × ")} mm` : "n/a"}; faces=${rotorFaces}. Bodies=${bodies.length}.
 
 ## 4. Printing cost (plastic / material)
 
-Assumptions: ${spec.filament.name}, ${spec.filament.density_g_cm3} g/cm³, $${spec.filament.price_usd_per_kg}/kg, print-volume factor ${spec.filament.print_volume_factor}.
+Assumptions: ${spec.filament.name}. PLA 1.24 g/cm³ + PETG 1.27 g/cm³, $${spec.filament.price_usd_per_kg}/kg, print-volume factor ${spec.filament.print_volume_factor}. Blades stay PLA Glow.
 
 | | Value |
 |--|------:|
@@ -1937,7 +1962,7 @@ Print plate in \`${out3mfDir}\` (folder wiped first; parts laid out on one plate
 
 ${plateFiles.map((file) => `- \`${file}\``).join("\n")}
 
-Slicer: one plate, two materials only (PLA Basic Orange + PLA Glow Green). Stator/retainer/rollers orange. Rotor glow green. Stator/retainer flat. Rotor standing on the root plate, tips up. Rollers standing.
+Slicer: one plate, three materials. Stator PLA Basic Orange (both race flats). Rotor / blades PLA Glow Green — keep light for a later generator; do not PETG the spinning blades. Rollers + E-clip PETG HF Black. Stator/retainer flat. Rotor standing on the root plate, tips up. Rollers standing. Dry PETG HF. Hardened nozzle for glow and PETG.
 
 Project: \`${outProject}\`
 
@@ -2085,13 +2110,13 @@ try {
   const appearances = [
     [statorId, plaOrange],
     [rotorId, plaGlow],
-    [retainerId, plaOrange],
+    [retainerId, petgBlack],
   ];
   for (const [id, preset] of appearances) {
     await call("set_body_appearance", { body_id: id, preset_id: preset });
   }
   for (const id of rollerIds) {
-    await call("set_body_appearance", { body_id: id, preset_id: plaOrange });
+    await call("set_body_appearance", { body_id: id, preset_id: petgBlack });
   }
   const hideDetail = await hideConstruction();
   const preflight = await call("solid_export_preflight");

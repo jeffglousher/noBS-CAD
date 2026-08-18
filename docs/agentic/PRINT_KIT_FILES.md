@@ -8,7 +8,10 @@ Hashes are SHA-256 prefixes (16 hex). Replay the live kit with
 
 ## Live bearing kit (print this)
 
-**NACA 0024-4.5/3.5 · 8 barrel-crowned rollers · U-window fence · E-clip · 90.2 cm³ · 47 g · $0.94**
+**NACA 0024-4.5/3.5 · 8 hollow barrel-crowned PETG rollers · U-window fence · PETG E-clip · PLA Glow blades · 90.2 cm³ · 47 g · $0.94**
+
+Hashes below are the **pre-PETG** solid-PLA crowned kit. Replay
+`--stage=kit` after this pass and refresh this page.
 SHA-256 of the 3MF starts `465883997473A724`. Size **472474** bytes.
 Written **2026-08-17 19:56:20**.
 

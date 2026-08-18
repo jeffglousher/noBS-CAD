@@ -194,7 +194,7 @@ If those steps are not visible in the solid, the exam failed.
 |-------|---------------|------------|
 | Coincident running faces | Hub sat on the flange; retainer sat on the hub. Zero axial play looks fused and binds in FDM. | 0.20 float at every running land. Inner race grows by the same float so rollers stay on the race. |
 | Retainer cap | Retainer OD covered the hub, so the washer looked like a disc through the rotor. | Washer OD is between hub bore and hub OD. |
-| Five colors / five plates | Assembled nest exported per part; materials did not match the two-filament print. | One laid-out `01-kit.3mf`. PLA Orange + PLA Glow only. |
+| Five colors / five plates | Assembled nest exported per part; materials did not match the print. | One laid-out `01-kit.3mf`. PLA Orange stator + PLA Glow blades + PETG HF pack. |
 
 ### 2026-08-16 bushing / mount pass
 
@@ -262,9 +262,17 @@ If those steps are not visible in the solid, the exam failed.
 | Separate axle disk + cage disk | Two flats on the plate. Extra plastic, extra assembly, and a square washer that rubs the rotor. | **One stator:** Y-frame + lower race + open fence + journal. The race *is* the Y-frame center. |
 | PIP lying rollers | OD prints as layers. Dimensions are poor. | Print rollers **standing**. **Top-load** slots (running + 2 nozzles) so they drop in from above with no support. |
 | Rubbing retainer washer | Square-slip washer sat on / near the plate and added friction on the turbine. | Clocked **C-snap** (D-hole + C-gap) sits on the journal shoulder, 0.20 above the plate. Pull to remove. Only one orientation. |
-| Sliding contacts on the turbine | Plate bore as friction, cage as journal, retainer as a running face. | Only rolling contacts: rollers ↔ races. Plate bore is running. Fence ID is a spacer. Retainer is not a running face. PLA-on-PLA is a demo; service dry PTFE on the races. |
+| Sliding contacts on the turbine | Plate bore as friction, cage as journal, retainer as a running face. | Only rolling contacts: rollers ↔ races. Plate bore is running. Fence ID is a spacer. Retainer is not a running face. Kit pair is PETG-on-PLA; service dry PTFE on the races is optional. |
 | Cookie race under the Y-frame | Merging the axle disk into a Ø74 solid reprinted the plastic we dropped. Rollers only contact a ring. | Race is a **ring** (ID ≈ PCD − roller length). Fence sits on that ring. Y-frame hub + ribs + pads stay open. |
 | Hourglass journal | Fat shoulder + snap bead above a thinner neck. Plate bore cannot pass the fat top, so the rotor will not drop on. | Journal is a **constant pass Ø** smaller than the plate bore. Clocked **C-clip** snaps into an undercut groove above the plate. Pull the C-gap to remove. D-flat is only on the tip, not through the running land. |
+
+### 2026-08-17 PETG pack / light blades pass
+
+| Fault | Why it failed | Correction |
+|-------|---------------|------------|
+| PLA-on-PLA solid rollers | Same-material dry CoF/wear. Long conforming land. Extra pack mass. | Hollow PETG HF rollers: short mid land (~22% L), 0.40 mm crown, Ø2.4 bore. Both races stay PLA. |
+| PETG on the spinning blades | Mass at R. A later generator needs \(\alpha = T/I\). | Rotor / blades stay PLA Glow. Stator (not spinning) stays PLA Orange. |
+| PETG race washer / PETG stator + PETG rollers | Extra part, or PETG-on-PETG on a land. | No washer. Dissimilar pair on **both** flats: PETG roller, PLA race. |
 
 ### 2026-08-17 capture / thin / organic pass
 
