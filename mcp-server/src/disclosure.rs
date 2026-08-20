@@ -1031,7 +1031,7 @@ mod tests {
             "solid_scene",
             "solid_recompute",
         ];
-            assert_eq!(modeling.len(), 118);
+        assert_eq!(modeling.len(), 118);
         for name in modeling {
             let (pack, spine) = tags_for_tool(name);
             assert!(

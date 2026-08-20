@@ -595,7 +595,9 @@ impl CadServer {
     }
 
     fn agent_guidance(&mut self) -> Value {
-        let scene = self.call_tool("solid_scene", json!({})).unwrap_or(json!({}));
+        let scene = self
+            .call_tool("solid_scene", json!({}))
+            .unwrap_or(json!({}));
         let body_count = scene
             .get("bodies")
             .and_then(Value::as_array)
@@ -4739,16 +4741,28 @@ mod tests {
         assert_eq!(listed["cacheScope"], "private");
         assert!(tools.iter().any(|tool| tool["name"] == "cad_document"));
         assert!(tools.iter().any(|tool| tool["name"] == "cad_get_focus"));
-        assert!(tools.iter().any(|tool| tool["name"] == "cad_agent_guidance"));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "cad_agent_guidance"));
         assert!(tools.iter().any(|tool| tool["name"] == "solid_check"));
         assert!(tools.iter().any(|tool| tool["name"] == "sketch_begin"));
         assert!(tools.iter().any(|tool| tool["name"] == "solid_extrude"));
         assert!(tools.iter().any(|tool| tool["name"] == "assembly_document"));
-        assert!(tools.iter().any(|tool| tool["name"] == "assembly_create_joint"));
-        assert!(tools.iter().any(|tool| tool["name"] == "assembly_set_joint_motion"));
-        assert!(tools.iter().any(|tool| tool["name"] == "assembly_interference_check"));
-        assert!(tools.iter().any(|tool| tool["name"] == "cad_drawing_document"));
-        assert!(tools.iter().any(|tool| tool["name"] == "cad_drawing_create_sheet"));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "assembly_create_joint"));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "assembly_set_joint_motion"));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "assembly_interference_check"));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "cad_drawing_document"));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "cad_drawing_create_sheet"));
 
         let initialized = handle_message(
             &mut server,
