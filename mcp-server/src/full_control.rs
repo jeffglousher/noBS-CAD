@@ -650,6 +650,11 @@ pub const RIBBON_FEATURES: &[RibbonFeature] = &[
     },
     RibbonFeature {
         action: "bodyFeature",
+        payload: Some("external_thread"),
+        tool: "solid_external_thread",
+    },
+    RibbonFeature {
+        action: "bodyFeature",
         payload: Some("shell"),
         tool: "solid_shell",
     },

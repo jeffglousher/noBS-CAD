@@ -629,7 +629,9 @@ pub fn tags_for_tool(name: &str) -> (FocusPack, bool) {
         | "solid_fillet_definitions"
         | "solid_chamfer_definitions"
         | "solid_hole_definitions" => FocusPack::Modify,
-        "solid_shell"
+        "solid_external_thread"
+        | "solid_edit_external_thread"
+        | "solid_shell"
         | "solid_edit_shell"
         | "solid_move_copy"
         | "solid_edit_move_copy"
@@ -707,7 +709,8 @@ pub fn auto_focus_for_tool(name: &str) -> Option<FocusPack> {
         return Some(FocusPack::Modify);
     }
     if name.starts_with("solid_")
-        && (name.contains("shell")
+        && (name.contains("external_thread")
+            || name.contains("shell")
             || name.contains("move_copy")
             || name.contains("mirror")
             || name.contains("pattern")
@@ -983,6 +986,8 @@ mod tests {
             "solid_edit_chamfer",
             "solid_hole",
             "solid_edit_hole",
+            "solid_external_thread",
+            "solid_edit_external_thread",
             "solid_shell",
             "solid_edit_shell",
             "solid_move_copy",
@@ -1026,7 +1031,7 @@ mod tests {
             "solid_scene",
             "solid_recompute",
         ];
-            assert_eq!(modeling.len(), 116);
+        assert_eq!(modeling.len(), 118);
         for name in modeling {
             let (pack, spine) = tags_for_tool(name);
             assert!(

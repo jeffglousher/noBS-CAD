@@ -168,8 +168,7 @@ impl Spec {
         // Race covers the rollers and the cage rim. Stay inside the
         // plate — cage_od+4 was the orange halo under a smaller deck.
         let race = self.pcd() + self.roller_len() + 2.0;
-        race.max(self.cage_od())
-            .min(self.hub_deck_od() - 2.0)
+        race.max(self.cage_od()).min(self.hub_deck_od() - 2.0)
     }
     fn axle_flange_h(&self) -> f64 {
         self.mm_min(self.axle_flange_h, 2.4)
@@ -336,8 +335,7 @@ impl Spec {
     fn cage_id(&self) -> f64 {
         // Fence sits on the race ring only. Do not fill the Y-frame
         // with a second cookie. Still looser than the plate bore.
-        self.race_id()
-            .max(self.plate_bore() + 2.0 * self.wall())
+        self.race_id().max(self.plate_bore() + 2.0 * self.wall())
     }
     fn cage_h(&self) -> f64 {
         self.fence_h()
@@ -569,8 +567,7 @@ impl Spec {
             && (self.cage_z() - self.race_z()).abs() < 1e-9
             && (self.plate_z() - (self.race_z() + self.pack_h() + self.thrust_float)).abs() < 1e-9
             && (self.hub_z() - self.plate_z()).abs() < 1e-9
-            && (self.groove_z() - (self.plate_z() + self.hub_deck_h() + self.thrust_float))
-                .abs()
+            && (self.groove_z() - (self.plate_z() + self.hub_deck_h() + self.thrust_float)).abs()
                 < 1e-9
             && (self.retainer_z() - self.groove_z()).abs() < 1e-9
             && (self.z_mid() - (self.race_z() + self.pack_h() * 0.5)).abs() < 1e-9
@@ -757,7 +754,10 @@ pub fn run(call: &mut impl FnMut(&str, Value) -> Result<Value, String>) -> Resul
         Err(error) => (false, error),
     };
     let (drawing_ok, drawing_detail) = match make_assembly_drawing(&mut call, &spec) {
-        Ok(()) => (true, "A3 assembly sheet with fit / scale / print / BOM notes".to_string()),
+        Ok(()) => (
+            true,
+            "A3 assembly sheet with fit / scale / print / BOM notes".to_string(),
+        ),
         Err(error) => (false, error),
     };
 
@@ -824,14 +824,7 @@ fn export_print_plates(
     roller_ids: &[u64],
     retainer_id: u64,
 ) -> Result<Vec<(String, Value)>, String> {
-    layout_print_plate(
-        call,
-        spec,
-        stator_id,
-        rotor_id,
-        roller_ids,
-        retainer_id,
-    )?;
+    layout_print_plate(call, spec, stator_id, rotor_id, roller_ids, retainer_id)?;
     let mut body_ids = vec![stator_id, rotor_id, retainer_id];
     body_ids.extend(roller_ids.iter().copied());
     let name = spec
@@ -855,7 +848,13 @@ fn move_bodies(
     body_ids: &[u64],
     translation: [f64; 3],
 ) -> Result<(), String> {
-    transform_bodies(call, body_ids, translation, [0.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0])
+    transform_bodies(
+        call,
+        body_ids,
+        translation,
+        [0.0, 0.0, 0.0, 1.0],
+        [0.0, 0.0, 0.0],
+    )
 }
 
 fn transform_bodies(
@@ -1097,7 +1096,11 @@ fn layout_print_plate(
     let stator_r = spec.base_envelope().max(spec.axle_flange_d()) * 0.5;
     let ret_r = spec.retainer_od() * 0.5;
     let col_x = rotor_r + gap + stator_r;
-    move_bodies(call, &[rotor_id], [-rotor_r - gap * 0.5, 0.0, -spec.plate_z()])?;
+    move_bodies(
+        call,
+        &[rotor_id],
+        [-rotor_r - gap * 0.5, 0.0, -spec.plate_z()],
+    )?;
     move_bodies(call, &[stator_id], [col_x, stator_r + gap * 0.5, 0.0])?;
     let roll_pitch = spec.roller_d() + 4.0;
     let slot_x = col_x + stator_r + gap + spec.roller_d() * 0.5;
@@ -1316,11 +1319,7 @@ fn blade_loft_stations(spec: &Spec) -> Vec<(f64, f64, f64)> {
         let z = spec.blade_loft_z() + spec.root_blend_h() + span * t;
         out.push((z, t, chord));
     }
-    out.push((
-        spec.blade_loft_z() + spec.wing_h(),
-        1.0,
-        spec.tip_chord(),
-    ));
+    out.push((spec.blade_loft_z() + spec.wing_h(), 1.0, spec.tip_chord()));
     out
 }
 
@@ -1498,13 +1497,8 @@ fn place_rollers(
     let mut seen = known.to_vec();
     let mut roller_ids = Vec::new();
     for index in 0..spec.roller_count {
-        let id = place_crowned_roller(
-            call,
-            spec,
-            index,
-            &seen,
-            &format!("crowned roller {index}"),
-        )?;
+        let id =
+            place_crowned_roller(call, spec, index, &seen, &format!("crowned roller {index}"))?;
         seen.push(id);
         roller_ids.push(id);
     }
@@ -1587,10 +1581,7 @@ fn build_retainer(
         begin_datum(call, deck.clone())?;
         add_oriented_rect(
             call,
-            [
-                -(od + hole) * 0.25,
-                sign * (mouth * 0.5 + tab_w * 0.35),
-            ],
+            [-(od + hole) * 0.25, sign * (mouth * 0.5 + tab_w * 0.35)],
             tab_l,
             tab_w,
             0.0,
@@ -1609,7 +1600,10 @@ fn build_retainer(
                     "target_body_ids": [retainer_id]
                 }),
             )?,
-            &format!("retainer finger tab {}", if sign > 0.0 { "plus" } else { "minus" }),
+            &format!(
+                "retainer finger tab {}",
+                if sign > 0.0 { "plus" } else { "minus" }
+            ),
         )?;
     }
     cut_bed_relief_circle(
@@ -1635,7 +1629,10 @@ fn purge_orphan_components(
         .filter_map(|body| body["id"].as_u64())
         .collect();
     let mut document = call("assembly_document", json!({}))?;
-    let Some(defs) = document["component_structure"]["definitions"].as_array().cloned() else {
+    let Some(defs) = document["component_structure"]["definitions"]
+        .as_array()
+        .cloned()
+    else {
         return Ok(());
     };
     let keep: std::collections::HashSet<u64> = defs
@@ -1645,14 +1642,20 @@ fn purge_orphan_components(
                 .as_array()
                 .map(|ids| {
                     !ids.is_empty()
-                        && ids.iter().all(|id| id.as_u64().is_some_and(|id| live.contains(&id)))
+                        && ids
+                            .iter()
+                            .all(|id| id.as_u64().is_some_and(|id| live.contains(&id)))
                 })
                 .unwrap_or(false)
         })
         .filter_map(|definition| definition["id"].as_u64())
         .collect();
     if let Some(definitions) = document["component_structure"]["definitions"].as_array_mut() {
-        definitions.retain(|definition| definition["id"].as_u64().is_some_and(|id| keep.contains(&id)));
+        definitions.retain(|definition| {
+            definition["id"]
+                .as_u64()
+                .is_some_and(|id| keep.contains(&id))
+        });
     }
     if let Some(occurrences) = document["component_structure"]["occurrences"].as_array_mut() {
         occurrences.retain(|occurrence| {
@@ -1749,15 +1752,8 @@ fn form_assembly(
             call,
             &format!("roller_{index}_spin"),
             "revolute",
-            radial_connector_at(
-                &scene,
-                stator_id,
-                [x, y],
-                z,
-                spec.witness_d() * 0.5,
-                axis,
-            )
-            .ok_or_else(|| format!("no stator witness radial axis for roller {index}"))?,
+            radial_connector_at(&scene, stator_id, [x, y], z, spec.witness_d() * 0.5, axis)
+                .ok_or_else(|| format!("no stator witness radial axis for roller {index}"))?,
             radial_connector_at(&scene, *roller_id, [x, y], z, spec.roller_d() * 0.5, axis)
                 .ok_or_else(|| format!("no roller radial axis for roller {index}"))?,
             stator_id,
@@ -1873,20 +1869,19 @@ fn create_stable_joint_flips(
             }),
         );
         match created {
-            Ok(joint) => {
-                match require_linked_solution(call) {
-                    Ok(()) => return Ok(()),
-                    Err(error) => {
-                        if let Some(joint_id) =
-                            joint["id"].as_u64().or_else(|| joint["joint"]["id"].as_u64())
-                        {
-                            let _ = call("assembly_delete_joint", json!({ "joint_id": joint_id }));
-                        }
-                        last_error =
-                            format!("{name} yanked or failed to solve (flipped={flipped}): {error}");
+            Ok(joint) => match require_linked_solution(call) {
+                Ok(()) => return Ok(()),
+                Err(error) => {
+                    if let Some(joint_id) = joint["id"]
+                        .as_u64()
+                        .or_else(|| joint["joint"]["id"].as_u64())
+                    {
+                        let _ = call("assembly_delete_joint", json!({ "joint_id": joint_id }));
                     }
+                    last_error =
+                        format!("{name} yanked or failed to solve (flipped={flipped}): {error}");
                 }
-            }
+            },
             Err(error) => last_error = format!("{name} (flipped={flipped}): {error}"),
         }
     }
@@ -2039,8 +2034,9 @@ fn journal_axis_at(scene: &Value, axle_id: u64, z: f64, want_radius: f64) -> Opt
     // Prefer the journal cylinder so each revolute can sit at the partner's
     // actual edge Z. Picking the nearest journal *circle* on a short puck
     // locks cage and plate to different heights and yanks the pack.
-    cylindrical_face_along(scene, axle_id, [0.0, 0.0, z], [0.0, 0.0, 1.0], want_radius)
-        .or_else(|| circular_edge_along(scene, axle_id, [0.0, 0.0, z], [0.0, 0.0, 1.0], want_radius))
+    cylindrical_face_along(scene, axle_id, [0.0, 0.0, z], [0.0, 0.0, 1.0], want_radius).or_else(
+        || circular_edge_along(scene, axle_id, [0.0, 0.0, z], [0.0, 0.0, 1.0], want_radius),
+    )
 }
 
 fn axis_connector_at(
@@ -2050,10 +2046,15 @@ fn axis_connector_at(
     z: f64,
     want_radius: f64,
 ) -> Option<Value> {
-    circular_edge_at(scene, body_id, xy, z, want_radius)
-        .or_else(|| {
-            cylindrical_face_along(scene, body_id, [xy[0], xy[1], z], [0.0, 0.0, 1.0], want_radius)
-        })
+    circular_edge_at(scene, body_id, xy, z, want_radius).or_else(|| {
+        cylindrical_face_along(
+            scene,
+            body_id,
+            [xy[0], xy[1], z],
+            [0.0, 0.0, 1.0],
+            want_radius,
+        )
+    })
 }
 
 fn radial_connector_at(
@@ -2083,7 +2084,6 @@ fn axis_norm(v: [f64; 3]) -> [f64; 3] {
         [v[0] / n, v[1] / n, v[2] / n]
     }
 }
-
 fn axis_aligned(axis: [f64; 3], want: [f64; 3]) -> bool {
     axis_dot(axis_norm(axis), axis_norm(want)).abs() >= 0.85
 }
@@ -2195,7 +2195,13 @@ fn circular_edge_at(
     z: f64,
     want_radius: f64,
 ) -> Option<Value> {
-    circular_edge_along(scene, body_id, [xy[0], xy[1], z], [0.0, 0.0, 1.0], want_radius)
+    circular_edge_along(
+        scene,
+        body_id,
+        [xy[0], xy[1], z],
+        [0.0, 0.0, 1.0],
+        want_radius,
+    )
 }
 
 fn circular_edge_along(
@@ -2310,7 +2316,11 @@ fn grade(
         spec.fits_ok() && spec.stack_ok(),
         format!(
             "running +{:.2}  PIP +{:.2}  slip +{:.2}  friction +{:.2}  bed lead-in {:.2}",
-            spec.fit_running_mm, spec.fit_pip_mm, spec.fit_slip_mm, spec.fit_friction_mm, spec.bed_relief_mm
+            spec.fit_running_mm,
+            spec.fit_pip_mm,
+            spec.fit_slip_mm,
+            spec.fit_friction_mm,
+            spec.bed_relief_mm
         ),
     );
     push_lesson(
@@ -2365,9 +2375,7 @@ fn grade(
         .and_then(|body| body["faces"].as_array().map(|faces| faces.len()))
         .unwrap_or(0);
     let rotor_box = rotor.and_then(bbox);
-    let rotor_span = rotor_box
-        .map(|box3| box3[1][2] - box3[0][2])
-        .unwrap_or(0.0);
+    let rotor_span = rotor_box.map(|box3| box3[1][2] - box3[0][2]).unwrap_or(0.0);
     push_lesson(
         &mut lessons,
         "one_piece_rotor",
@@ -2587,17 +2595,11 @@ fn add_airfoil(
 ) -> Result<(), String> {
     let angle = angle_deg.to_radians();
     let (cos, sin) = (angle.cos(), angle.sin());
-    let world: Vec<[f64; 2]> = naca_symmetric_loop(
-        chord,
-        thickness_ratio,
-        xt_c,
-        le_index,
-        stations,
-        te_min,
-    )
-    .into_iter()
-    .map(|[x, y]| [center[0] + cos * x - sin * y, center[1] + sin * x + cos * y])
-    .collect();
+    let world: Vec<[f64; 2]> =
+        naca_symmetric_loop(chord, thickness_ratio, xt_c, le_index, stations, te_min)
+            .into_iter()
+            .map(|[x, y]| [center[0] + cos * x - sin * y, center[1] + sin * x + cos * y])
+            .collect();
     add_poly(call, &world, true)
 }
 
@@ -3036,9 +3038,18 @@ mod spec_tests {
         assert!(spec.min_print_plates >= 1);
         assert_eq!(spec.print_plates.len(), 1);
         assert_eq!(spec.print_plates[0], "01-kit");
-        assert!(spec.retired_print_plates.iter().any(|name| name == "02-shaft"));
-        assert!(spec.retired_print_plates.iter().any(|name| name == "01-base"));
-        assert!(spec.retired_print_plates.iter().any(|name| name == "06-bushing"));
+        assert!(spec
+            .retired_print_plates
+            .iter()
+            .any(|name| name == "02-shaft"));
+        assert!(spec
+            .retired_print_plates
+            .iter()
+            .any(|name| name == "01-base"));
+        assert!(spec
+            .retired_print_plates
+            .iter()
+            .any(|name| name == "06-bushing"));
         assert_eq!(spec.materials.orange, "bambu.pla.basic.orange");
         assert_eq!(spec.materials.glow, "bambu.pla.glow.green");
         assert_eq!(spec.materials.petg, "bambu.petg.hf.black");
@@ -3077,14 +3088,22 @@ mod spec_tests {
         assert!((spec.roller_d() * 0.5 - spec.roller_bore_d() * 0.5) > 2.5);
         assert!((spec.clip_mouth() - 8.0).abs() < 1e-9);
         assert!(spec.clip_mouth() < spec.groove_d());
-        assert!((spec.retainer_od() - (spec.retainer_d_hole() + 2.0 * spec.clip_arm_t())).abs() < 1e-9);
+        assert!(
+            (spec.retainer_od() - (spec.retainer_d_hole() + 2.0 * spec.clip_arm_t())).abs() < 1e-9
+        );
         assert!((spec.witness_d() - 2.4).abs() < 1e-9);
         assert!(spec.fence_h() + 1.2 <= spec.pack_h() + 1e-9);
         assert!(spec.fit_pip_mm > spec.fit_running_mm);
         let yt_max = naca4_modified_yt_over_c(0.35, 0.24, 0.35, 4.5);
         assert!((yt_max - 0.12).abs() < 0.004);
-        assert!(naca4_modified_yt_over_c(0.35, 0.24, 0.35, 4.5) > naca4_modified_yt_over_c(0.10, 0.24, 0.35, 4.5));
-        assert!(naca4_modified_yt_over_c(0.35, 0.24, 0.35, 4.5) > naca4_modified_yt_over_c(0.70, 0.24, 0.35, 4.5));
+        assert!(
+            naca4_modified_yt_over_c(0.35, 0.24, 0.35, 4.5)
+                > naca4_modified_yt_over_c(0.10, 0.24, 0.35, 4.5)
+        );
+        assert!(
+            naca4_modified_yt_over_c(0.35, 0.24, 0.35, 4.5)
+                > naca4_modified_yt_over_c(0.70, 0.24, 0.35, 4.5)
+        );
         assert!((spec.bed_relief_mm - spec.nozzle_mm * 2.0).abs() < 1e-9);
         assert!((spec.cage_pocket() - (spec.roller_d() + spec.fit_running_mm)).abs() < 1e-9);
         assert!(spec.hub_deck_od() > spec.axle_flange_d());

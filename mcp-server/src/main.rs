@@ -40,7 +40,7 @@ const META_CLIENT_INFO: &str = "io.modelcontextprotocol/clientInfo";
 const META_CLIENT_CAPABILITIES: &str = "io.modelcontextprotocol/clientCapabilities";
 const META_SERVER_INFO: &str = "io.modelcontextprotocol/serverInfo";
 const UNSUPPORTED_PROTOCOL_VERSION: i64 = -32022;
-const MODELING_TOOL_COUNT: usize = 206;
+const MODELING_TOOL_COUNT: usize = 208;
 const CONTROL_TOOL_COUNT: usize = 13;
 const PRINT_HELPER_COUNT: usize = 9;
 
@@ -595,7 +595,9 @@ impl CadServer {
     }
 
     fn agent_guidance(&mut self) -> Value {
-        let scene = self.call_tool("solid_scene", json!({})).unwrap_or(json!({}));
+        let scene = self
+            .call_tool("solid_scene", json!({}))
+            .unwrap_or(json!({}));
         let body_count = scene
             .get("bodies")
             .and_then(Value::as_array)
@@ -2001,7 +2003,7 @@ fn tool_specs() -> Vec<ToolSpec> {
             "bottom_style": { "type": "string", "enum": ["flat", "drill_point"] },
             "drill_point_angle_deg": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 180 },
             "thread": {
-                "oneOf": [hole_thread, {"type": "null"}],
+                "oneOf": [hole_thread.clone(), {"type": "null"}],
                 "description": "Optional ISO metric or ASME B1.1 Unified internal thread. Hole diameter is the predrill diameter."
             },
             "flip": { "type": "boolean" }
@@ -2128,6 +2130,15 @@ fn tool_specs() -> Vec<ToolSpec> {
             "plane": plane.clone()
         }),
         &["body_id", "plane"],
+    );
+    let external_thread = object_schema(
+        json!({
+            "body_id": { "type": "integer", "minimum": 1 },
+            "face_id": { "type": "integer", "minimum": 1 },
+            "thread": hole_thread,
+            "flip": { "type": "boolean" }
+        }),
+        &["body_id", "face_id", "thread"],
     );
     let offset_plane = object_schema(
         json!({
@@ -3340,6 +3351,28 @@ fn tool_specs() -> Vec<ToolSpec> {
                     "hole": hole
                 }),
                 &["feature_id", "hole"],
+            ),
+        ),
+        ToolSpec::solid(
+            "solid_external_thread",
+            "External thread",
+            "Create a male ISO metric or ASME B1.1 Unified thread on an existing cylindrical solid face.",
+            "solid_prepare_body_feature",
+            Payload::BodyFeature("external_thread"),
+            external_thread.clone(),
+        ),
+        ToolSpec::solid(
+            "solid_edit_external_thread",
+            "Edit External Thread feature",
+            "Edit a persisted External Thread and fully replay downstream history.",
+            "solid_prepare_edit_body_feature",
+            Payload::EditBodyFeature("external_thread"),
+            object_schema(
+                json!({
+                    "feature_id": {"type": "integer", "minimum": 1},
+                    "request": external_thread
+                }),
+                &["feature_id", "request"],
             ),
         ),
         ToolSpec::solid(
@@ -4688,7 +4721,7 @@ mod tests {
         assert_eq!(
             all_tools.len(),
             MODELING_TOOL_COUNT + PRINT_HELPER_COUNT + CONTROL_TOOL_COUNT,
-            "206 modeling tools plus 9 print helpers and 13 control tools"
+            "208 modeling tools plus 9 print helpers and 13 control tools"
         );
         let modeling_count = all_tools
             .iter()
@@ -4708,16 +4741,28 @@ mod tests {
         assert_eq!(listed["cacheScope"], "private");
         assert!(tools.iter().any(|tool| tool["name"] == "cad_document"));
         assert!(tools.iter().any(|tool| tool["name"] == "cad_get_focus"));
-        assert!(tools.iter().any(|tool| tool["name"] == "cad_agent_guidance"));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "cad_agent_guidance"));
         assert!(tools.iter().any(|tool| tool["name"] == "solid_check"));
         assert!(tools.iter().any(|tool| tool["name"] == "sketch_begin"));
         assert!(tools.iter().any(|tool| tool["name"] == "solid_extrude"));
         assert!(tools.iter().any(|tool| tool["name"] == "assembly_document"));
-        assert!(tools.iter().any(|tool| tool["name"] == "assembly_create_joint"));
-        assert!(tools.iter().any(|tool| tool["name"] == "assembly_set_joint_motion"));
-        assert!(tools.iter().any(|tool| tool["name"] == "assembly_interference_check"));
-        assert!(tools.iter().any(|tool| tool["name"] == "cad_drawing_document"));
-        assert!(tools.iter().any(|tool| tool["name"] == "cad_drawing_create_sheet"));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "assembly_create_joint"));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "assembly_set_joint_motion"));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "assembly_interference_check"));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "cad_drawing_document"));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "cad_drawing_create_sheet"));
 
         let initialized = handle_message(
             &mut server,
@@ -5375,7 +5420,7 @@ mod tests {
         assert_eq!(packs["sketch"], 50);
         assert_eq!(packs["solid"], 15);
         assert_eq!(packs["modify"], 9);
-        assert_eq!(packs["body_ops"], 16);
+        assert_eq!(packs["body_ops"], 18);
         assert!(packs["datums"] >= 6);
         assert!(packs["history"] >= 5);
         assert_eq!(packs["inspect"], 3);
